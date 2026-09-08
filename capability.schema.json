@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://zhinen.example/schemas/capability.schema.json",
+  "title": "Zhinen Capability",
+  "type": "object",
+  "required": ["capabilityId", "version", "status", "provider"],
+  "additionalProperties": false,
+  "properties": {
+    "capabilityId": { "type": "string", "pattern": "^[a-z][a-z0-9]*(\\.[a-z0-9-]+){1,5}$" },
+    "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
+    "status": { "type": "string", "enum": ["proposed", "experimental", "stable", "deprecated", "retired"] },
+    "provider": { "type": "string", "minLength": 1 },
+    "prerequisites": { "type": "array", "items": { "type": "string" } },
+    "license": { "type": "string" },
+    "resourceProfile": { "type": "string" }
+  }
+}

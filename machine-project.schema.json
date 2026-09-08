@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://zhinen.example/schemas/machine-project.schema.json",
+  "title": "Zhinen Machine Project",
+  "type": "object",
+  "required": ["schemaVersion", "projectId", "name", "revision", "capabilities", "components"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": { "type": "string", "const": "0.1" },
+    "projectId": { "type": "string", "pattern": "^[A-Z0-9-]{3,64}$" },
+    "name": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "revision": { "type": "string", "pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+$" },
+    "machineId": { "type": "string", "pattern": "^[A-Z0-9-]{3,64}$" },
+    "capabilities": { "type": "array", "items": { "$ref": "capability.schema.json" } },
+    "components": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["componentId", "kind", "version"],
+        "additionalProperties": false,
+        "properties": {
+          "componentId": { "type": "string", "pattern": "^[A-Z0-9-]{3,64}$" },
+          "kind": { "type": "string", "enum": ["plc", "hmi", "vision", "motion", "robot", "scada", "mes", "ai", "driver"] },
+          "version": { "type": "string", "pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+$" },
+          "source": { "type": "string" },
+          "criticality": { "type": "string", "enum": ["normal", "critical", "safety"] }
+        }
+      }
+    }
+  }
+}

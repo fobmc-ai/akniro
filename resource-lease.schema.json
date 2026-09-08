@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://zhinen.example/schemas/resource-lease.schema.json",
+  "title": "Zhinen Resource Lease",
+  "type": "object",
+  "required": ["leaseId", "resource", "holder", "priority", "mode", "expiresAt"],
+  "additionalProperties": false,
+  "properties": {
+    "leaseId": { "type": "string", "pattern": "^[A-Z0-9-]{3,64}$" },
+    "resource": { "type": "string", "minLength": 1 },
+    "holder": { "type": "string", "minLength": 1 },
+    "priority": { "type": "string", "enum": ["safety", "realtime", "normal", "background"] },
+    "mode": { "type": "string", "enum": ["exclusive", "shared"] },
+    "expiresAt": { "type": "string", "format": "date-time" }
+  }
+}
