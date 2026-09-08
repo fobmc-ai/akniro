@@ -1,0 +1,8 @@
+work/
+*.log
+.env
+.env.*
+node_modules/
+dist/
+coverage/
+
