@@ -577,17 +577,18 @@ class ProjectStore:
         updated = self.update_entity_payload(entity_id=release_id, payload=payload, actor_id=actor_id, expected_revision=release["revision"])
         return {"release": updated, "sbom": sbom, "components": components, "gate": self.release_gate(release_id)}
 
-    def execute_test_case(self, *, project_id: str, tenant_id: str, test_case_id: str, run_id: str, evidence_id: str, actor_id: str, passed: bool, release_id: str | None = None, issue_id: str | None = None) -> dict[str, Any]:
+    def execute_test_case(self, *, project_id: str, tenant_id: str, test_case_id: str, run_id: str, evidence_id: str, actor_id: str, passed: bool, release_id: str | None = None, issue_id: str | None = None, environment: str = "SIMULATION") -> dict[str, Any]:
         case = self.get_entity(test_case_id)
         if case["project_id"] != project_id or case["entity_type"] != "test_case":
             raise KeyError("test case not found in project")
         required_definition = ("steps", "inputs", "expected", "thresholds")
         if any(not case["payload"].get(field) for field in required_definition):
             raise ValueError("PM-TEST-001: test case execution needs steps, inputs, expected results and thresholds")
-        run = self.create_entity(entity_id=run_id, entity_type="test_run", project_id=project_id, tenant_id=tenant_id, title=f"Run: {case['title']}", owner_id=actor_id, payload={"testCaseId": test_case_id, "result": "PASSED" if passed else "FAILED"})
+        run_payload = {"testCaseId": test_case_id, "testCaseRevision": case["revision"], "environment": environment, "executedBy": actor_id, "result": "PASSED" if passed else "FAILED"}
+        run = self.create_entity(entity_id=run_id, entity_type="test_run", project_id=project_id, tenant_id=tenant_id, title=f"Run: {case['title']}", owner_id=actor_id, payload=run_payload)
         self.transition(entity_id=run_id, target="RUNNING", actor_id=actor_id, expected_revision=1)
         final = self.transition(entity_id=run_id, target="PASSED" if passed else "FAILED", actor_id=actor_id, expected_revision=2)
-        evidence = self.create_entity(entity_id=evidence_id, entity_type="evidence", project_id=project_id, tenant_id=tenant_id, title=f"Evidence: {case['title']}", owner_id=actor_id, payload={"testRunId": run_id, "source": "test-case-execution", "result": "PASSED" if passed else "FAILED"})
+        evidence = self.create_entity(entity_id=evidence_id, entity_type="evidence", project_id=project_id, tenant_id=tenant_id, title=f"Evidence: {case['title']}", owner_id=actor_id, payload={"testRunId": run_id, "testCaseId": test_case_id, "testCaseRevision": case["revision"], "environment": environment, "executedBy": actor_id, "source": "test-case-execution", "result": "PASSED" if passed else "FAILED"})
         self.link_entities(project_id=project_id, from_id=test_case_id, to_id=evidence_id, link_type="produces", actor_id=actor_id)
         issue = None
         if passed:
@@ -600,7 +601,7 @@ class ProjectStore:
             self.notify_project_owner(project_id=project_id, kind="test_failed", message=f"Test case failed: {issue['id']}", correlation_id=run_id)
         return {"testRun": final, "evidence": evidence, "issue": issue}
 
-    def execute_test_plan(self, *, project_id: str, tenant_id: str, test_plan_id: str, actor_id: str, run_prefix: str, evidence_prefix: str, passed_by_case: dict[str, bool] | None = None, release_id: str | None = None) -> dict[str, Any]:
+    def execute_test_plan(self, *, project_id: str, tenant_id: str, test_plan_id: str, actor_id: str, run_prefix: str, evidence_prefix: str, passed_by_case: dict[str, bool] | None = None, release_id: str | None = None, environment: str = "SIMULATION") -> dict[str, Any]:
         plan = self.get_entity(test_plan_id)
         if plan["project_id"] != project_id or plan["entity_type"] != "test_plan":
             raise KeyError("test plan not found in project")
@@ -616,7 +617,7 @@ class ProjectStore:
         results = []
         passed_by_case = passed_by_case or {}
         for index, test_case_id in enumerate(test_case_ids, start=1):
-            result = self.execute_test_case(project_id=project_id, tenant_id=tenant_id, test_case_id=test_case_id, run_id=f"{run_prefix}-{index}", evidence_id=f"{evidence_prefix}-{index}", actor_id=actor_id, passed=bool(passed_by_case.get(test_case_id, True)), release_id=release_id)
+            result = self.execute_test_case(project_id=project_id, tenant_id=tenant_id, test_case_id=test_case_id, run_id=f"{run_prefix}-{index}", evidence_id=f"{evidence_prefix}-{index}", actor_id=actor_id, passed=bool(passed_by_case.get(test_case_id, True)), release_id=release_id, environment=environment)
             results.append(result)
         all_passed = all(item["testRun"]["status"] == "PASSED" for item in results)
         plan = self.transition(entity_id=test_plan_id, target="COMPLETED" if all_passed else "FAILED", actor_id=actor_id, expected_revision=plan["revision"])

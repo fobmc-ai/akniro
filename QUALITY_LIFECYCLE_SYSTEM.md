@@ -11,7 +11,7 @@
 | Design Goal | 定义功能/算法/工具要达到什么目标 | Requirement、Acceptance Criteria |
 | Test Plan | 定义验证范围、环境和测试策略 | Design Goal、Risk |
 | Test Case | 可重复的测试步骤和预期结果 | Requirement、Design Goal |
-| Test Run | 某次实际执行 | Test Case、Environment、Version |
+| Test Run | 某次实际执行 | Test Case、Test Case Revision、Environment、Executor、Version |
 | Test Evidence | 日志、波形、截图、数据和报告 | Test Run、Artifact |
 | Tool Validation | 验证 PLC/HMI/编译器/模拟器/驱动工具 | Tool Version、Golden Project |
 | Problem | 软件、机器、算法或流程问题 | Version、Evidence、Root Cause |

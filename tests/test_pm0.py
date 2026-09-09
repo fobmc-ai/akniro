@@ -379,6 +379,7 @@ class PM0Tests(unittest.TestCase):
             result = store.execute_test_case(project_id="P-001", tenant_id="T-001", test_case_id=case["id"], run_id="RUN-001", evidence_id="EV-001", actor_id="U-001", passed=True, release_id=release["id"])
             self.assertEqual(result["testRun"]["status"], "PASSED")
             self.assertEqual(result["evidence"]["status"], "VALIDATED")
+            self.assertEqual((result["testRun"]["payload"]["environment"], result["evidence"]["payload"]["testCaseRevision"], result["evidence"]["payload"]["executedBy"]), ("SIMULATION", 1, "U-001"))
             self.assertEqual(store.list_links("P-001", "REL-001")[0]["to_id"], "EV-001")
             store.close()
 
