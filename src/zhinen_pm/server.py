@@ -100,6 +100,8 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                         return self._send(200, {"snapshots": store.list_snapshots(project_id)})
                     if path.endswith("/readiness"):
                         return self._send(200, {"items": store.backlog_readiness(project_id)})
+                    if path.endswith("/capability-readiness"):
+                        return self._send(200, {"capabilities": store.capability_evidence(project_id, [x["id"] for x in list_capabilities()])})
                     if path.endswith("/release-gate"):
                         release_id = parse_qs(urlparse(self.path).query).get("releaseId", [None])[0]
                         if not release_id:

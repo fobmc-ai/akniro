@@ -19,6 +19,7 @@
 - 模拟证据包含稳定 `traceHash`；Robot 握手顺序、FAT/SAT 清单、Edge 重放幂等性和生命周期指标均按确定性规则重放，便于回归比较；
 - `LIFE-001`：生产指标、质量指标和维护流程统一进入生命周期验证，缺项会阻止软件验收证据通过；
 - `GET /api/projects/{projectId}/readiness`：按工作包依赖计算可开始项；
+- `GET /api/projects/{projectId}/capability-readiness`：按能力 ID 汇总 VALIDATED Evidence 覆盖情况；验收报告同时返回该矩阵；
 - 工程资产、参数和现场写入仍必须经 Artifact/Edge owner API、审批、回读和审计。
 
 真实工具插件接入时，只替换 capability adapter，不改变项目对象、测试证据、Release 和安全边界。

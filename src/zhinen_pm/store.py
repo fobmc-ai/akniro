@@ -274,7 +274,17 @@ class ProjectStore:
         releases = [x for x in entities if x["entity_type"] == "release"]
         evidence = [x for x in entities if x["entity_type"] == "evidence"]
         gates = [self.release_gate(x["id"]) for x in releases]
-        return {"projectId": project_id, "generatedAt": now(), "summary": {"workPackages": stats["backlog"], "readyWorkPackages": sum(1 for x in readiness if x["ready"]), "blockedWorkPackages": sum(1 for x in readiness if not x["ready"]), "validatedEvidence": sum(1 for x in evidence if x["status"] == "VALIDATED"), "machineObjects": len(self.list_machine_objects(project_id)), "artifacts": len(self.list_artifact_manifests(project_id)), "syncConflicts": sum(1 for x in self.list_sync_queue(project_id) if x["status"] == "CONFLICT")}, "releaseGates": gates, "blockers": [x for x in readiness if x["blockedBy"]] + [{"releaseId": x["releaseId"], "missing": x["missing"]} for x in gates if not x["ready"]], "auditCount": len(self.list_audit(project_id))}
+        return {"projectId": project_id, "generatedAt": now(), "summary": {"workPackages": stats["backlog"], "readyWorkPackages": sum(1 for x in readiness if x["ready"]), "blockedWorkPackages": sum(1 for x in readiness if not x["ready"]), "validatedEvidence": sum(1 for x in evidence if x["status"] == "VALIDATED"), "machineObjects": len(self.list_machine_objects(project_id)), "artifacts": len(self.list_artifact_manifests(project_id)), "syncConflicts": sum(1 for x in self.list_sync_queue(project_id) if x["status"] == "CONFLICT"), "capabilitiesWithEvidence": sum(1 for x in self.capability_evidence(project_id) if x["ready"])}, "capabilityEvidence": self.capability_evidence(project_id), "releaseGates": gates, "blockers": [x for x in readiness if x["blockedBy"]] + [{"releaseId": x["releaseId"], "missing": x["missing"]} for x in gates if not x["ready"]], "auditCount": len(self.list_audit(project_id))}
+
+    def capability_evidence(self, project_id: str, capability_ids: list[str] | None = None) -> list[dict[str, Any]]:
+        evidence = [x for x in self.list_entities(project_id, "evidence") if x["status"] == "VALIDATED"]
+        by_capability: dict[str, list[str]] = {}
+        for item in evidence:
+            capability_id = item["payload"].get("capabilityId")
+            if capability_id:
+                by_capability.setdefault(capability_id, []).append(item["id"])
+        ids = capability_ids or sorted(by_capability)
+        return [{"capabilityId": capability_id, "validatedEvidence": by_capability.get(capability_id, []), "ready": bool(by_capability.get(capability_id))} for capability_id in ids]
 
     def list_audit(self, project_id: str, limit: int = 200) -> list[dict[str, Any]]:
         return [dict(row) for row in self.db.execute("SELECT * FROM audit WHERE project_id = ? ORDER BY occurred_at DESC LIMIT ?", (project_id, limit))]
