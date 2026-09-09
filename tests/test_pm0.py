@@ -179,7 +179,7 @@ class PM0Tests(unittest.TestCase):
             store.close()
 
     def test_engineering_capability_validation_is_deterministic_and_gated(self):
-        self.assertEqual(len(list_capabilities()), 11)
+        self.assertEqual(len(list_capabilities()), 12)
         blocked = validate_capability("MOT-001", {"axis_simulation": True})
         self.assertEqual(blocked["result"], "BLOCKED")
         passed = validate_capability("MOT-001", {"axis_simulation": True, "limit_check": True, "state_machine": True})
@@ -200,6 +200,7 @@ class PM0Tests(unittest.TestCase):
         self.assertEqual(simulate_plc_runtime(cycle_ms=60, watchdog_ms=50)["result"], "BLOCKED")
         self.assertIn("invalid_soft_limits", simulation_evidence("MOT-001", {"axis_simulation": True, "limit_check": True, "state_machine": True, "soft_limit_min": 10, "soft_limit_max": 1})["missing"])
         self.assertEqual(simulation_evidence("VIS-001", {"dataset_hash": True, "thresholds": True, "regression_set": True, "threshold_values": [0.5, 1.2]})["result"], "FAILED")
+        self.assertEqual(simulation_evidence("LIFE-001", {"production_metrics": True, "quality_metrics": True, "maintenance_workflow": True})["result"], "PASSED")
 
     def test_release_gate_requires_evidence_and_human_approval(self):
         with tempfile.TemporaryDirectory() as directory:

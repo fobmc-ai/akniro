@@ -27,6 +27,7 @@ CAPABILITIES = (
     EngineeringCapability("FW-001", "Firmware 工程与升级", "FIRMWARE", "CONTRACT_ONLY", "HUMAN_APPROVAL_REQUIRED", ("binary_hash", "power_recovery", "rollback")),
     EngineeringCapability("EDGE-001", "Edge Agent 离线同步", "EDGE", "SIMULATED", "HUMAN_APPROVAL_REQUIRED", ("offline_queue", "replay_idempotency", "conflict")),
     EngineeringCapability("COMM-001", "FAT / SAT 调试验收", "COMMISSIONING", "SIMULATED", "HUMAN_APPROVAL_REQUIRED", ("checklist", "evidence", "signoff")),
+    EngineeringCapability("LIFE-001", "生产质量与维护生命周期", "LIFECYCLE", "SIMULATED", "HUMAN_APPROVAL_REQUIRED", ("production_metrics", "quality_metrics", "maintenance_workflow")),
     EngineeringCapability("ECO-001", "Marketplace / fleet learning", "ECOSYSTEM", "CONTRACT_ONLY", "HUMAN_APPROVAL_REQUIRED", ("consent", "scope", "retention")),
 )
 
@@ -58,6 +59,7 @@ def simulation_evidence(capability_id: str, payload: dict[str, Any]) -> dict[str
         "FW-001": ("firmware", "binary_hash", "power_recovery", "rollback"),
         "EDGE-001": ("sync", "offline_queue", "replay_idempotency", "conflict"),
         "COMM-001": ("acceptance", "checklist", "evidence", "signoff"),
+        "LIFE-001": ("lifecycle", "production_metrics", "quality_metrics", "maintenance_workflow"),
         "ECO-001": ("consent", "consent", "scope", "retention"),
     }
     descriptor = diagnostics.get(capability_id)

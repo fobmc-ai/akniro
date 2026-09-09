@@ -16,7 +16,7 @@
 | PM-001/002 | 项目、成员、实体、问题、知识、追溯、审计 | VALIDATED-SW |
 | REL-001 | Release 状态机、证据/审批门禁、备份 | VALIDATED-SW |
 | EDGE-001 | 离线同步队列、幂等、冲突状态和人工审批 | VALIDATED-SW |
-| COMM-001/LIFE-001 | FAT/SAT、维护、生命周期对象和模拟验证入口 | VALIDATED-SW |
+| COMM-001/LIFE-001 | FAT/SAT、维护、生命周期对象和模拟验证入口；生产/质量/维护三类指标检查 | VALIDATED-SW |
 | AI-001 | 最小上下文、跨项目隔离、禁止批准/部署/Force | VALIDATED-SW |
 | ECO-001 | 隐私/授权/保留期 CONTRACT_ONLY 验证接口；真实生态数据仍延后 | CONTRACTED-SW / DEFERRED-DATA |
 
