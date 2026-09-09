@@ -26,12 +26,12 @@
   <main><aside><div id="tree" class="tree"><div class="root">📁 当前项目</div><p class="muted">加载目录…</p></div><nav id="nav" hidden><button data-view="overview">总览</button><button data-view="backlog">实施路线</button><button data-view="requirement">需求</button><button data-view="work_item">任务</button><button data-view="issue">问题与 CAPA</button><button data-view="design_goal">设计目标</button><button data-view="test_case">测试库</button><button data-view="tool_validation">工具验证</button><button data-view="artifact">工程资产</button><button data-view="parameter_snapshot">参数快照</button><button data-view="knowledge">知识库</button><button data-view="release">发布维护</button><button data-view="audit">审计与备份</button></nav></aside>
     <section><div id="content"><p class="muted">正在加载项目…</p></div></section></main>
   <script>
-    const el = document.getElementById('content');
+    const el = document.getElementById('content'); let authSession = null; const nativeFetch = window.fetch.bind(window); window.fetch = (url, options = {}) => { const target = String(url); if (authSession && target.startsWith('/api/projects/')) { options = {...options, headers: {...(options.headers || {}), 'X-Actor-Id': authSession.actorId, 'X-Tenant-Id': authSession.tenantId}}; } return nativeFetch(url, options); };
     async function load() {
       try {
         const response = await fetch('/api/projects'); const data = await response.json();
         if (!data.projects.length) { el.innerHTML = `<h2>项目总览</h2><p class="muted">还没有项目，先创建 PM 项目。</p><div class="panel"><form id="project-form"><input name="projectId" placeholder="项目 ID，如 P-001" required><input name="name" placeholder="项目名称" required><input name="tenantId" placeholder="租户 ID" value="T-001" required><input name="ownerId" placeholder="Owner ID" value="U-001" required><button>创建项目</button></form><p id="form-message" class="muted"></p></div>`; document.getElementById('project-form').onsubmit = createProject; return; }
-        const project = await (await fetch('/api/projects/' + encodeURIComponent(data.projects[0].id))).json();
+        authSession = {actorId: 'U-001', tenantId: data.projects[0].tenant_id}; const project = await (await fetch('/api/projects/' + encodeURIComponent(data.projects[0].id))).json();
         const tree = await (await fetch('/api/projects/' + encodeURIComponent(project.id) + '/tree')).json();
         document.getElementById('tree').innerHTML = '<div class="root">📁 ' + project.name + '</div>' + renderTree(tree.tree);
         const entities = project.entities || []; const count = type => entities.filter(x => x.entity_type === type).length;

@@ -468,7 +468,7 @@ class PM0Tests(unittest.TestCase):
             thread.start()
             def call(path, payload=None):
                 data = json.dumps(payload).encode() if payload is not None else None
-                req = urllib.request.Request(f"http://127.0.0.1:{server.server_port}{path}", data=data, headers={"Content-Type": "application/json"}, method="POST" if payload is not None else "GET")
+                req = urllib.request.Request(f"http://127.0.0.1:{server.server_port}{path}", data=data, headers={"Content-Type": "application/json", "X-Actor-Id": "U-001", "X-Tenant-Id": "T-001"}, method="POST" if payload is not None else "GET")
                 with urllib.request.urlopen(req) as response:
                     return response.status, json.loads(response.read())
             call("/api/projects", {"projectId": "P-001", "tenantId": "T-001", "name": "Demo", "ownerId": "U-001"})
@@ -500,7 +500,7 @@ class PM0Tests(unittest.TestCase):
             try:
                 def request(path, payload=None):
                     data = json.dumps(payload).encode() if payload is not None else None
-                    req = urllib.request.Request(f"http://127.0.0.1:8765{path}", data=data, headers={"Content-Type": "application/json"}, method="POST" if payload is not None else "GET")
+                    req = urllib.request.Request(f"http://127.0.0.1:8765{path}", data=data, headers={"Content-Type": "application/json", "X-Actor-Id": "U-001", "X-Tenant-Id": "T-001"}, method="POST" if payload is not None else "GET")
                     req = urllib.request.Request(req.full_url.replace("8765", str(server.server_port)), data=req.data, headers=dict(req.header_items()), method=req.method)
                     with urllib.request.urlopen(req) as response:
                         return response.status, json.loads(response.read())

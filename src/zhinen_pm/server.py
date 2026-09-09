@@ -78,6 +78,7 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                     return self._send(200, {"notifications": store.list_notifications(query.get("recipientId", [""])[0], query.get("projectId", [None])[0])})
                 if path.startswith("/api/projects/"):
                     project_id = path.split("/")[3]
+                    self._authorize({"actorId": self.headers.get("X-Actor-Id"), "tenantId": self.headers.get("X-Tenant-Id")}, "READ", project_id)
                     if path.endswith("/tree"):
                         return self._send(200, {"tree": store.get_tree(project_id)})
                     if path.endswith("/members"):
@@ -129,12 +130,16 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                     return self._send(200, store.get_project(project_id))
                 if path.startswith("/api/entities/"):
                     entity_id = path.split("/")[3]
-                    return self._send(200, store.get_entity(entity_id))
+                    entity = store.get_entity(entity_id)
+                    self._authorize({"actorId": self.headers.get("X-Actor-Id"), "tenantId": self.headers.get("X-Tenant-Id")}, "READ", entity["project_id"])
+                    return self._send(200, entity)
                 if path == "/" or path == "/index.html":
                     return self._send(200, (WEB_ROOT / "index.html").read_bytes(), "text/html")
                 return self._send(404, {"code": "PM-NOT-FOUND", "message": "route not found"})
             except KeyError as exc:
                 return self._send(404, {"code": "PM-NOT-FOUND", "message": str(exc)})
+            except PermissionError as exc:
+                return self._send(403, {"code": "PM-AUTH-001", "message": str(exc)})
 
         def do_POST(self) -> None:  # noqa: N802
             path = urlparse(self.path).path

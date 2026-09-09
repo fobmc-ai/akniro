@@ -107,6 +107,8 @@ Local
 
 管理中心通过 `GET /api/projects/{projectId}/ops` 提供项目作用域的控制平面健康快照，覆盖数据库容量、同步/事件 Outbox 队列、通知、审计写入失败计数、搜索 freshness 和备份可用性；事件通过 `GET /api/projects/{projectId}/events` 查询并可重试/发布。权限拒绝也会写入 `authorization.denied` Audit。该快照只反映管理平面事实，不冒充实时运行状态。
 
+项目专属 Query 和实体 Query 必须携带 `X-Tenant-Id` 与 `X-Actor-Id`，由服务端执行 READ scope 校验；项目列表仅用于登录后的租户发现，后续项目数据不得依赖客户端隐藏字段实现隔离。
+
 - 跨租户访问被拒绝并有审计；
 - 非法状态迁移被拒绝；
 - 未通过测试的 Release 不能批准；
