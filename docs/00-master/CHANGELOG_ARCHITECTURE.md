@@ -20,3 +20,4 @@
 - `execute_test_case` 对通过和失败结果均持久化 Evidence；失败证据保持 `DRAFT`，并通过 `produces` 关联测试用例，保证问题定位、复测和验收审计链不断裂。
 - PLC/Firmware 构建失败自动创建问题并关联失败证据，修正 PLC 构建失败的错误领域标识。
 - 增加测试计划批量执行入口，统一汇总用例运行、证据和计划状态。
+- Release Gate 增加 SBOM 与 rollback revision 门禁，确保发布包可追溯且可恢复。

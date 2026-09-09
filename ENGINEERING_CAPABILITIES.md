@@ -19,6 +19,7 @@
 - 测试用例执行无论通过或失败都会留存 Evidence；通过结果转为 `VALIDATED`，失败结果保留 `DRAFT` 并关联测试用例，供问题定位与复测审计。
 - PLC 与 Firmware 构建失败会自动创建 OPEN Issue，并以 `diagnosed_by` 关联失败 Evidence；构建能力 ID 与问题标题保持准确对应。
 - `POST /api/projects/{projectId}/test-plans/execute` 批量执行计划内用例，汇总 Test Run/Evidence，并按全通过推进 `COMPLETED`，否则推进 `FAILED`。
+- Release Gate 还必须具备 SBOM 和 `rollbackRevision`，与人工审批、验证证据及已测试资产共同满足发布条件。
 - 验证失败会自动创建 OPEN Issue，关联 `sourceTestRunId`、`evidenceId`、能力 ID 和错误列表，进入问题/CAPA 状态机；
 - `POST /api/entities/{entityId}/payload`：以 Revision 乐观并发保护更新 CAPA 根因、修复版本、回归测试和关闭标准；Issue 页面提供对应录入入口；
 - `POST /api/artifacts/{artifactId}/transition`：资产 TESTED→APPROVED 需要 Owner 人工批准，资产清单提供操作入口；

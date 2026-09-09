@@ -448,7 +448,10 @@ class ProjectStore:
         artifacts = [self.get_artifact_manifest(x) for x in artifact_ids]
         untested_artifacts = [x["id"] for x in artifacts if x["status"] not in {"TESTED", "APPROVED", "ARCHIVED"}]
         approval = bool(release["payload"].get("approvalId"))
-        return {"releaseId": release_id, "ready": bool(passed and approval and not untested_artifacts), "validatedEvidence": [x["id"] for x in passed], "artifacts": [x["id"] for x in artifacts], "approval": approval, "missing": (["validated evidence"] if not passed else []) + (["human approval"] if not approval else []) + ([f"tested artifacts: {', '.join(untested_artifacts)}"] if untested_artifacts else [])}
+        sbom = bool(release["payload"].get("sbom"))
+        rollback_revision = bool(release["payload"].get("rollbackRevision"))
+        missing = (["validated evidence"] if not passed else []) + (["human approval"] if not approval else []) + ([f"tested artifacts: {', '.join(untested_artifacts)}"] if untested_artifacts else []) + (["SBOM"] if not sbom else []) + (["rollback revision"] if not rollback_revision else [])
+        return {"releaseId": release_id, "ready": not missing, "validatedEvidence": [x["id"] for x in passed], "artifacts": [x["id"] for x in artifacts], "approval": approval, "sbom": sbom, "rollbackRevision": release["payload"].get("rollbackRevision"), "missing": missing}
 
     def execute_test_case(self, *, project_id: str, tenant_id: str, test_case_id: str, run_id: str, evidence_id: str, actor_id: str, passed: bool, release_id: str | None = None) -> dict[str, Any]:
         case = self.get_entity(test_case_id)
