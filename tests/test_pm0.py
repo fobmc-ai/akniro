@@ -326,6 +326,15 @@ class PM0Tests(unittest.TestCase):
             self.assertEqual(store.transition(entity_id=record["id"], target="COMPLETED", actor_id="U-001", expected_revision=updated["revision"])["status"], "COMPLETED")
             store.close()
 
+    def test_deployment_request_rejects_missing_release_gate(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = ProjectStore(Path(directory) / "pm.db")
+            store.create_project(project_id="P-001", tenant_id="T-001", name="Demo", kind="platform", owner_id="U-001")
+            deployment = store.create_entity(entity_id="DEP-001", entity_type="deployment", project_id="P-001", tenant_id="T-001", title="Deploy V0.1", owner_id="U-001", payload={})
+            with self.assertRaisesRegex(ValueError, "authorization needs release"):
+                store.transition(entity_id=deployment["id"], target="AUTHORIZED", actor_id="U-001", expected_revision=1)
+            store.close()
+
     def test_failed_test_case_execution_retains_draft_evidence(self):
         with tempfile.TemporaryDirectory() as directory:
             store = ProjectStore(Path(directory) / "pm.db")

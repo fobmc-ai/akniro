@@ -40,6 +40,8 @@ Test Case 定义步骤、输入、预期结果和阈值；Test Run 记录版本�
 
 Release 绑定 source revision、Machine Project revision、Schema/API/Event 版本、依赖/SBOM、测试证据、已知问题、签名和 rollback revision。Deployment Request 还必须绑定目标机器、环境、批准人和观察窗口。
 
+Deployment Request 只能由 Release 角色推进授权，状态按 `REQUESTED -> AUTHORIZED -> STAGED -> APPLIED -> OBSERVED -> CONFIRMED/ROLLED_BACK` 流转；授权、签名、健康检查和观察结果均由服务端校验。
+
 ### Knowledge Article / Maintenance Record
 
 Knowledge Article 必须带来源、适用版本、验证状态、owner、关联测试和失效条件。Maintenance Record 记录现场机器、执行人、Release、结果、异常和回滚。

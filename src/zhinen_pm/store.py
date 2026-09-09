@@ -549,7 +549,7 @@ class ProjectStore:
     def create_entity(self, *, entity_id: str, entity_type: str, project_id: str, tenant_id: str, title: str, owner_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
         if not self.db.execute("SELECT 1 FROM projects WHERE id = ? AND tenant_id = ?", (project_id, tenant_id)).fetchone():
             raise KeyError("project not found in tenant")
-        status = {"requirement": "DRAFT", "design_goal": "DRAFT", "work_item": "PLANNED", "issue": "OPEN", "adr": "PROPOSED", "test_case": "DRAFT", "knowledge": "DRAFT", "release": "DRAFT", "test_plan": "DRAFT", "test_run": "QUEUED", "evidence": "DRAFT", "tool_validation": "DRAFT", "artifact": "DRAFT", "parameter_snapshot": "DRAFT", "maintenance": "OPEN"}.get(entity_type)
+        status = {"requirement": "DRAFT", "design_goal": "DRAFT", "work_item": "PLANNED", "issue": "OPEN", "adr": "PROPOSED", "test_case": "DRAFT", "knowledge": "DRAFT", "release": "DRAFT", "test_plan": "DRAFT", "test_run": "QUEUED", "evidence": "DRAFT", "tool_validation": "DRAFT", "artifact": "DRAFT", "parameter_snapshot": "DRAFT", "maintenance": "OPEN", "deployment": "REQUESTED"}.get(entity_type)
         if status is None:
             raise ValueError(f"unsupported PM-0 entity: {entity_type}")
         timestamp = now()
@@ -631,6 +631,25 @@ class ProjectStore:
             required = ("machineId", "executorId", "releaseId", "result", "exceptions", "rollback")
             if any(field not in payload or (payload[field] is None) for field in required):
                 raise ValueError("PM-MAINT-001: maintenance completion needs machine, executor, release, result, exceptions and rollback")
+        if row["entity_type"] == "deployment":
+            payload = json.loads(row["payload"])
+            if target == "AUTHORIZED":
+                required = ("releaseId", "targetMachineId", "environment", "approvalId", "rollbackRevision", "observationWindow")
+                if any(not payload.get(field) for field in required):
+                    raise ValueError("PM-DEPLOY-001: authorization needs release, target, environment, approval, rollback and observation window")
+                release_row = self.db.execute("SELECT project_id, entity_type, status FROM entities WHERE id = ?", (payload["releaseId"],)).fetchone()
+                if not release_row or release_row["project_id"] != row["project_id"] or release_row["entity_type"] != "release" or release_row["status"] not in {"APPROVED", "RELEASED"}:
+                    raise ValueError("PM-DEPLOY-002: deployment requires approved project release")
+                if not self.release_gate(payload["releaseId"])["ready"]:
+                    raise ValueError("PM-DEPLOY-002: deployment requires release gate")
+            if target == "STAGED" and not payload.get("signature"):
+                raise ValueError("PM-DEPLOY-003: staged deployment requires signed package")
+            if target == "OBSERVED" and not payload.get("healthCheck"):
+                raise ValueError("PM-DEPLOY-004: observed deployment requires health check")
+            if target == "CONFIRMED" and payload.get("observationResult") != "PASS":
+                raise ValueError("PM-DEPLOY-005: confirmation requires passing observation")
+            if target == "ROLLED_BACK" and not payload.get("rollbackReason"):
+                raise ValueError("PM-DEPLOY-006: rollback requires reason")
         assert_transition(row["entity_type"], row["status"], target)
         timestamp = now()
         self.db.execute("UPDATE entities SET status = ?, revision = revision + 1, updated_at = ? WHERE id = ? AND revision = ?", (target, timestamp, entity_id, expected_revision))

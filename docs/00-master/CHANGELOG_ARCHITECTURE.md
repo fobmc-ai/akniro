@@ -26,3 +26,4 @@
 - Knowledge Article 增加来源、版本、验证、测试和失效条件门禁，并接入 Web 录入表单。
 - Maintenance Record 增加现场机器、执行人、Release、结果、异常和回滚门禁，并接入 Web 录入表单。
 - AI 上下文增加可信状态过滤，草稿/失败证据及未批准运营记录不进入上下文，并返回审计可见的省略原因。
+- 增加 Deployment Request 状态机与 Web 入口，隔离发布批准和现场部署授权。

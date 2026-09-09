@@ -21,6 +21,7 @@ ROLE_ACTIONS = {
     "reviewer": {"READ", "COMMENT", "SUGGEST", "MODIFY", "APPROVE"},
     "qa": {"READ", "COMMENT", "SUGGEST", "MODIFY", "APPROVE"},
     "owner": {"READ", "COMMENT", "SUGGEST", "MODIFY", "APPROVE", "RELEASE", "APPLY"},
+    "release": {"READ", "COMMENT", "SUGGEST", "MODIFY", "APPROVE", "RELEASE", "DEPLOY"},
     "ai": {"READ", "COMMENT", "SUGGEST", "MODIFY"},
 }
 
