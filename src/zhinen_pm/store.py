@@ -321,6 +321,15 @@ class ProjectStore:
             raise KeyError("project not found in tenant")
         if parent_id and not self.db.execute("SELECT 1 FROM machine_objects WHERE id = ? AND project_id = ?", (parent_id, project_id)).fetchone():
             raise KeyError("machine parent not found in project")
+        data = payload or {}
+        requirements = {"device": ("protocol",), "tag": ("dataType", "access"), "alarm": ("severity",), "recipe": ("version",)}
+        missing = [field for field in requirements.get(object_type, ()) if not data.get(field)]
+        if missing:
+            raise ValueError(f"{object_type} missing fields: {', '.join(missing)}")
+        if object_type == "tag" and data.get("access") not in {"READ_ONLY", "READ_WRITE"}:
+            raise ValueError("tag access must be READ_ONLY or READ_WRITE")
+        if object_type == "alarm" and data.get("severity") not in {"S0", "S1", "S2", "S3", "S4"}:
+            raise ValueError("alarm severity must be S0-S4")
         timestamp = now()
         self.db.execute("INSERT INTO machine_objects VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, 'DRAFT', ?, ?)", (object_id, project_id, tenant_id, object_type, parent_id, name, owner_id, json.dumps(payload or {}, ensure_ascii=False), timestamp, timestamp))
         self.db.commit()

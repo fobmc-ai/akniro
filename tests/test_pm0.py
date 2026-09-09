@@ -154,6 +154,19 @@ class PM0Tests(unittest.TestCase):
             self.assertEqual(store.diff_snapshots(first["id"], second["id"])["changed"], ["M-001"])
             store.close()
 
+    def test_machine_domain_objects_have_type_contracts(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = ProjectStore(Path(directory) / "pm.db")
+            store.create_project(project_id="P-001", tenant_id="T-001", name="Demo", kind="machine-engineering", owner_id="U-001")
+            machine = store.create_machine_object(object_id="M-001", project_id="P-001", tenant_id="T-001", object_type="machine", name="Machine", owner_id="U-001")
+            with self.assertRaisesRegex(ValueError, "tag missing"):
+                store.create_machine_object(object_id="TAG-001", project_id="P-001", tenant_id="T-001", object_type="tag", name="Start", owner_id="U-001", parent_id=machine["id"], payload={})
+            tag = store.create_machine_object(object_id="TAG-001", project_id="P-001", tenant_id="T-001", object_type="tag", name="Start", owner_id="U-001", parent_id=machine["id"], payload={"dataType": "BOOL", "access": "READ_ONLY"})
+            self.assertEqual(tag["payload"]["dataType"], "BOOL")
+            with self.assertRaisesRegex(ValueError, "severity"):
+                store.create_machine_object(object_id="ALM-001", project_id="P-001", tenant_id="T-001", object_type="alarm", name="Door", owner_id="U-001", parent_id=machine["id"], payload={"severity": "S9"})
+            store.close()
+
     def test_backlog_readiness_respects_dependencies_and_placeholders(self):
         with tempfile.TemporaryDirectory() as directory:
             store = ProjectStore(Path(directory) / "pm.db")
