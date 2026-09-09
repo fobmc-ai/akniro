@@ -426,10 +426,13 @@ class ProjectStore:
             raise ValueError("content_hash must be a verifiable digest")
         if sensitivity not in {"PUBLIC", "INTERNAL", "CONFIDENTIAL", "EDGE_ONLY"}:
             raise ValueError("invalid artifact sensitivity")
-        if not self.db.execute("SELECT 1 FROM projects WHERE id = ?", (project_id,)).fetchone():
+        project = self.db.execute("SELECT tenant_id FROM projects WHERE id = ?", (project_id,)).fetchone()
+        if not project:
             raise KeyError(f"unknown project: {project_id}")
         timestamp = now()
         self.db.execute("INSERT INTO artifact_manifests (id, project_id, artifact_type, source_uri, content_hash, artifact_revision, toolchain_version, target_environment, sensitivity, owner_id, status, created_at, revision) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'DRAFT', ?, 1)", (artifact_id, project_id, artifact_type, source_uri, content_hash, artifact_revision, toolchain_version, target_environment, sensitivity, owner_id, timestamp))
+        self._audit(project["tenant_id"], project_id, owner_id, "artifact.create", artifact_id, "success", {"artifactType": artifact_type, "revision": artifact_revision})
+        self._emit_event(tenant_id=project["tenant_id"], project_id=project_id, message_type="pm.artifact.created", actor_id=owner_id, payload={"artifactId": artifact_id, "artifactType": artifact_type, "status": "DRAFT", "revision": 1}, correlation_id=artifact_id, idempotency_key=f"artifact.created:{artifact_id}:1")
         self.db.commit()
         return self.get_artifact_manifest(artifact_id)
 
