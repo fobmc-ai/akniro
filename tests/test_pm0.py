@@ -11,7 +11,7 @@ from zhinen_pm.authorization import Actor, AuthorizationError, authorize
 from zhinen_pm.state_machine import InvalidTransition, assert_transition
 from zhinen_pm.store import ProjectStore
 from zhinen_pm.server import create_server
-from zhinen_pm.engineering import validate_capability, list_capabilities, simulation_evidence, build_plc_project, build_firmware_image, simulate_plc_runtime, simulate_motion_axis
+from zhinen_pm.engineering import validate_capability, list_capabilities, simulation_evidence, build_plc_project, build_firmware_image, simulate_plc_runtime, simulate_motion_axis, simulate_vision_algorithm
 from zhinen_pm.ai_context import build_context
 import threading
 
@@ -216,6 +216,8 @@ class PM0Tests(unittest.TestCase):
         axis = simulate_motion_axis(0, 10, 2, -100, 100)
         self.assertEqual((axis["result"], axis["trajectory"][-1]), ("PASSED", 10.0))
         self.assertTrue(simulate_motion_axis(0, 101, 2, -100, 100)["safeStop"])
+        vision = simulate_vision_algorithm([1, 0, 1, 0], [1, 0, 0, 0])
+        self.assertEqual((vision["result"], vision["confusionMatrix"]["fn"], vision["accuracy"]), ("FAILED", 1, 0.75))
 
     def test_release_gate_requires_evidence_and_human_approval(self):
         with tempfile.TemporaryDirectory() as directory:

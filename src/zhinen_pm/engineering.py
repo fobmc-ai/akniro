@@ -92,6 +92,11 @@ def simulation_evidence(capability_id: str, payload: dict[str, Any]) -> dict[str
         thresholds = payload.get("threshold_values", [])
         if thresholds and any(not isinstance(x, (int, float)) or x < 0 or x > 1 for x in thresholds):
             domain_errors.append("threshold_out_of_range")
+        if payload.get("expected_labels") is not None or payload.get("predicted_labels") is not None:
+            vision = simulate_vision_algorithm(payload.get("expected_labels", []), payload.get("predicted_labels", []))
+            result["vision"] = vision
+            if vision["result"] != "PASSED":
+                domain_errors.append(vision["reason"])
     if capability_id == "FW-001" and payload.get("binary_hash") and not str(payload["binary_hash"]).startswith("sha256:"):
         domain_errors.append("binary_hash_not_sha256")
     if capability_id == "EDGE-001" and payload.get("duplicate_event_ids"):
@@ -134,6 +139,17 @@ def simulate_motion_axis(position: float, target_position: float, velocity: floa
     steps = int(distance / velocity) + (1 if distance % velocity else 0)
     trajectory = [round(position + (target_position - position) * index / max(steps, 1), 6) for index in range(steps + 1)]
     return {"result": "PASSED", "start": position, "target": target_position, "velocity": velocity, "steps": steps, "trajectory": trajectory, "safeStop": False, "deterministic": True}
+
+
+def simulate_vision_algorithm(expected_labels: list[Any], predicted_labels: list[Any]) -> dict[str, Any]:
+    if not expected_labels or len(expected_labels) != len(predicted_labels):
+        return {"result": "BLOCKED", "reason": "label_set_invalid", "deterministic": True}
+    tp = sum(1 for expected, predicted in zip(expected_labels, predicted_labels) if expected == 1 and predicted == 1)
+    tn = sum(1 for expected, predicted in zip(expected_labels, predicted_labels) if expected == 0 and predicted == 0)
+    fp = sum(1 for expected, predicted in zip(expected_labels, predicted_labels) if expected == 0 and predicted == 1)
+    fn = sum(1 for expected, predicted in zip(expected_labels, predicted_labels) if expected == 1 and predicted == 0)
+    total = len(expected_labels)
+    return {"result": "PASSED" if tp + tn == total else "FAILED", "samples": total, "confusionMatrix": {"tp": tp, "tn": tn, "fp": fp, "fn": fn}, "accuracy": round((tp + tn) / total, 6), "deterministic": True, "reason": "classification_mismatch" if tp + tn != total else None}
 
 
 def build_plc_project(source: str, toolchain_version: str = "SIMULATED-PLC-0.1") -> dict[str, Any]:
