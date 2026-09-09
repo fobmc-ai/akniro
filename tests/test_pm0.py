@@ -553,6 +553,25 @@ class PM0Tests(unittest.TestCase):
                 get_projects({})
             server.shutdown(); server.server_close()
 
+    def test_ai_suggestion_http_route_persists_audited_draft(self):
+        with tempfile.TemporaryDirectory() as directory:
+            server = create_server(str(Path(directory) / "pm.db"), port=0)
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                def call(path, payload=None):
+                    data = json.dumps(payload).encode() if payload is not None else None
+                    req = urllib.request.Request(f"http://127.0.0.1:{server.server_port}{path}", data=data, headers={"Content-Type": "application/json", "X-Actor-Id": "U-001", "X-Tenant-Id": "T-001"}, method="POST" if payload is not None else "GET")
+                    with urllib.request.urlopen(req) as response:
+                        return response.status, json.loads(response.read())
+                call("/api/projects", {"projectId": "P-001", "tenantId": "T-001", "name": "Demo", "ownerId": "U-001"})
+                status, result = call("/api/projects/P-001/ai/suggest", {"suggestionId": "AI-001", "tenantId": "T-001", "actorId": "U-001", "request": "检查启动条件", "objectIds": []})
+                self.assertEqual((status, result["suggestion"]["status"], result["suggestion"]["payload"]["applied"]), (201, "DRAFT", False))
+                _, entities = call("/api/projects/P-001/entities?type=ai_suggestion")
+                self.assertEqual(entities["entities"][0]["id"], "AI-001")
+            finally:
+                server.shutdown(); server.server_close(); thread.join(timeout=2)
+
     def test_artifact_manifest_requires_hash_and_preserves_engineering_metadata(self):
         with tempfile.TemporaryDirectory() as directory:
             store = ProjectStore(Path(directory) / "pm.db")
