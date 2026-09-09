@@ -69,6 +69,8 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                     if path.endswith("/backlog"):
                         status = parse_qs(urlparse(self.path).query).get("status", [None])[0]
                         return self._send(200, {"items": store.list_backlog(project_id, status)})
+                    if path.endswith("/sync-queue"):
+                        return self._send(200, {"items": store.list_sync_queue(project_id)})
                     if path.endswith("/backlog"):
                         status = parse_qs(urlparse(self.path).query).get("status", [None])[0]
                         return self._send(200, {"items": store.list_backlog(project_id, status)})
@@ -104,6 +106,11 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                     self._authorize(body, "MODIFY", project_id)
                     count = store.import_backlog(project_id=project_id, items=body["items"], actor_id=body["actorId"])
                     return self._send(201, {"inserted": count, "items": len(store.list_backlog(project_id))})
+                if path.startswith("/api/projects/") and path.endswith("/sync-queue"):
+                    project_id = path.split("/")[3]
+                    self._authorize(body, "MODIFY", project_id)
+                    result = store.enqueue_sync(sync_id=body["id"], project_id=project_id, tenant_id=body["tenantId"], direction=body["direction"], object_type=body["objectType"], object_id=body["objectId"], idempotency_key=body["idempotencyKey"], payload=body.get("payload", {}))
+                    return self._send(201, result)
                 if path.startswith("/api/projects/") and path.endswith("/backlog/import"):
                     project_id = path.split("/")[3]
                     self._authorize(body, "MODIFY", project_id)

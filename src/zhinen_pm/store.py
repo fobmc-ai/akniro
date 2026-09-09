@@ -69,9 +69,17 @@ class ProjectStore:
           revision INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
           PRIMARY KEY(project_id, id), FOREIGN KEY(project_id) REFERENCES projects(id)
         );
+        CREATE TABLE IF NOT EXISTS sync_queue (
+          id TEXT PRIMARY KEY, project_id TEXT NOT NULL, tenant_id TEXT NOT NULL,
+          direction TEXT NOT NULL, object_type TEXT NOT NULL, object_id TEXT NOT NULL,
+          idempotency_key TEXT NOT NULL UNIQUE, payload TEXT NOT NULL, status TEXT NOT NULL,
+          reason TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+          FOREIGN KEY(project_id) REFERENCES projects(id)
+        );
         CREATE INDEX IF NOT EXISTS idx_entities_project ON entities(project_id, entity_type);
         CREATE INDEX IF NOT EXISTS idx_audit_project ON audit(project_id, occurred_at);
         CREATE INDEX IF NOT EXISTS idx_backlog_project ON backlog_items(project_id, status);
+        CREATE INDEX IF NOT EXISTS idx_sync_project ON sync_queue(project_id, status);
         """)
         self.db.commit()
 
@@ -203,6 +211,23 @@ class ProjectStore:
                 item[field] = json.loads(item[field])
             item["placeholder"] = bool(item["placeholder"])
             result.append(item)
+        return result
+
+    def enqueue_sync(self, *, sync_id: str, project_id: str, tenant_id: str, direction: str, object_type: str, object_id: str, idempotency_key: str, payload: dict[str, Any]) -> dict[str, Any]:
+        if direction not in {"PULL_SNAPSHOT", "PUSH_APPROVED"}:
+            raise ValueError("invalid sync direction")
+        if direction == "PUSH_APPROVED" and not payload.get("approvalId"):
+            raise PermissionError("PM-SYNC-001: push requires human approvalId")
+        timestamp = now()
+        self.db.execute("INSERT OR IGNORE INTO sync_queue VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'QUEUED', '', ?, ?)", (sync_id, project_id, tenant_id, direction, object_type, object_id, idempotency_key, json.dumps(payload, ensure_ascii=False), timestamp, timestamp))
+        self.db.commit()
+        row = self.db.execute("SELECT * FROM sync_queue WHERE idempotency_key = ?", (idempotency_key,)).fetchone()
+        result = dict(row); result["payload"] = json.loads(result["payload"]); return result
+
+    def list_sync_queue(self, project_id: str) -> list[dict[str, Any]]:
+        result = []
+        for row in self.db.execute("SELECT * FROM sync_queue WHERE project_id = ? ORDER BY created_at", (project_id,)):
+            item = dict(row); item["payload"] = json.loads(item["payload"]); result.append(item)
         return result
 
     def create_entity(self, *, entity_id: str, entity_type: str, project_id: str, tenant_id: str, title: str, owner_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:

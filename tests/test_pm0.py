@@ -71,6 +71,18 @@ class PM0Tests(unittest.TestCase):
             self.assertTrue(next(item for item in backlog if item["id"] == "PLC-001")["placeholder"])
             store.close()
 
+    def test_sync_queue_requires_approval_for_push_and_is_idempotent(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = ProjectStore(Path(directory) / "pm.db")
+            store.create_project(project_id="P-001", tenant_id="T-001", name="Demo", kind="platform", owner_id="U-001")
+            with self.assertRaises(PermissionError):
+                store.enqueue_sync(sync_id="SYNC-001", project_id="P-001", tenant_id="T-001", direction="PUSH_APPROVED", object_type="parameter", object_id="PAR-001", idempotency_key="idem-1", payload={})
+            item = store.enqueue_sync(sync_id="SYNC-001", project_id="P-001", tenant_id="T-001", direction="PUSH_APPROVED", object_type="parameter", object_id="PAR-001", idempotency_key="idem-1", payload={"approvalId": "APR-001"})
+            again = store.enqueue_sync(sync_id="SYNC-002", project_id="P-001", tenant_id="T-001", direction="PUSH_APPROVED", object_type="parameter", object_id="PAR-001", idempotency_key="idem-1", payload={"approvalId": "APR-001"})
+            self.assertEqual(item["id"], again["id"])
+            self.assertEqual(len(store.list_sync_queue("P-001")), 1)
+            store.close()
+
     def test_http_api_project_tree_flow(self):
         with tempfile.TemporaryDirectory() as directory:
             server = create_server(str(Path(directory) / "pm.db"), port=0)

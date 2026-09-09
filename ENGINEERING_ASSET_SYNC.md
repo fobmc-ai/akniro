@@ -108,7 +108,7 @@ Release
 
 ## 9. 首个实现边界
 
-第一阶段只实现：Artifact Metadata、contentHash、revision 引用、进度事件、参数快照、Diff 展示、同步队列和审计。文件上传、PLC/HMI 工具插件、Edge Agent 和现场写入按后续 ADR 分阶段接入。
+第一阶段只实现：Artifact Metadata、contentHash、revision 引用、进度事件、参数快照、Diff 展示、同步队列和审计。当前 PM Web 已提供工程资产/参数快照对象和 `sync_queue`；`PUSH_APPROVED` 强制要求人工 `approvalId`，只入队不直接写现场。文件上传、PLC/HMI 工具插件、Edge Agent 和现场写入按后续 ADR 分阶段接入。
 
 ## 10. 验收标准
 
