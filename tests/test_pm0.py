@@ -12,7 +12,7 @@ from zhinen_pm.authorization import Actor, AuthorizationError, authorize
 from zhinen_pm.state_machine import InvalidTransition, assert_transition
 from zhinen_pm.store import ProjectStore
 from zhinen_pm.server import create_server
-from zhinen_pm.engineering import validate_capability, list_capabilities, simulation_evidence, build_plc_project, build_firmware_image, build_engineering_package, simulate_plc_runtime, simulate_motion_axis, simulate_vision_algorithm, simulate_edge_replay, validate_toolchain_matrix, simulate_eda_consistency, simulate_hmi_screens, simulate_oee_metrics, simulate_spc_metrics, simulate_health_check, simulate_product_trace, simulate_commissioning_checklist, simulate_plc_download, simulate_plc_monitor, simulate_ecosystem_contract, simulate_robot_handshake, simulate_digital_twin, simulate_dependency_diagnosis
+from zhinen_pm.engineering import validate_capability, list_capabilities, simulation_evidence, build_plc_project, build_firmware_image, simulate_firmware_upgrade, build_engineering_package, simulate_plc_runtime, simulate_motion_axis, simulate_vision_algorithm, simulate_edge_replay, validate_toolchain_matrix, simulate_eda_consistency, simulate_hmi_screens, simulate_oee_metrics, simulate_spc_metrics, simulate_health_check, simulate_product_trace, simulate_commissioning_checklist, simulate_plc_download, simulate_plc_monitor, simulate_ecosystem_contract, simulate_robot_handshake, simulate_digital_twin, simulate_dependency_diagnosis
 from zhinen_pm.ai_context import build_context
 from zhinen_pm.ai_suggestions import build_suggestion
 import threading
@@ -297,6 +297,9 @@ class PM0Tests(unittest.TestCase):
         firmware = build_firmware_image("bootloader\napplication", "FW-SIM-1", "EDGE", "sha256:previous", True)
         self.assertEqual((firmware["result"], firmware["powerRecovery"], firmware["deterministic"]), ("PASSED", "ROLLBACK_TO_PREVIOUS", True))
         self.assertIn("power_loss_without_previous_image", build_firmware_image("application", inject_power_loss=True)["errors"])
+        upgrade = simulate_firmware_upgrade(current_hash="sha256:previous", target_hash="sha256:target", approval_id="APR-001", signature="sig://fw", rollback_hash="sha256:previous")
+        self.assertEqual((upgrade["result"], upgrade["recovery"], upgrade["writesController"]), ("APPLIED", "HEALTH_CONFIRMED", False))
+        self.assertEqual(simulate_firmware_upgrade(current_hash="sha256:previous", target_hash="sha256:target", approval_id="APR-001", signature="sig://fw", rollback_hash="sha256:previous", power_loss=True)["result"], "ROLLED_BACK")
         self.assertIn("invalid_soft_limits", simulation_evidence("MOT-001", {"axis_simulation": True, "limit_check": True, "state_machine": True, "soft_limit_min": 10, "soft_limit_max": 1})["missing"])
         self.assertEqual(simulation_evidence("VIS-001", {"dataset_hash": True, "thresholds": True, "regression_set": True, "threshold_values": [0.5, 1.2]})["result"], "FAILED")
         self.assertEqual(simulation_evidence("LIFE-001", {"production_metrics": True, "quality_metrics": True, "maintenance_workflow": True})["result"], "PASSED")
@@ -723,6 +726,12 @@ class PM0Tests(unittest.TestCase):
                 self.assertEqual((status, approved_plc["status"]), (200, "APPROVED"))
                 status, download = request("/api/projects/P-001/plc/download-simulate", {"actorId": "U-001", "tenantId": "T-001", "artifactId": "ART-PLC-001", "targetMachineId": "M-001", "approvalId": "APR-PLC-001", "rollbackRevision": "MC-PREV-001"})
                 self.assertEqual((status, download["result"], download["writesController"]), (200, "READY_FOR_EDGE", False))
+                status, firmware_build = request("/api/projects/P-001/builds/firmware", {"actorId": "U-001", "tenantId": "T-001", "artifactId": "ART-FW-001", "source": "bootloader\napplication", "toolchainVersion": "FW-SIM-1", "target": "EDGE"})
+                self.assertEqual((status, firmware_build["build"]["result"], firmware_build["artifact"]["status"]), (201, "PASSED", "TESTED"))
+                status, _ = request("/api/artifacts/ART-FW-001/transition", {"target": "APPROVED", "actorId": "U-001", "tenantId": "T-001"})
+                self.assertEqual(status, 200)
+                status, upgrade = request("/api/projects/P-001/firmware/upgrade-simulate", {"actorId": "U-001", "tenantId": "T-001", "artifactId": "ART-FW-001", "currentHash": "sha256:previous", "approvalId": "APR-FW-001", "signature": "sig://fw", "rollbackHash": "sha256:previous", "testRunId": "RUN-FW-UPGRADE-001", "evidenceId": "EV-FW-UPGRADE-001"})
+                self.assertEqual((status, upgrade["upgrade"]["result"], upgrade["testRun"]["status"], upgrade["evidence"]["status"], upgrade["upgrade"]["writesController"]), (201, "APPLIED", "PASSED", "VALIDATED", False))
                 status, monitor = request("/api/projects/P-001/plc/monitor-simulate", {"actorId": "U-001", "tenantId": "T-001", "testRunId": "RUN-MONITOR-001", "evidenceId": "EV-MONITOR-001", "tags": {"Run": True, "Speed": 10}, "cycles": 5})
                 self.assertEqual((status, monitor["result"], [item["name"] for item in monitor["tags"]], monitor["testRun"]["status"], monitor["evidence"]["status"]), (200, "PASSED", ["Run", "Speed"], "PASSED", "VALIDATED"))
                 status, failed_build = request("/api/projects/P-001/builds/plc", {"actorId": "U-001", "tenantId": "T-001", "artifactId": "ART-PLC-FAIL", "testRunId": "RUN-PLC-FAIL", "evidenceId": "EV-PLC-FAIL", "source": "PROGRAM Main\nSYNTAX_ERROR", "toolchainVersion": "PLC-SIM-1"})

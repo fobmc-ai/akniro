@@ -507,6 +507,38 @@ def build_firmware_image(source: str, toolchain_version: str = "SIMULATED-FW-0.1
     return {"result": "FAILED" if errors else "PASSED", "sourceHash": f"sha256:{source_hash}", "imageHash": f"sha256:{image_hash}", "toolchainVersion": toolchain_version, "target": target, "errors": errors, "powerRecovery": recovery, "rollbackHash": previous_hash, "deterministic": True, "log": "FIRMWARE SIMULATED BUILD OK" if not errors else "FIRMWARE SIMULATED BUILD FAILED"}
 
 
+def simulate_firmware_upgrade(*, current_hash: str, target_hash: str, approval_id: str | None, signature: str | None, rollback_hash: str | None, health_check: bool = True, power_loss: bool = False) -> dict[str, Any]:
+    """Simulate a staged firmware upgrade without flashing a real device."""
+    errors: list[str] = []
+    if not str(current_hash).startswith("sha256:"):
+        errors.append("current_hash_invalid")
+    if not str(target_hash).startswith("sha256:"):
+        errors.append("target_hash_invalid")
+    if current_hash == target_hash:
+        errors.append("target_same_as_current")
+    if not approval_id:
+        errors.append("approval_required")
+    if not signature:
+        errors.append("signature_required")
+    if not rollback_hash:
+        errors.append("rollback_hash_required")
+    if errors:
+        result = "BLOCKED"
+        recovery = "NOT_STARTED"
+    elif power_loss or not health_check:
+        result = "ROLLED_BACK" if rollback_hash else "FAILED"
+        recovery = "ROLLBACK_TO_PREVIOUS" if rollback_hash else "RECOVERY_UNAVAILABLE"
+        if not health_check:
+            errors.append("health_check_failed")
+        if power_loss:
+            errors.append("power_loss_injected")
+    else:
+        result = "APPLIED"
+        recovery = "HEALTH_CONFIRMED"
+    transition_hash = hashlib.sha256(f"{current_hash}:{target_hash}:{rollback_hash or ''}:{result}".encode("utf-8")).hexdigest()
+    return {"result": result, "currentHash": current_hash, "targetHash": target_hash, "rollbackHash": rollback_hash, "approvalId": approval_id, "signature": signature, "healthCheck": health_check, "powerLoss": power_loss, "recovery": recovery, "errors": errors, "transitionHash": f"sha256:{transition_hash}", "writesController": False, "humanApprovalRequired": True, "deterministic": True}
+
+
 def simulate_plc_runtime(cycles: int = 100, cycle_ms: int = 10, watchdog_ms: int = 50, injected_fault: str | None = None) -> dict[str, Any]:
     if cycles < 1 or cycle_ms < 1 or watchdog_ms < cycle_ms:
         return {"result": "BLOCKED", "reason": "invalid_runtime_limits", "safeStop": True}

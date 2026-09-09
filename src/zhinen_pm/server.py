@@ -8,7 +8,7 @@ from urllib.parse import parse_qs, urlparse
 
 from .store import ProjectStore
 from .authorization import Actor, authorize
-from .engineering import list_capabilities, validate_capability, simulation_evidence, build_plc_project, build_firmware_image, build_engineering_package, simulate_plc_runtime, validate_toolchain_matrix, simulate_plc_download, simulate_plc_monitor, simulate_digital_twin, simulate_dependency_diagnosis
+from .engineering import list_capabilities, validate_capability, simulation_evidence, build_plc_project, build_firmware_image, simulate_firmware_upgrade, build_engineering_package, simulate_plc_runtime, validate_toolchain_matrix, simulate_plc_download, simulate_plc_monitor, simulate_digital_twin, simulate_dependency_diagnosis
 from .ai_context import build_context
 from .ai_suggestions import build_suggestion
 
@@ -403,6 +403,25 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                         store.link_entities(project_id=project_id, from_id=issue["id"], to_id=evidence_id, link_type="diagnosed_by", actor_id=body["actorId"])
                         store.notify_project_owner(project_id=project_id, kind="build_failed", message=f"Firmware build failed: {issue['id']}", correlation_id=run_id)
                     return self._send(201, {"build": build, "artifact": store.get_artifact_manifest(body["artifactId"]), "testRun": store.get_entity(run_id), "evidence": store.get_entity(evidence_id), "issue": issue})
+                if path.startswith("/api/projects/") and path.endswith("/firmware/upgrade-simulate"):
+                    project_id = path.split("/")[3]
+                    self._authorize(body, "MODIFY", project_id)
+                    artifact = store.get_artifact_manifest(body["artifactId"])
+                    if artifact["project_id"] != project_id or artifact["artifact_type"] != "FIRMWARE":
+                        raise ValueError("PM-FW-001: artifact must be a firmware artifact in the selected project")
+                    upgrade = simulate_firmware_upgrade(current_hash=body.get("currentHash", ""), target_hash=artifact["content_hash"], approval_id=body.get("approvalId"), signature=body.get("signature"), rollback_hash=body.get("rollbackHash"), health_check=bool(body.get("healthCheck", True)), power_loss=bool(body.get("powerLoss", False)))
+                    run_id = body.get("testRunId", f"FW-UPGRADE-RUN-{artifact['id']}")
+                    evidence_id = body.get("evidenceId", f"FW-UPGRADE-EVIDENCE-{artifact['id']}")
+                    payload = {**upgrade, "capabilityId": "FW-001", "artifactId": artifact["id"], "evidenceType": "OTA_UPGRADE_RESULT"}
+                    run = store.create_entity(entity_id=run_id, entity_type="test_run", project_id=project_id, tenant_id=body["tenantId"], title="Firmware upgrade simulation", owner_id=body["actorId"], payload=payload)
+                    evidence = store.create_entity(entity_id=evidence_id, entity_type="evidence", project_id=project_id, tenant_id=body["tenantId"], title="Firmware upgrade evidence", owner_id=body["actorId"], payload=payload)
+                    store.transition(entity_id=run_id, target="RUNNING", actor_id=body["actorId"], expected_revision=1)
+                    if upgrade["result"] == "APPLIED":
+                        store.transition(entity_id=run_id, target="PASSED", actor_id=body["actorId"], expected_revision=2)
+                        store.transition(entity_id=evidence_id, target="VALIDATED", actor_id=body["actorId"], expected_revision=1)
+                    else:
+                        store.transition(entity_id=run_id, target="FAILED", actor_id=body["actorId"], expected_revision=2)
+                    return self._send(201, {"upgrade": upgrade, "testRun": store.get_entity(run_id), "evidence": store.get_entity(evidence_id)})
                 if path.startswith("/api/projects/") and path.endswith("/test-runs/execute"):
                     project_id = path.split("/")[3]
                     self._authorize(body, "MODIFY", project_id)

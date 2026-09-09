@@ -17,3 +17,4 @@
 - Release preflight now consumes the integrity audit and blocks release readiness on unresolved control-plane consistency errors.
 - Extended the repository contract workflow to cover all Web Management Center scripts through a dependency-free Node syntax gate.
 - Backlog readiness now validates non-empty design and delivery contract fields instead of treating field presence alone as completion.
+- Added a deterministic firmware OTA upgrade rehearsal with approval, signature, health-observation, power-loss, rollback, and evidence boundaries.

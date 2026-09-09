@@ -216,5 +216,20 @@
       window.showView = async function(view, project) { if (view === 'gate') return window.showReleasePreflight(project); return priorShowView(view, project); };
     })();
   </script>
+  <script>
+    (() => {
+      const nav = document.getElementById('nav');
+      nav.insertAdjacentHTML('beforeend', '<button data-view="firmware_upgrade">Firmware OTA</button>');
+      const priorShowView = window.showView;
+      window.showView = async function(view, project) { if (view === 'firmware_upgrade') return showFirmwareUpgrade(project); return priorShowView(view, project); };
+      nav.querySelector('button[data-view="firmware_upgrade"]').onclick = () => window.showView('firmware_upgrade', window.currentProject);
+      async function showFirmwareUpgrade(project) {
+        const data = await (await fetch('/api/projects/' + project.id + '/artifacts')).json();
+        const firmware = (data.artifacts || []).filter(item => item.artifact_type === 'FIRMWARE');
+        el.innerHTML = `<h2>Firmware OTA 升级模拟</h2><p class="muted">执行升级前校验、签名/审批、健康观察和失败回滚的确定性流程；不会刷写真实设备。</p><div class="panel"><form id="firmware-upgrade-form"><select name="artifactId">${firmware.map(item => `<option value="${item.id}">${item.id} · ${item.status} · ${item.artifact_revision}</option>`).join('') || '<option value="">暂无固件资产</option>'}</select><input name="currentHash" placeholder="当前镜像 Hash（sha256:...）" required><input name="approvalId" placeholder="人工审批 ID" required><input name="signature" placeholder="签名引用" required><input name="rollbackHash" placeholder="回滚镜像 Hash" required><label><input type="checkbox" name="healthCheck" checked> 健康检查通过</label><label><input type="checkbox" name="powerLoss"> 注入断电</label><button ${firmware.length ? '' : 'disabled'}>运行 OTA 预演</button></form><p id="firmware-upgrade-message" class="muted"></p></div><div id="firmware-upgrade-result"></div>`;
+        document.getElementById('firmware-upgrade-form').onsubmit = async event => { event.preventDefault(); const values = Object.fromEntries(new FormData(event.target)); const stamp = Date.now(); const response = await fetch('/api/projects/' + project.id + '/firmware/upgrade-simulate', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({actorId:'U-001',tenantId:project.tenant_id,artifactId:values.artifactId,currentHash:values.currentHash,approvalId:values.approvalId,signature:values.signature,rollbackHash:values.rollbackHash,healthCheck:values.healthCheck === 'on',powerLoss:values.powerLoss === 'on',testRunId:'FW-UPGRADE-RUN-' + stamp,evidenceId:'FW-UPGRADE-EVIDENCE-' + stamp})}); const result = await response.json(); document.getElementById('firmware-upgrade-message').textContent = response.ok ? `结果：${result.upgrade.result}；Evidence：${result.evidence.status}` : '执行失败：' + (result.message || result.error || '请求错误'); if (response.ok) document.getElementById('firmware-upgrade-result').innerHTML = `<div class="panel"><h3 class="${result.upgrade.result === 'APPLIED' ? 'status' : 'warning'}">${result.upgrade.result}</h3><p>Recovery：${result.upgrade.recovery} · controllerWrite：${result.upgrade.writesController ? '是' : '否'}</p><p class="muted">Transition Hash：${result.upgrade.transitionHash} · Test Run：${result.testRun.status} · Evidence：${result.evidence.status}</p></div>`; };
+      }
+    })();
+  </script>
 </body>
 </html>
