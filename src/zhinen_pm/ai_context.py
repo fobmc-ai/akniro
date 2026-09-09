@@ -12,7 +12,7 @@ def build_context(store: Any, *, project_id: str, object_ids: list[str], actor_i
         "knowledge": {"APPROVED"}, "evidence": {"VALIDATED"}, "test_run": {"PASSED"},
         "artifact": {"APPROVED", "ARCHIVED"}, "parameter_snapshot": {"APPROVED", "APPLIED"},
         "maintenance": {"COMPLETED", "CLOSED"}, "release": {"APPROVED", "RELEASED"},
-        "test_plan": {"COMPLETED"},
+        "test_plan": {"COMPLETED"}, "deployment": {"CONFIRMED"},
     }
     for object_id in object_ids:
         entity = store.get_entity(object_id)

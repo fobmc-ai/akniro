@@ -400,6 +400,16 @@ class PM0Tests(unittest.TestCase):
             self.assertEqual(context["omitted"][0]["id"], "EV-DRAFT-AI")
             store.close()
 
+    def test_ai_context_excludes_unconfirmed_deployment(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = ProjectStore(Path(directory) / "pm.db")
+            store.create_project(project_id="P-001", tenant_id="T-001", name="Demo", kind="platform", owner_id="U-001")
+            deployment = store.create_entity(entity_id="DEP-AI", entity_type="deployment", project_id="P-001", tenant_id="T-001", title="Pending deployment", owner_id="U-001")
+            context = build_context(store, project_id="P-001", object_ids=[deployment["id"]], actor_id="AI-001")
+            self.assertEqual(context["objects"], [])
+            self.assertEqual(context["omitted"][0]["id"], "DEP-AI")
+            store.close()
+
     def test_artifact_manifest_requires_hash_and_preserves_engineering_metadata(self):
         with tempfile.TemporaryDirectory() as directory:
             store = ProjectStore(Path(directory) / "pm.db")
