@@ -53,6 +53,7 @@
 - `GET /api/projects/{projectId}/deployment-preflight?deploymentId=...`：按授权、暂存、观察三个阶段检查 Deployment Request 与 Release Gate，不执行真实部署。
 - `GET /api/projects/{projectId}/schema`：返回当前持久化 schema、已应用迁移记录和幂等迁移策略；Ops 健康与备份恢复校验同时检查 schema 版本。
 - `GET /api/projects/{projectId}/completion-audit`：汇总 14 项能力证据、工作包契约、完整性、同步、开放问题和 Release Preflight，返回带阻塞原因的总纲完成度结论；只读，不绕过任何门禁。
+- `GET /api/projects/{projectId}/issue-preflight?issueId=...`：逐项核对 CAPA 根因、修复版本、回归测试、关闭标准和同项目 VALIDATED Evidence，返回可执行缺项；只读，不自动关单。
 - `GET /api/projects/{projectId}/readiness`：检查工作包依赖和必填设计契约（Owner、目标版本、Design Goal、Acceptance Criteria、Test Plan、Rollback Plan），空契约不会被计算为就绪。
 - 验证失败会自动创建 OPEN Issue，关联 `sourceTestRunId`、`evidenceId`、能力 ID 和错误列表，进入问题/CAPA 状态机；
 - `POST /api/entities/{entityId}/payload`：以 Revision 乐观并发保护更新 CAPA 根因、修复版本、回归测试和关闭标准；Issue 页面提供对应录入入口；

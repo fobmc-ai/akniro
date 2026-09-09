@@ -331,5 +331,21 @@
       };
     })();
   </script>
+  <script>
+    (() => {
+      const priorShowView = window.showView;
+      window.showView = async function(view, project) {
+        if (view !== 'issue') return priorShowView(view, project);
+        await priorShowView(view, project);
+        const data = await (await fetch('/api/projects/' + project.id + '/entities?type=issue')).json();
+        const rows = [];
+        for (const issue of (data.entities || []).slice(0, 30)) {
+          const preflight = await (await fetch('/api/projects/' + project.id + '/issue-preflight?issueId=' + encodeURIComponent(issue.id))).json();
+          rows.push(`<tr><td>${issue.id}</td><td class="${preflight.readyForClosure ? 'status' : 'warning'}">${preflight.readyForClosure ? 'READY' : 'BLOCKED'}</td><td>${(preflight.missing || []).join('、') || '全部满足'}</td></tr>`);
+        }
+        el.insertAdjacentHTML('beforeend', `<div class="panel"><h3>问题/CAPA 关闭预检</h3><p class="muted">关闭前必须完成根因、修复版本、回归测试、关闭标准和同项目 VALIDATED Evidence。</p><table><thead><tr><th>Issue</th><th>结论</th><th>缺项</th></tr></thead><tbody>${rows.join('') || '<tr><td colspan="3">暂无问题</td></tr>'}</tbody></table></div>`);
+      };
+    })();
+  </script>
 </body>
 </html>

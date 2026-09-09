@@ -221,6 +221,16 @@ class PM0Tests(unittest.TestCase):
             self.assertTrue(audit["deterministic"])
             store.close()
 
+    def test_issue_preflight_explains_capa_closure_requirements(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = ProjectStore(Path(directory) / "pm.db")
+            store.create_project(project_id="P-001", tenant_id="T-001", name="Demo", kind="platform", owner_id="U-001")
+            issue = store.create_entity(entity_id="ISS-PREFLIGHT", entity_type="issue", project_id="P-001", tenant_id="T-001", title="Failure", owner_id="U-001", payload={})
+            first = store.issue_preflight(issue["id"])
+            self.assertFalse(first["readyForClosure"])
+            self.assertEqual(first["missing"], ["rootCause", "fixVersion", "regressionTestIds", "closureCriteria", "evidenceLinks"])
+            store.close()
+
     def test_notifications_can_be_read(self):
         with tempfile.TemporaryDirectory() as directory:
             store = ProjectStore(Path(directory) / "pm.db")

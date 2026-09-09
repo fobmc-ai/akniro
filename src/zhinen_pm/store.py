@@ -409,6 +409,29 @@ class ProjectStore:
         blockers.extend({"kind": "release", "id": item["releaseId"], "reason": item["errors"] or item["gate"].get("missing", [])} for item in release_preflights if not item["ready"])
         return {"projectId": project_id, "generatedAt": now(), "softwareScope": {"capabilities": capabilities, "validated": sum(1 for item in capabilities if item["ready"]), "total": len(capabilities)}, "checks": checks, "ready": all(checks.values()), "blockers": blockers, "hardwareDeferred": hardware_deferred, "integrity": integrity, "sync": sync, "releasePreflights": release_preflights, "deterministic": True}
 
+    def issue_preflight(self, issue_id: str) -> dict[str, Any]:
+        """Explain every CAPA closure prerequisite without changing issue state."""
+        issue = self.get_entity(issue_id)
+        if issue["entity_type"] != "issue":
+            raise ValueError("issue preflight target must be issue")
+        payload = issue["payload"]
+        required = ("rootCause", "fixVersion", "regressionTestIds", "closureCriteria", "evidenceLinks")
+        missing = [field for field in required if not payload.get(field)]
+        evidence_errors = []
+        for evidence_id in payload.get("evidenceLinks", []) if isinstance(payload.get("evidenceLinks", []), list) else []:
+            try:
+                evidence = self.get_entity(evidence_id)
+                if evidence["project_id"] != issue["project_id"]:
+                    evidence_errors.append("evidence_project_mismatch:" + evidence_id)
+                elif evidence["entity_type"] != "evidence":
+                    evidence_errors.append("evidence_type_invalid:" + evidence_id)
+                elif evidence["status"] != "VALIDATED":
+                    evidence_errors.append("evidence_not_validated:" + evidence_id)
+            except KeyError:
+                evidence_errors.append("evidence_missing:" + evidence_id)
+        checks = {"capaFields": not missing, "validatedEvidence": not evidence_errors and bool(payload.get("evidenceLinks")), "regressionTests": bool(payload.get("regressionTestIds")), "notAlreadyClosed": issue["status"] != "CLOSED"}
+        return {"issueId": issue_id, "currentStatus": issue["status"], "readyForClosure": all(checks.values()), "checks": checks, "missing": missing + evidence_errors, "deterministic": True}
+
     def capability_evidence(self, project_id: str, capability_ids: list[str] | None = None) -> list[dict[str, Any]]:
         evidence = [x for x in self.list_entities(project_id, "evidence") if x["status"] == "VALIDATED"]
         by_capability: dict[str, list[str]] = {}

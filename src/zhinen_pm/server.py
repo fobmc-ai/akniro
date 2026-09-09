@@ -119,6 +119,14 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                         return self._send(200, store.acceptance_report(project_id))
                     if path.endswith("/completion-audit"):
                         return self._send(200, store.completion_audit(project_id))
+                    if path.endswith("/issue-preflight"):
+                        issue_id = parse_qs(urlparse(self.path).query).get("issueId", [None])[0]
+                        if not issue_id:
+                            return self._send(400, {"code": "PM-REQUEST-001", "message": "issueId is required"})
+                        issue = store.get_entity(issue_id)
+                        if issue["project_id"] != project_id:
+                            raise KeyError("issue not found in project")
+                        return self._send(200, store.issue_preflight(issue_id))
                     if path.endswith("/audit"):
                         return self._send(200, {"audit": store.list_audit(project_id)})
                     if path.endswith("/machine-objects"):
