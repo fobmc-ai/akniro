@@ -56,6 +56,15 @@ try:
 except Exception:
     pass
 try:
+    store.notify(notification_id='N-DEMO-001', project_id=args.project, recipient_id='U-001', kind='review', message='请检查演示工程 Release Gate')
+except Exception:
+    pass
+try:
+    store.enqueue_sync(sync_id='SYNC-DEMO-001', project_id=args.project, tenant_id=project['tenant_id'], direction='PULL_SNAPSHOT', object_type='artifact', object_id='ART-DEMO-PLC', idempotency_key='demo-sync-001', payload={'source': 'edge-demo'})
+    store.transition_sync('SYNC-DEMO-001', 'CONFLICT', '演示 Hash 与项目 revision 不一致')
+except Exception:
+    pass
+try:
     store.link_entities(project_id=args.project, from_id='REL-001', to_id='EV-001', link_type='requires')
 except Exception:
     pass
