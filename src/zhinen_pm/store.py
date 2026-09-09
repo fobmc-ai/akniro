@@ -558,6 +558,8 @@ class ProjectStore:
             raise ValueError(f"PM-SYNC-002: invalid transition {row['status']}->{target}")
         self.db.execute("UPDATE sync_queue SET status = ?, reason = ?, updated_at = ? WHERE id = ?", (target, reason, now(), sync_id))
         self.db.commit()
+        if target in {"CONFLICT", "FAILED"}:
+            self.notify_project_owner(project_id=row["project_id"], kind="sync_conflict" if target == "CONFLICT" else "sync_failed", message=f"Sync {sync_id} entered {target}: {reason or 'no reason'}", correlation_id=sync_id)
         result = dict(self.db.execute("SELECT * FROM sync_queue WHERE id = ?", (sync_id,)).fetchone()); result["payload"] = json.loads(result["payload"]); return result
 
     def get_sync(self, sync_id: str) -> dict[str, Any]:
