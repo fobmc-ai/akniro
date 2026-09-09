@@ -12,7 +12,7 @@ from zhinen_pm.authorization import Actor, AuthorizationError, authorize
 from zhinen_pm.state_machine import InvalidTransition, assert_transition
 from zhinen_pm.store import ProjectStore
 from zhinen_pm.server import create_server
-from zhinen_pm.engineering import validate_capability, list_capabilities, simulation_evidence, build_plc_project, build_firmware_image, simulate_plc_runtime, simulate_motion_axis, simulate_vision_algorithm, simulate_edge_replay, validate_toolchain_matrix, simulate_eda_consistency, simulate_hmi_screens, simulate_oee_metrics, simulate_spc_metrics, simulate_health_check, simulate_product_trace, simulate_commissioning_checklist, simulate_plc_download, simulate_plc_monitor, simulate_ecosystem_contract
+from zhinen_pm.engineering import validate_capability, list_capabilities, simulation_evidence, build_plc_project, build_firmware_image, simulate_plc_runtime, simulate_motion_axis, simulate_vision_algorithm, simulate_edge_replay, validate_toolchain_matrix, simulate_eda_consistency, simulate_hmi_screens, simulate_oee_metrics, simulate_spc_metrics, simulate_health_check, simulate_product_trace, simulate_commissioning_checklist, simulate_plc_download, simulate_plc_monitor, simulate_ecosystem_contract, simulate_robot_handshake
 from zhinen_pm.ai_context import build_context
 import threading
 
@@ -582,6 +582,16 @@ class PM0Tests(unittest.TestCase):
         blocked = simulate_ecosystem_contract({**package, "permissions": ["direct_deploy"]})
         self.assertIn("forbidden_permission:direct_deploy", blocked["errors"])
         self.assertEqual(simulation_evidence("ECO-001", {"consent": True, "scope": True, "retention": True, "package": package})["ecosystem"]["result"], "PASSED")
+
+    def test_robot_handshake_is_scoped_and_fault_safe(self):
+        sequence = ["INIT", "READY", "START", "DONE"]
+        first = simulate_robot_handshake(sequence, ["START_CYCLE", "READ_STATUS"])
+        second = simulate_robot_handshake(sequence, ["START_CYCLE", "READ_STATUS"])
+        self.assertEqual((first["result"], first["traceHash"]), ("PASSED", second["traceHash"]))
+        self.assertFalse(first["motionCommandIssued"])
+        self.assertEqual(simulate_robot_handshake(sequence, ["READ_STATUS"])["result"], "FAILED")
+        self.assertTrue(simulate_robot_handshake(sequence, ["START_CYCLE"], "safety_stop")["safeStop"])
+        self.assertEqual(simulation_evidence("ROB-001", {"handshake": True, "permission_scope": True, "fault_recovery": True, "handshake_sequence": sequence, "permission_scope_ids": ["START_CYCLE"]})["robot"]["result"], "PASSED")
 
     def test_commissioning_fat_sat_order_and_evidence_are_gated(self):
         sequence = ["24V", "Network", "EtherCAT", "IO", "Safety", "Servo", "Cylinder", "Vision", "Station", "Auto Cycle", "Burn-in"]

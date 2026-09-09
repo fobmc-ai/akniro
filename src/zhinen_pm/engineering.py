@@ -122,6 +122,11 @@ def simulation_evidence(capability_id: str, payload: dict[str, Any]) -> dict[str
             domain_errors.append(edge["reason"])
     if capability_id == "ROB-001" and payload.get("handshake_sequence") is not None and payload["handshake_sequence"] != ["INIT", "READY", "START", "DONE"]:
         domain_errors.append("handshake_sequence_invalid")
+    if capability_id == "ROB-001" and payload.get("handshake_sequence") is not None and "permission_scope_ids" in payload:
+        robot = simulate_robot_handshake(payload.get("handshake_sequence", []), payload.get("permission_scope_ids", []), payload.get("fault"))
+        result["robot"] = robot
+        if robot["result"] != "PASSED":
+            domain_errors.extend(robot["errors"])
     if capability_id == "COMM-001" and payload.get("checklist_items") is not None and any(not item.get("passed") for item in payload["checklist_items"]):
         domain_errors.append("commissioning_checklist_incomplete")
     if capability_id == "COMM-001" and payload.get("checklist_sequence") is not None:
@@ -211,6 +216,24 @@ def simulate_edge_replay(event_ids: list[str], idempotent: bool) -> dict[str, An
     if duplicates and not idempotent:
         return {"result": "FAILED", "reason": "replay_not_idempotent", "events": len(event_ids), "duplicates": duplicates, "applied": len(event_ids), "deterministic": True}
     return {"result": "PASSED", "events": len(event_ids), "duplicates": duplicates, "applied": len(set(event_ids)), "skipped": duplicates, "deterministic": True, "reason": None}
+
+
+def simulate_robot_handshake(sequence: list[str], permission_scope: list[str], fault: str | None = None) -> dict[str, Any]:
+    """Replay a robot capability handshake without issuing a motion command."""
+    expected = ["INIT", "READY", "START", "DONE"]
+    errors = []
+    if sequence != expected:
+        errors.append("handshake_sequence_invalid")
+    if not isinstance(permission_scope, list) or "START_CYCLE" not in permission_scope:
+        errors.append("start_cycle_permission_missing")
+    if fault not in {None, "communication_loss", "safety_stop", "timeout"}:
+        errors.append("unknown_fault")
+    if fault:
+        errors.append("robot_fault:" + fault)
+    import json
+    trace = {"sequence": sequence, "permissionScope": sorted(permission_scope) if isinstance(permission_scope, list) else permission_scope, "fault": fault, "errors": sorted(set(errors))}
+    trace_hash = "sha256:" + hashlib.sha256(json.dumps(trace, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+    return {"result": "FAILED" if errors else "PASSED", "expectedSequence": expected, "actualSequence": sequence, "permissionScope": sorted(permission_scope) if isinstance(permission_scope, list) else permission_scope, "fault": fault, "errors": sorted(set(errors)), "safeStop": bool(fault), "motionCommandIssued": False, "traceHash": trace_hash, "deterministic": True}
 
 
 def validate_toolchain_matrix(cases: list[dict[str, Any]]) -> dict[str, Any]:

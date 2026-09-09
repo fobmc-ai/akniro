@@ -56,6 +56,7 @@
 - HMI-001 支持画面 Smoke 序列回放，验证缺失页面、未知页面和导航顺序；
 - LIFE-001 支持确定性 OEE 计算，输出 Availability、Performance、Quality、OEE，并拒绝非法停机/产量边界；同时支持显式上下限的 SPC 样本控制带与设备健康信号检查，输出越界样本、均值/σ、逐信号检查和可追溯结果；
 - `LIFE-001`：生产指标、质量指标和维护流程统一进入生命周期验证，缺项会阻止软件验收证据通过；
+- ROB-001 提供确定性握手状态序列 `INIT → READY → START → DONE`、启动权限范围和通信/安全故障恢复检查；验证过程明确 `motionCommandIssued=false`，故障时安全停机。
 - `COMM-001` 支持固定 FAT/SAT 调试顺序 `24V → Network → EtherCAT → IO → Safety → Servo → Cylinder → Vision → Station → Auto Cycle → Burn-in`，缺阶段、乱序或未通过证据均阻塞验收；
 - 生命周期模拟证据可选包含 `spc_values/spc_lower/spc_upper` 与 `health_signals/health_limits`，越界样本和健康信号会产生结构化失败原因并自动进入问题流程；
 - LIFE-001 支持 `product_trace` 记录 Product、Machine、Recipe、PLC State、Measurement、Parameters 和 Timestamp，并生成稳定 genealogy `traceHash`；字段不完整时阻塞验收。

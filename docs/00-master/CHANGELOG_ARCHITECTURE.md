@@ -68,3 +68,4 @@
 
 - 新增管理中心服务端受控 Backlog 源同步入口，统一从 `examples/implementation-backlog.json` 回填状态、占位标记和证据链接，并产生审计与事件记录。
 - ECO-001 补齐 Device Package/Fleet Learning 隐私授权契约、越权权限拒绝和确定性 contract hash，并以 ADR-0013 固化数据边界。
+- ROB-001 补齐握手状态、启动权限范围和故障安全停机的确定性回放证据，明确模拟器不发出运动命令。
