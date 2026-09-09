@@ -61,6 +61,7 @@
 - LIFE-001 支持 `product_trace` 记录 Product、Machine、Recipe、PLC State、Measurement、Parameters 和 Timestamp，并生成稳定 genealogy `traceHash`；字段不完整时阻塞验收。
 - Release Gate 还要求 source revision、Machine Project revision、Schema/API/Event 版本、已知问题清单和目标环境，发布页提供对应录入字段；
 - `GET /api/projects/{projectId}/readiness`：按工作包依赖计算可开始项；
+- `POST /api/projects/{projectId}/backlog/reconcile`：按总纲源文件安全回填工作包状态、Placeholder 标记和软件证据引用，并记录 Audit/Event Outbox；
 - `GET /api/projects/{projectId}/capability-readiness`：按能力 ID 汇总 VALIDATED Evidence 覆盖情况；验收报告同时返回该矩阵；
 - 验收报告 summary 同时提供 `openIssues` / `closedIssues`，用于确认失败验证是否已经完成 CAPA 收敛；
 - 工程资产、参数和现场写入仍必须经 Artifact/Edge owner API、审批、回读和审计。

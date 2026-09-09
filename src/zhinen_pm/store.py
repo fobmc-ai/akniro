@@ -288,6 +288,22 @@ class ProjectStore:
             result.append(item)
         return result
 
+    def reconcile_backlog(self, *, project_id: str, items: list[dict[str, Any]], actor_id: str) -> int:
+        """Refresh source-controlled planning state without replacing project-owned fields."""
+        project = self.db.execute("SELECT tenant_id FROM projects WHERE id = ?", (project_id,)).fetchone()
+        if not project:
+            raise KeyError(f"unknown project: {project_id}")
+        timestamp = now()
+        updated = 0
+        for item in items:
+            cursor = self.db.execute("UPDATE backlog_items SET status = ?, placeholder = ?, evidence_links = ?, updated_at = ? WHERE project_id = ? AND id = ?", (item["status"], int(bool(item.get("placeholder", False))), json.dumps(item.get("evidenceLinks", []), ensure_ascii=False), timestamp, project_id, item["id"]))
+            updated += cursor.rowcount
+        self._audit(project["tenant_id"], project_id, actor_id, "backlog.reconcile", project_id, "success", {"items": len(items), "updated": updated})
+        if updated:
+            self._emit_event(tenant_id=project["tenant_id"], project_id=project_id, message_type="pm.backlog.reconciled", actor_id=actor_id, payload={"updated": updated, "source": "implementation-backlog"}, correlation_id=f"backlog:{project_id}", idempotency_key=f"backlog.reconciled:{project_id}:{timestamp}")
+        self.db.commit()
+        return updated
+
     def enqueue_sync(self, *, sync_id: str, project_id: str, tenant_id: str, direction: str, object_type: str, object_id: str, idempotency_key: str, payload: dict[str, Any], actor_id: str = "system") -> dict[str, Any]:
         if direction not in {"PULL_SNAPSHOT", "PUSH_APPROVED"}:
             raise ValueError("invalid sync direction")

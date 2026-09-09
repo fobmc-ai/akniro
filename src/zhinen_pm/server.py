@@ -167,6 +167,11 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                     self._authorize(body, "MODIFY", project_id)
                     count = store.import_backlog(project_id=project_id, items=body["items"], actor_id=body["actorId"])
                     return self._send(201, {"inserted": count, "items": len(store.list_backlog(project_id))})
+                if path.startswith("/api/projects/") and path.endswith("/backlog/reconcile"):
+                    project_id = path.split("/")[3]
+                    self._authorize(body, "MODIFY", project_id)
+                    updated = store.reconcile_backlog(project_id=project_id, items=body["items"], actor_id=body["actorId"])
+                    return self._send(200, {"updated": updated, "items": len(store.list_backlog(project_id))})
                 if path.startswith("/api/projects/") and path.endswith("/sync-queue"):
                     project_id = path.split("/")[3]
                     self._authorize(body, "MODIFY", project_id)

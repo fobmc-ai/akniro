@@ -62,3 +62,4 @@
 - 修正基础能力验证接口漏返回稳定 Hash 的问题，并用非空回归断言锁定契约。
 - Web 管理中心新增项目选择器；项目目录树、进度、测试、资产、审计和运维视图按选中项目刷新，避免多项目环境误读第一个项目。
 - 实施 backlog 按当前软件证据回填 CORE/PLC/HMI/EDA/Motion/Vision/Robot/Quality/PM/Release/Edge/COMM/LIFE/AI 为 `VALIDATED`，并明确该状态仅代表软件验证，不代表真实硬件接入。
+- 新增 backlog reconcile API 与 seed 流程，将规划源状态安全同步到既有项目并记录 Audit/Event Outbox，避免仓库规划和管理中心展示脱节。

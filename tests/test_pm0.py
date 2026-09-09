@@ -111,6 +111,8 @@ class PM0Tests(unittest.TestCase):
             self.assertEqual(len(backlog), 19)
             self.assertFalse(next(item for item in backlog if item["id"] == "PLC-001")["placeholder"])
             self.assertEqual(next(item for item in backlog if item["id"] == "PLC-001")["status"], "VALIDATED")
+            self.assertEqual(store.reconcile_backlog(project_id="P-001", items=items, actor_id="U-001"), 19)
+            self.assertTrue(any(item["message_type"] == "pm.backlog.reconciled" for item in store.list_events("P-001")))
             store.close()
 
     def test_sync_queue_requires_approval_for_push_and_is_idempotent(self):

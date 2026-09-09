@@ -6,7 +6,7 @@ PM-0 只冻结领域边界和交互契约，不绑定数据库、前端框架或
 
 ## 2. 核心对象
 
-所有对象都有：`id、type、schemaVersion、tenantId、siteId、projectId、status、ownerId、createdAt、updatedAt、revision、createdBy、updatedBy`。
+所有对象都有：`id、type、schemaVersion、tenantId、siteId、projectId、status、ownerId、createdAt、updatedAt、revision、createdBy、updatedBy`。实施 backlog reconcile 只回填源文件管理的 status、placeholder 和 evidenceLinks，不覆盖项目自有规划字段。
 
 ### Engineering Project
 

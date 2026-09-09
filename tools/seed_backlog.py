@@ -13,6 +13,7 @@ args = parser.parse_args()
 store = ProjectStore(args.database)
 items = json.loads((Path(__file__).parents[1] / 'examples' / 'implementation-backlog.json').read_text(encoding='utf-8'))
 inserted = store.import_backlog(project_id=args.project, items=items, actor_id='U-001')
+reconciled = store.reconcile_backlog(project_id=args.project, items=items, actor_id='U-001')
 project = store.get_project(args.project)
 for user_id, display_name, role in [('U-002', 'PLC 工程师', 'engineer'), ('U-003', '质量工程师', 'qa')]:
     try:
@@ -81,5 +82,5 @@ try:
         store.transition(entity_id='EV-001', target='VALIDATED', actor_id='U-001', expected_revision=evidence['revision'])
 except Exception:
     pass
-print({'inserted': inserted, 'total': len(store.list_backlog(args.project)), 'sampleEntities': len(samples)})
+print({'inserted': inserted, 'reconciled': reconciled, 'total': len(store.list_backlog(args.project)), 'sampleEntities': len(samples)})
 store.close()
