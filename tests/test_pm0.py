@@ -24,6 +24,8 @@ class PM0Tests(unittest.TestCase):
     def test_ai_cannot_deploy(self):
         with self.assertRaises(AuthorizationError):
             authorize(Actor("AI-001", "ai", "T-001", frozenset({"P-001"})), "DEPLOY", tenant_id="T-001", project_id="P-001")
+        with self.assertRaises(AuthorizationError):
+            authorize(Actor("AI-001", "ai", "T-001", frozenset({"P-001"})), "APPLY", tenant_id="T-001", project_id="P-001")
 
     def test_store_scope_revision_transition_and_audit(self):
         with tempfile.TemporaryDirectory() as directory:
