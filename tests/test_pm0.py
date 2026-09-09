@@ -12,7 +12,7 @@ from zhinen_pm.authorization import Actor, AuthorizationError, authorize
 from zhinen_pm.state_machine import InvalidTransition, assert_transition
 from zhinen_pm.store import ProjectStore
 from zhinen_pm.server import create_server
-from zhinen_pm.engineering import validate_capability, list_capabilities, simulation_evidence, build_plc_project, build_firmware_image, simulate_plc_runtime, simulate_motion_axis, simulate_vision_algorithm, simulate_edge_replay, validate_toolchain_matrix, simulate_eda_consistency, simulate_hmi_screens, simulate_oee_metrics, simulate_spc_metrics, simulate_health_check, simulate_plc_download, simulate_plc_monitor
+from zhinen_pm.engineering import validate_capability, list_capabilities, simulation_evidence, build_plc_project, build_firmware_image, simulate_plc_runtime, simulate_motion_axis, simulate_vision_algorithm, simulate_edge_replay, validate_toolchain_matrix, simulate_eda_consistency, simulate_hmi_screens, simulate_oee_metrics, simulate_spc_metrics, simulate_health_check, simulate_product_trace, simulate_plc_download, simulate_plc_monitor
 from zhinen_pm.ai_context import build_context
 import threading
 
@@ -556,6 +556,14 @@ class PM0Tests(unittest.TestCase):
         self.assertEqual((monitor["result"], [item["name"] for item in monitor["tags"]]), ("PASSED", ["Run", "Speed"]))
         faulted = simulate_plc_monitor(tags={"Run": True}, cycles=5, fault="safety_trip")
         self.assertEqual((faulted["result"], faulted["safeStop"], faulted["tags"][0]["quality"]), ("FAILED", True, "BAD"))
+
+    def test_product_trace_is_complete_and_deterministic(self):
+        trace = {"productId": "PRODUCT-001", "machineId": "M-001", "recipeId": "RECIPE-001", "plcState": "DONE", "measurement": {"length": 10.2}, "parameters": {"speed": 100}, "timestamp": "2026-09-10T00:00:00Z"}
+        first = simulate_product_trace(trace)
+        second = simulate_product_trace(trace)
+        self.assertEqual((first["result"], first["traceHash"]), ("PASSED", second["traceHash"]))
+        self.assertEqual(simulate_product_trace({"productId": "PRODUCT-001"})["result"], "BLOCKED")
+        self.assertEqual(simulation_evidence("LIFE-001", {"production_metrics": True, "quality_metrics": True, "maintenance_workflow": True, "product_trace": trace})["productTrace"]["result"], "PASSED")
 
     def test_http_api_project_tree_flow(self):
         with tempfile.TemporaryDirectory() as directory:

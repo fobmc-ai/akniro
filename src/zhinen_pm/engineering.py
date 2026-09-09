@@ -137,6 +137,11 @@ def simulation_evidence(capability_id: str, payload: dict[str, Any]) -> dict[str
         result["health"] = health
         if health["result"] != "PASSED":
             domain_errors.append(health["reason"])
+    if capability_id == "LIFE-001" and payload.get("product_trace") is not None:
+        product_trace = simulate_product_trace(payload.get("product_trace", {}))
+        result["productTrace"] = product_trace
+        if product_trace["result"] != "PASSED":
+            domain_errors.append(product_trace["reason"])
     if capability_id == "PLC-002":
         runtime = simulate_plc_runtime(int(payload.get("cycles", 100)), int(payload.get("cycle_ms", 10)), int(payload.get("watchdog_ms", 50)), payload.get("injected_fault"))
         result["runtime"] = runtime
@@ -256,6 +261,19 @@ def simulate_health_check(signals: dict[str, float], limits: dict[str, dict[str,
         if not valid:
             violations.append(name)
     return {"result": "FAILED" if violations else "PASSED", "checks": checks, "violations": violations, "deterministic": True, "reason": "health_limit_exceeded" if violations else None}
+
+
+def simulate_product_trace(trace: dict[str, Any]) -> dict[str, Any]:
+    """Validate a stable product-to-machine genealogy record without live historian access."""
+    required = ("productId", "machineId", "recipeId", "plcState", "measurement", "parameters", "timestamp")
+    missing = [field for field in required if trace.get(field) in (None, "", {})]
+    if missing:
+        return {"result": "BLOCKED", "reason": "product_trace_fields_missing", "missing": missing, "deterministic": True}
+    if not isinstance(trace["measurement"], dict) or not isinstance(trace["parameters"], dict):
+        return {"result": "BLOCKED", "reason": "product_trace_measurement_invalid", "missing": [], "deterministic": True}
+    import json
+    canonical = json.dumps({key: trace[key] for key in required}, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return {"result": "PASSED", "productId": trace["productId"], "machineId": trace["machineId"], "recipeId": trace["recipeId"], "plcState": trace["plcState"], "measurement": trace["measurement"], "parameters": trace["parameters"], "timestamp": trace["timestamp"], "traceHash": "sha256:" + hashlib.sha256(canonical.encode("utf-8")).hexdigest(), "deterministic": True, "reason": None}
 
 
 def build_plc_project(source: str, toolchain_version: str = "SIMULATED-PLC-0.1") -> dict[str, Any]:
