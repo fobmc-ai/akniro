@@ -96,6 +96,21 @@ class PM0Tests(unittest.TestCase):
             self.assertEqual(store.transition_sync("SYNC-001", "CONFLICT", "hash mismatch")["status"], "CONFLICT")
             store.close()
 
+    def test_management_center_stats_notifications_and_backup(self):
+        with tempfile.TemporaryDirectory() as directory:
+            db = Path(directory) / "pm.db"
+            store = ProjectStore(db)
+            store.create_project(project_id="P-001", tenant_id="T-001", name="Demo", kind="platform", owner_id="U-001")
+            store.create_entity(entity_id="REQ-001", entity_type="requirement", project_id="P-001", tenant_id="T-001", title="MVP", owner_id="U-001")
+            self.assertEqual(store.project_stats("P-001")["entities"]["requirement"]["DRAFT"], 1)
+            self.assertEqual(store.notify(notification_id="N-001", project_id="P-001", recipient_id="U-001", kind="review", message="请评审" )["read"], 0)
+            self.assertEqual(len(store.list_notifications("U-001")), 1)
+            backup = Path(directory) / "backup.db"
+            store.backup(str(backup)); store.close()
+            restored = ProjectStore(backup)
+            self.assertEqual(restored.get_project("P-001")["name"], "Demo")
+            restored.close()
+
     def test_http_api_project_tree_flow(self):
         with tempfile.TemporaryDirectory() as directory:
             server = create_server(str(Path(directory) / "pm.db"), port=0)

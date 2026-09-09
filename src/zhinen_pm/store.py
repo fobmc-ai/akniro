@@ -240,6 +240,36 @@ class ProjectStore:
             item = dict(row); item["payload"] = json.loads(item["payload"]); result.append(item)
         return result
 
+    def project_stats(self, project_id: str) -> dict[str, Any]:
+        rows = self.db.execute("SELECT entity_type, status, COUNT(*) AS count FROM entities WHERE project_id = ? GROUP BY entity_type, status", (project_id,)).fetchall()
+        by_type: dict[str, dict[str, int]] = {}
+        for row in rows:
+            by_type.setdefault(row["entity_type"], {})[row["status"]] = row["count"]
+        return {"projectId": project_id, "entities": by_type, "backlog": len(self.list_backlog(project_id)), "syncQueue": len(self.list_sync_queue(project_id)), "links": len(self.list_links(project_id))}
+
+    def list_audit(self, project_id: str, limit: int = 200) -> list[dict[str, Any]]:
+        return [dict(row) for row in self.db.execute("SELECT * FROM audit WHERE project_id = ? ORDER BY occurred_at DESC LIMIT ?", (project_id, limit))]
+
+    def notify(self, *, notification_id: str, project_id: str, recipient_id: str, kind: str, message: str) -> dict[str, Any]:
+        self.db.execute("INSERT OR IGNORE INTO notifications VALUES (?, ?, ?, ?, ?, 0, ?)", (notification_id, project_id, recipient_id, kind, message, now()))
+        self.db.commit()
+        return dict(self.db.execute("SELECT * FROM notifications WHERE id = ?", (notification_id,)).fetchone())
+
+    def list_notifications(self, recipient_id: str, project_id: str | None = None) -> list[dict[str, Any]]:
+        if project_id:
+            rows = self.db.execute("SELECT * FROM notifications WHERE recipient_id = ? AND project_id = ? ORDER BY created_at DESC", (recipient_id, project_id))
+        else:
+            rows = self.db.execute("SELECT * FROM notifications WHERE recipient_id = ? ORDER BY created_at DESC", (recipient_id,))
+        return [dict(row) for row in rows]
+
+    def backup(self, destination: str) -> str:
+        target = sqlite3.connect(destination)
+        try:
+            self.db.backup(target)
+        finally:
+            target.close()
+        return destination
+
     def link_entities(self, *, project_id: str, from_id: str, to_id: str, link_type: str) -> dict[str, Any]:
         if not self.db.execute("SELECT 1 FROM entities WHERE id = ? AND project_id = ?", (from_id, project_id)).fetchone() or not self.db.execute("SELECT 1 FROM entities WHERE id = ? AND project_id = ?", (to_id, project_id)).fetchone():
             raise KeyError("entity link target not found in project")

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
@@ -77,6 +78,10 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                     if path.endswith("/search"):
                         query = parse_qs(urlparse(self.path).query).get("q", [""])[0]
                         return self._send(200, {"results": store.search(project_id, query)})
+                    if path.endswith("/stats"):
+                        return self._send(200, store.project_stats(project_id))
+                    if path.endswith("/audit"):
+                        return self._send(200, {"audit": store.list_audit(project_id)})
                     if path.endswith("/backlog"):
                         status = parse_qs(urlparse(self.path).query).get("status", [None])[0]
                         return self._send(200, {"items": store.list_backlog(project_id, status)})
@@ -126,6 +131,16 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                     self._authorize(body, "MODIFY", sync["project_id"])
                     result = store.transition_sync(path.split("/")[3], body["target"], body.get("reason", ""))
                     return self._send(200, result)
+                if path.startswith("/api/projects/") and path.endswith("/notify"):
+                    project_id = path.split("/")[3]
+                    self._authorize(body, "MODIFY", project_id)
+                    return self._send(201, store.notify(notification_id=body["id"], project_id=project_id, recipient_id=body["recipientId"], kind=body["kind"], message=body["message"]))
+                if path.startswith("/api/projects/") and path.endswith("/backup"):
+                    project_id = path.split("/")[3]
+                    self._authorize(body, "MODIFY", project_id)
+                    destination = str(Path("backups") / f"{project_id}-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}.db")
+                    Path("backups").mkdir(exist_ok=True)
+                    return self._send(201, {"projectId": project_id, "backup": store.backup(destination)})
                 if path.startswith("/api/projects/") and path.endswith("/backlog/import"):
                     project_id = path.split("/")[3]
                     self._authorize(body, "MODIFY", project_id)
