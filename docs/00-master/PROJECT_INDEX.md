@@ -16,9 +16,9 @@ This file is the low-cost navigation index for Codex. Read the smallest relevant
 | CLOUD | edge/cloud | `docs/06-cloud/CLOUD_ARCHITECTURE.md` | B |
 | AI | governed AI | `docs/07-ai/AI_CONTEXT_POLICY.md`, `AI_SAFETY.md` | A/B |
 | QUAL | quality attributes | `docs/08-quality/SECURITY.md`, `TESTING.md` | A |
-| GOV | decisions and change | `docs/09-governance/ADR/`, `DEFINITION_OF_DONE.md` | A |
+| GOV | decisions and change | `docs/00-master/ADR/`, `DEFINITION_OF_DONE.md` | A |
 | BRAND | product identity | `docs/00-master/BRAND_NAMING.md` | A |
-| BUILD | implementation skeleton | `schemas/`, `examples/`, `src/`, `web/`, `docs/09-governance/ADR/ADR-0003-foundation-skeleton.md` | A |
+| BUILD | implementation skeleton | `examples/`, `src/`, `web/`, `docs/00-master/ARCHITECTURE.md`, `docs/00-master/ADR/` | A |
 | PM-BACKLOG | master-plan execution registry | `IMPLEMENTATION_BACKLOG.md`, `examples/implementation-backlog.json`, `src/zhinen_pm/store.py`, `web/index.html` | A |
 | ENG-ADAPTER | engineering capability adapters | `ENGINEERING_CAPABILITIES.md`, `src/zhinen_pm/engineering.py` | A/B |
 | STATUS | implementation acceptance status | `IMPLEMENTATION_STATUS.md` | A |
