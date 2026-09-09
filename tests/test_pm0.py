@@ -128,6 +128,8 @@ class PM0Tests(unittest.TestCase):
             self.assertEqual(len(store.list_sync_queue("P-001")), 1)
             store.transition_sync("SYNC-001", "CONFLICT", "revision mismatch", actor_id="U-001")
             self.assertTrue(any(item["kind"] == "sync_conflict" for item in store.list_notifications("U-001", "P-001")))
+            with self.assertRaisesRegex(ValueError, "requires a reason"):
+                store.transition_sync("SYNC-001", "QUEUED")
             events = store.list_events("P-001")
             self.assertTrue(any(item["message_type"] == "pm.sync.queued" and item["payload"]["syncId"] == "SYNC-001" for item in events))
             self.assertTrue(any(item["message_type"] == "pm.sync.transitioned" and item["payload"]["to"] == "CONFLICT" for item in events))

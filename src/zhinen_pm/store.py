@@ -811,6 +811,8 @@ class ProjectStore:
             raise KeyError(f"unknown sync: {sync_id}")
         if target not in allowed.get(row["status"], set()):
             raise ValueError(f"PM-SYNC-002: invalid transition {row['status']}->{target}")
+        if row["status"] == "CONFLICT" and not reason.strip():
+            raise ValueError("PM-SYNC-003: conflict resolution requires a reason")
         self.db.execute("UPDATE sync_queue SET status = ?, reason = ?, updated_at = ? WHERE id = ?", (target, reason, now(), sync_id))
         self._audit(row["tenant_id"], row["project_id"], actor_id, "sync.transition", sync_id, "success", {"from": row["status"], "to": target, "reason": reason})
         self._emit_event(tenant_id=row["tenant_id"], project_id=row["project_id"], message_type="pm.sync.transitioned", actor_id=actor_id, payload={"syncId": sync_id, "from": row["status"], "to": target, "reason": reason}, correlation_id=sync_id, idempotency_key=f"sync.transitioned:{sync_id}:{target}:{row['updated_at']}")

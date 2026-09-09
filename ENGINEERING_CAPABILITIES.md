@@ -49,6 +49,7 @@
 - `GET /api/projects/{projectId}/release-preflight?releaseId=...`：在人工 Release 决策前核对项目完整性、资产项目/状态/Hash、SBOM、证据、版本元数据，以及可选 Machine Commit/参数快照绑定的一致性；失败只返回错误清单，不绕过人工门禁。
 - `GET /api/projects/{projectId}/integrity`：只读审计项目对象 revision/owner、关系目标、Payload 引用和 Artifact Hash，返回稳定的检查项、错误清单和发布前可复用的 `ready` 结论。
 - `GET /api/projects/{projectId}/sync-summary`：汇总离线同步队列的状态、幂等键、PUSH 审批、冲突和失败对象，返回是否可安全重放；只读，不自动应用变更。
+- Ops 页面提供带裁决理由的人工冲突处理入口，使用既有 Sync 状态机重新排队或确认失败，所有结果进入 Audit/Event Outbox。
 - `GET /api/projects/{projectId}/readiness`：检查工作包依赖和必填设计契约（Owner、目标版本、Design Goal、Acceptance Criteria、Test Plan、Rollback Plan），空契约不会被计算为就绪。
 - 验证失败会自动创建 OPEN Issue，关联 `sourceTestRunId`、`evidenceId`、能力 ID 和错误列表，进入问题/CAPA 状态机；
 - `POST /api/entities/{entityId}/payload`：以 Revision 乐观并发保护更新 CAPA 根因、修复版本、回归测试和关闭标准；Issue 页面提供对应录入入口；

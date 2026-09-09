@@ -23,3 +23,4 @@
 - Added a human-gated AI suggestion Apply path with expected-revision conflict detection, forbidden-action filtering, and applied-to traceability.
 - AI Apply now requires same-project VALIDATED test evidence before any non-controlled object patch can be applied.
 - Added a read-only Edge sync replay-safety summary for idempotency, push approvals, conflicts, and failures.
+- Added a reason-bearing human sync conflict resolution form in the Ops view.
