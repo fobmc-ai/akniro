@@ -231,6 +231,23 @@ class PM0Tests(unittest.TestCase):
             self.assertEqual(first["missing"], ["rootCause", "fixVersion", "regressionTestIds", "closureCriteria", "evidenceLinks"])
             store.close()
 
+    def test_http_issue_preflight_is_project_scoped(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = ProjectStore(Path(directory) / "pm.db")
+            store.create_project(project_id="P-001", tenant_id="T-001", name="Demo", kind="platform", owner_id="U-001")
+            issue = store.create_entity(entity_id="ISS-HTTP-PREFLIGHT", entity_type="issue", project_id="P-001", tenant_id="T-001", title="Failure", owner_id="U-001", payload={})
+            server = create_server(str(Path(directory) / "pm.db"), port=0)
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                request = urllib.request.Request(f"http://127.0.0.1:{server.server_port}/api/projects/P-001/issue-preflight?issueId={issue['id']}", headers={"X-Actor-Id": "U-001", "X-Tenant-Id": "T-001"})
+                with urllib.request.urlopen(request) as response:
+                    result = json.loads(response.read())
+                self.assertEqual((response.status, result["issueId"], result["readyForClosure"]), (200, issue["id"], False))
+            finally:
+                server.shutdown(); server.server_close(); thread.join(timeout=2)
+                store.close()
+
     def test_notifications_can_be_read(self):
         with tempfile.TemporaryDirectory() as directory:
             store = ProjectStore(Path(directory) / "pm.db")
