@@ -120,6 +120,11 @@ def simulation_evidence(capability_id: str, payload: dict[str, Any]) -> dict[str
         domain_errors.append("handshake_sequence_invalid")
     if capability_id == "COMM-001" and payload.get("checklist_items") is not None and any(not item.get("passed") for item in payload["checklist_items"]):
         domain_errors.append("commissioning_checklist_incomplete")
+    if capability_id == "COMM-001" and payload.get("checklist_sequence") is not None:
+        commissioning = simulate_commissioning_checklist(payload.get("checklist_sequence", []), payload.get("checklist_items", []))
+        result["commissioning"] = commissioning
+        if commissioning["result"] != "PASSED":
+            domain_errors.append(commissioning["reason"])
     if capability_id == "LIFE-001" and payload.get("metric_values") is not None and any(not isinstance(value, (int, float)) or value < 0 for value in payload["metric_values"]):
         domain_errors.append("lifecycle_metric_invalid")
     if capability_id == "LIFE-001" and all(key in payload for key in ("planned_minutes", "downtime_minutes", "total_count", "good_count", "ideal_cycle_seconds")):
@@ -223,6 +228,22 @@ def simulate_hmi_screens(expected_screens: list[str], visited_screens: list[str]
     in_order = [screen for screen in visited_screens if screen in expected_screens] == expected_screens
     failed = bool(missing or unexpected or not in_order)
     return {"result": "FAILED" if failed else "PASSED", "expected": expected_screens, "visited": visited_screens, "missing": missing, "unexpected": unexpected, "inOrder": in_order, "deterministic": True, "reason": "screen_smoke_failed" if failed else None}
+
+
+def simulate_commissioning_checklist(sequence: list[str], items: list[dict[str, Any]]) -> dict[str, Any]:
+    """Validate the governed FAT/SAT commissioning order and step evidence."""
+    expected = ["24V", "Network", "EtherCAT", "IO", "Safety", "Servo", "Cylinder", "Vision", "Station", "Auto Cycle", "Burn-in"]
+    if not isinstance(sequence, list) or not sequence:
+        return {"result": "BLOCKED", "reason": "commissioning_sequence_missing", "expected": expected, "actual": sequence, "deterministic": True}
+    order_ok = sequence == expected
+    item_map = {item.get("id"): item for item in items if isinstance(item, dict)}
+    missing_steps = [step for step in expected if step not in item_map]
+    failed_steps = [step for step in expected if step in item_map and not item_map[step].get("passed")]
+    if not order_ok:
+        return {"result": "FAILED", "reason": "commissioning_sequence_invalid", "expected": expected, "actual": sequence, "missingSteps": missing_steps, "failedSteps": failed_steps, "deterministic": True}
+    if missing_steps or failed_steps:
+        return {"result": "FAILED", "reason": "commissioning_evidence_incomplete", "expected": expected, "actual": sequence, "missingSteps": missing_steps, "failedSteps": failed_steps, "deterministic": True}
+    return {"result": "PASSED", "expected": expected, "actual": sequence, "missingSteps": [], "failedSteps": [], "deterministic": True, "reason": None}
 
 
 def simulate_oee_metrics(planned_minutes: float, downtime_minutes: float, total_count: int, good_count: int, ideal_cycle_seconds: float) -> dict[str, Any]:

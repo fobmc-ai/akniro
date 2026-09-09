@@ -12,7 +12,7 @@ from zhinen_pm.authorization import Actor, AuthorizationError, authorize
 from zhinen_pm.state_machine import InvalidTransition, assert_transition
 from zhinen_pm.store import ProjectStore
 from zhinen_pm.server import create_server
-from zhinen_pm.engineering import validate_capability, list_capabilities, simulation_evidence, build_plc_project, build_firmware_image, simulate_plc_runtime, simulate_motion_axis, simulate_vision_algorithm, simulate_edge_replay, validate_toolchain_matrix, simulate_eda_consistency, simulate_hmi_screens, simulate_oee_metrics, simulate_spc_metrics, simulate_health_check, simulate_product_trace, simulate_plc_download, simulate_plc_monitor
+from zhinen_pm.engineering import validate_capability, list_capabilities, simulation_evidence, build_plc_project, build_firmware_image, simulate_plc_runtime, simulate_motion_axis, simulate_vision_algorithm, simulate_edge_replay, validate_toolchain_matrix, simulate_eda_consistency, simulate_hmi_screens, simulate_oee_metrics, simulate_spc_metrics, simulate_health_check, simulate_product_trace, simulate_commissioning_checklist, simulate_plc_download, simulate_plc_monitor
 from zhinen_pm.ai_context import build_context
 import threading
 
@@ -564,6 +564,14 @@ class PM0Tests(unittest.TestCase):
         self.assertEqual((first["result"], first["traceHash"]), ("PASSED", second["traceHash"]))
         self.assertEqual(simulate_product_trace({"productId": "PRODUCT-001"})["result"], "BLOCKED")
         self.assertEqual(simulation_evidence("LIFE-001", {"production_metrics": True, "quality_metrics": True, "maintenance_workflow": True, "product_trace": trace})["productTrace"]["result"], "PASSED")
+
+    def test_commissioning_fat_sat_order_and_evidence_are_gated(self):
+        sequence = ["24V", "Network", "EtherCAT", "IO", "Safety", "Servo", "Cylinder", "Vision", "Station", "Auto Cycle", "Burn-in"]
+        items = [{"id": step, "passed": True} for step in sequence]
+        self.assertEqual(simulate_commissioning_checklist(sequence, items)["result"], "PASSED")
+        self.assertEqual(simulate_commissioning_checklist(list(reversed(sequence)), items)["reason"], "commissioning_sequence_invalid")
+        self.assertEqual(simulate_commissioning_checklist(sequence, items[:-1])["reason"], "commissioning_evidence_incomplete")
+        self.assertEqual(simulation_evidence("COMM-001", {"checklist": True, "evidence": True, "signoff": True, "checklist_sequence": sequence, "checklist_items": items})["commissioning"]["result"], "PASSED")
 
     def test_http_api_project_tree_flow(self):
         with tempfile.TemporaryDirectory() as directory:
