@@ -234,7 +234,8 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                         store.transition(entity_id=run_id, target="FAILED", actor_id=body["actorId"], expected_revision=2)
                     issue = None
                     if build["result"] != "PASSED":
-                        issue = store.create_entity(entity_id=body.get("issueId", f"ISSUE-{run_id}"), entity_type="issue", project_id=project_id, tenant_id=body["tenantId"], title="Firmware build failed", owner_id=body["actorId"], payload={"sourceTestRunId": run_id, "evidenceId": evidence_id, "capabilityId": "FW-001", "errors": build["errors"]})
+                        issue = store.create_entity(entity_id=body.get("issueId", f"ISSUE-{run_id}"), entity_type="issue", project_id=project_id, tenant_id=body["tenantId"], title="PLC build failed", owner_id=body["actorId"], payload={"sourceTestRunId": run_id, "evidenceId": evidence_id, "capabilityId": "PLC-001", "errors": build["errors"]})
+                        store.link_entities(project_id=project_id, from_id=issue["id"], to_id=evidence_id, link_type="diagnosed_by")
                     return self._send(201, {"build": build, "artifact": store.get_artifact_manifest(body["artifactId"]), "testRun": store.get_entity(run_id), "evidence": store.get_entity(evidence_id), "issue": issue})
                 if path.startswith("/api/projects/") and path.endswith("/builds/firmware"):
                     project_id = path.split("/")[3]
@@ -254,7 +255,11 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                         store.transition_artifact(artifact_id=artifact["id"], target="TESTED", actor_id=body["actorId"])
                     else:
                         store.transition(entity_id=run_id, target="FAILED", actor_id=body["actorId"], expected_revision=2)
-                    return self._send(201, {"build": build, "artifact": store.get_artifact_manifest(body["artifactId"]), "testRun": store.get_entity(run_id), "evidence": store.get_entity(evidence_id)})
+                    issue = None
+                    if build["result"] != "PASSED":
+                        issue = store.create_entity(entity_id=body.get("issueId", f"ISSUE-{run_id}"), entity_type="issue", project_id=project_id, tenant_id=body["tenantId"], title="Firmware build failed", owner_id=body["actorId"], payload={"sourceTestRunId": run_id, "evidenceId": evidence_id, "capabilityId": "FW-001", "errors": build["errors"]})
+                        store.link_entities(project_id=project_id, from_id=issue["id"], to_id=evidence_id, link_type="diagnosed_by")
+                    return self._send(201, {"build": build, "artifact": store.get_artifact_manifest(body["artifactId"]), "testRun": store.get_entity(run_id), "evidence": store.get_entity(evidence_id), "issue": issue})
                 if path.startswith("/api/projects/") and path.endswith("/test-runs/execute"):
                     project_id = path.split("/")[3]
                     self._authorize(body, "MODIFY", project_id)
