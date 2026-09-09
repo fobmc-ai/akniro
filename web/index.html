@@ -16,6 +16,7 @@
     .card strong { display:block; font-size:26px; margin-top:8px; } .panel { background:#151d25; border:1px solid #2b3946; border-radius:10px; padding:18px; margin-top:18px; }
     table { width:100%; border-collapse:collapse; font-size:13px; } th,td { text-align:left; padding:11px 8px; border-bottom:1px solid #293540; } th { color:#8fa2b5; }
     .status { color:#71d7a4; } .muted { color:#8fa2b5; } .error { color:#ff8d8d; }
+    form { display:flex; gap:8px; flex-wrap:wrap; } input,select,button { background:#10151b; border:1px solid #405363; color:#e7edf4; border-radius:6px; padding:9px 10px; } button { background:#286c96; cursor:pointer; } button:hover { background:#368ab9; }
   </style>
 </head>
 <body>
@@ -27,14 +28,21 @@
     async function load() {
       try {
         const response = await fetch('/api/projects'); const data = await response.json();
-        if (!data.projects.length) { el.innerHTML = '<h2>项目总览</h2><p class="muted">还没有项目。请先通过 API 创建一个 PM 项目。</p>'; return; }
+        if (!data.projects.length) { el.innerHTML = `<h2>项目总览</h2><p class="muted">还没有项目，先创建 PM 项目。</p><div class="panel"><form id="project-form"><input name="projectId" placeholder="项目 ID，如 P-001" required><input name="name" placeholder="项目名称" required><input name="tenantId" placeholder="租户 ID" value="T-001" required><input name="ownerId" placeholder="Owner ID" value="U-001" required><button>创建项目</button></form><p id="form-message" class="muted"></p></div>`; document.getElementById('project-form').onsubmit = createProject; return; }
         const project = await (await fetch('/api/projects/' + encodeURIComponent(data.projects[0].id))).json();
         const entities = project.entities || []; const count = type => entities.filter(x => x.entity_type === type).length;
         el.innerHTML = `<h2>${project.name}</h2><p class="muted">${project.id} · ${project.kind} · revision ${project.revision}</p>
           <div class="cards"><div class="card"><label>需求</label><strong>${count('requirement')}</strong></div><div class="card"><label>任务</label><strong>${count('work_item')}</strong></div><div class="card"><label>问题</label><strong>${count('issue')}</strong></div><div class="card"><label>状态</label><strong class="status">${project.status}</strong></div></div>
-          <div class="panel"><h3>项目对象</h3><table><thead><tr><th>ID</th><th>类型</th><th>标题</th><th>状态</th><th>Revision</th></tr></thead><tbody>${entities.map(x => `<tr><td>${x.id}</td><td>${x.entity_type}</td><td>${x.title}</td><td class="status">${x.status}</td><td>${x.revision}</td></tr>`).join('')}</tbody></table></div>`;
+          <div class="panel"><h3>新建对象</h3><form id="entity-form"><select name="type"><option value="requirement">需求</option><option value="work_item">任务</option><option value="issue">问题</option></select><input name="id" placeholder="对象 ID" required><input name="title" placeholder="标题" required><input name="ownerId" placeholder="Owner ID" value="U-001" required><button>创建</button></form><p id="form-message" class="muted"></p></div>
+          <div class="panel"><h3>项目对象</h3><table><thead><tr><th>ID</th><th>类型</th><th>标题</th><th>状态</th><th>Revision</th><th>操作</th></tr></thead><tbody>${entities.map(x => `<tr><td>${x.id}</td><td>${x.entity_type}</td><td>${x.title}</td><td class="status">${x.status}</td><td>${x.revision}</td><td>${nextState(x) ? `<button data-id="${x.id}" data-revision="${x.revision}" data-target="${nextState(x)}" class="transition">→ ${nextState(x)}</button>` : '<span class="muted">—</span>'}</td></tr>`).join('')}</tbody></table></div>`;
+        document.getElementById('entity-form').onsubmit = event => createEntity(event, project);
+        document.querySelectorAll('.transition').forEach(button => button.onclick = () => transition(button.dataset.id, button.dataset.target, Number(button.dataset.revision)));
       } catch (e) { el.innerHTML = `<p class="error">无法连接 PM 服务：${e.message}</p>`; }
     }
+    function nextState(entity) { const map = { requirement:{DRAFT:'READY',READY:'IMPLEMENTING',IMPLEMENTING:'VERIFIED',VERIFIED:'ACCEPTED',ACCEPTED:'CLOSED'}, work_item:{PLANNED:'IN_PROGRESS',IN_PROGRESS:'REVIEW',REVIEW:'TEST',TEST:'DONE'}, issue:{OPEN:'REPRODUCED',REPRODUCED:'ROOT_CAUSED',ROOT_CAUSED:'FIXED',FIXED:'REGRESSION',REGRESSION:'CLOSED'} }; return map[entity.entity_type]?.[entity.status]; }
+    async function createProject(event) { event.preventDefault(); const form = new FormData(event.target); const payload = Object.fromEntries(form); const response = await fetch('/api/projects', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)}); document.getElementById('form-message').textContent = response.ok ? '项目已创建，正在刷新…' : '创建失败'; if (response.ok) load(); }
+    async function createEntity(event, project) { event.preventDefault(); const form = new FormData(event.target); const payload = Object.fromEntries(form); payload.tenantId = project.tenant_id; const response = await fetch('/api/projects/' + project.id + '/entities', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)}); document.getElementById('form-message').textContent = response.ok ? '对象已创建，正在刷新…' : '创建失败'; if (response.ok) load(); }
+    async function transition(id, target, expectedRevision) { const response = await fetch('/api/entities/' + id + '/transition', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({target, actorId:'U-001', expectedRevision})}); if (!response.ok) alert('状态变更失败，请重新读取页面'); load(); }
     load();
   </script>
 </body>

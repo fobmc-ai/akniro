@@ -13,3 +13,11 @@ python -m unittest discover -s tests -v
 python tools/validate_machine_project.py examples/machine-project.valid.json
 ```
 
+启动 PM-0 开发服务并打开项目总览：
+
+```bash
+python tools/run_pm_server.py
+```
+
+访问 <http://127.0.0.1:8765>。当前页面支持创建项目、需求/任务/问题和推进基础状态；正式身份认证和生产部署尚未接入。
+
