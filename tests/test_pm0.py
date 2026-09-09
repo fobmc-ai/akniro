@@ -301,6 +301,19 @@ class PM0Tests(unittest.TestCase):
             self.assertEqual(store.list_links("P-001", "REL-001")[0]["to_id"], "EV-001")
             store.close()
 
+    def test_knowledge_approval_requires_verified_provenance(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = ProjectStore(Path(directory) / "pm.db")
+            store.create_project(project_id="P-001", tenant_id="T-001", name="Demo", kind="platform", owner_id="U-001")
+            article = store.create_entity(entity_id="KB-TEST", entity_type="knowledge", project_id="P-001", tenant_id="T-001", title="Validated guidance", owner_id="U-001", payload={})
+            store.transition(entity_id=article["id"], target="REVIEW", actor_id="U-001", expected_revision=1)
+            store.transition(entity_id=article["id"], target="VALIDATED", actor_id="U-001", expected_revision=2)
+            with self.assertRaisesRegex(ValueError, "source"):
+                store.transition(entity_id=article["id"], target="APPROVED", actor_id="U-001", expected_revision=3)
+            updated = store.update_entity_payload(entity_id=article["id"], actor_id="U-001", expected_revision=3, payload={"source": "QA-REVIEW-001", "applicableVersion": "V0.1", "validationStatus": "VALIDATED", "testIds": ["TC-001"], "expiryCondition": "toolchain changes"})
+            self.assertEqual(store.transition(entity_id=article["id"], target="APPROVED", actor_id="U-001", expected_revision=updated["revision"])["status"], "APPROVED")
+            store.close()
+
     def test_failed_test_case_execution_retains_draft_evidence(self):
         with tempfile.TemporaryDirectory() as directory:
             store = ProjectStore(Path(directory) / "pm.db")

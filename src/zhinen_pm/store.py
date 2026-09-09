@@ -621,6 +621,11 @@ class ProjectStore:
                 evidence_row = self.db.execute("SELECT project_id, entity_type, status FROM entities WHERE id = ?", (evidence_id,)).fetchone()
                 if not evidence_row or evidence_row["project_id"] != row["project_id"] or evidence_row["entity_type"] != "evidence" or evidence_row["status"] != "VALIDATED":
                     raise ValueError("PM-QUALITY-003: issue closure needs validated project evidence")
+        if row["entity_type"] == "knowledge" and target == "APPROVED":
+            payload = json.loads(row["payload"])
+            required = ("source", "applicableVersion", "validationStatus", "testIds", "expiryCondition")
+            if any(not payload.get(field) for field in required) or payload.get("validationStatus") != "VALIDATED":
+                raise ValueError("PM-KNOWLEDGE-001: knowledge approval needs source, version, validated status, tests and expiry condition")
         assert_transition(row["entity_type"], row["status"], target)
         timestamp = now()
         self.db.execute("UPDATE entities SET status = ?, revision = revision + 1, updated_at = ? WHERE id = ? AND revision = ?", (target, timestamp, entity_id, expected_revision))
