@@ -274,7 +274,7 @@ class PM0Tests(unittest.TestCase):
             store.close()
 
     def test_engineering_capability_validation_is_deterministic_and_gated(self):
-            self.assertEqual(len(list_capabilities()), 14)
+        self.assertEqual(len(list_capabilities()), 14)
         blocked = validate_capability("MOT-001", {"axis_simulation": True})
         self.assertEqual(blocked["result"], "BLOCKED")
         passed = validate_capability("MOT-001", {"axis_simulation": True, "limit_check": True, "state_machine": True})
