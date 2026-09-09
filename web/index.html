@@ -168,5 +168,36 @@
       };
     })();
   </script>
+  <script>
+    (() => {
+      const priorShowView = window.showView;
+      const esc = value => String(value ?? '').replace(/[&<>"']/g, character => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character]));
+      window.showReleasePreflight = async function(project, releaseId) {
+        const headers = {'X-Actor-Id':'U-001','X-Tenant-Id':project.tenant_id};
+        const releasesResponse = await fetch('/api/projects/' + project.id + '/entities?type=release');
+        const releasesData = await releasesResponse.json();
+        const releases = releasesData.entities || [];
+        const selected = releaseId || releases[0]?.id || '';
+        el.innerHTML = `<h2>Release Gate / 发布前预检</h2><p class="muted">发布前统一检查软件制品、机器提交、参数快照、SBOM 和 Release Gate；这里只读检查，不会发布或部署。</p><div class="panel"><label>Release</label><select id="preflight-release">${releases.map(item => `<option value="${esc(item.id)}" ${item.id === selected ? 'selected' : ''}>${esc(item.id)} · ${esc(item.title || item.status)}</option>`).join('') || '<option value="">暂无 Release</option>'}</select><button id="preflight-run" ${selected ? '' : 'disabled'}>运行发布前预检</button><p id="preflight-message" class="muted"></p></div><div id="preflight-result"></div>`;
+        const run = async () => {
+          const id = document.getElementById('preflight-release').value;
+          if (!id) return;
+          const response = await fetch('/api/projects/' + project.id + '/release-preflight?releaseId=' + encodeURIComponent(id), {headers});
+          const result = await response.json();
+          document.getElementById('preflight-message').textContent = response.ok ? `检查完成：${result.ready ? 'READY' : 'BLOCKED'}` : '检查失败：' + (result.message || result.error || '请求错误');
+          if (!response.ok) { document.getElementById('preflight-result').innerHTML = ''; return; }
+          const checks = result.checks || {};
+          const checkRows = Object.entries(checks).map(([key, value]) => `<tr><td>${esc(key)}</td><td class="${value ? 'status' : 'warning'}">${value ? '通过' : '未通过'}</td></tr>`).join('');
+          const artifacts = (result.artifacts || []).map(item => `<tr><td>${esc(item.id)}</td><td>${esc(item.artifactRevision)}</td><td>${esc(item.contentHash)}</td></tr>`).join('');
+          const missing = result.gate?.missing || [];
+          document.getElementById('preflight-result').innerHTML = `<div class="cards"><div class="card"><label>预检结论</label><strong class="${result.ready ? 'status' : 'warning'}">${result.ready ? 'READY' : 'BLOCKED'}</strong></div><div class="card"><label>Release Gate</label><strong class="${result.gate?.ready ? 'status' : 'warning'}">${result.gate?.ready ? 'READY' : 'BLOCKED'}</strong></div><div class="card"><label>制品数量</label><strong>${(result.artifacts || []).length}</strong></div></div><div class="panel"><h3>检查项</h3><table><thead><tr><th>检查</th><th>结果</th></tr></thead><tbody>${checkRows || '<tr><td colspan="2">暂无检查项</td></tr>'}</tbody></table><p class="${result.ready ? 'status' : 'warning'}">预检错误：${(result.errors || []).map(esc).join('、') || '无'}</p><p>Gate 缺失：${missing.map(esc).join('、') || '无'}</p></div><div class="panel"><h3>纳入制品</h3><table><thead><tr><th>Artifact</th><th>Revision</th><th>Content Hash</th></tr></thead><tbody>${artifacts || '<tr><td colspan="3">暂无制品或制品引用未满足要求</td></tr>'}</tbody></table></div>`;
+        };
+        document.getElementById('preflight-release').onchange = event => showReleasePreflight(project, event.target.value);
+        document.getElementById('preflight-run').onclick = run;
+        if (selected) await run();
+      };
+      window.showView = async function(view, project) { if (view === 'gate') return window.showReleasePreflight(project); return priorShowView(view, project); };
+    })();
+  </script>
 </body>
 </html>
