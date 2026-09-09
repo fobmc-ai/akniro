@@ -263,6 +263,10 @@ class PM0Tests(unittest.TestCase):
             readiness = {item["id"]: item for item in store.backlog_readiness("P-001")}
             self.assertTrue(readiness["B-001"]["ready"])
             self.assertTrue(readiness["B-001"]["placeholder"])
+            incomplete = [{"id":"C-001","title":"C","area":"CORE","status":"VALIDATED","owner":"U-001","targetRelease":"V0.1","designGoal":"","acceptanceCriteria":[],"testPlan":"","rollbackPlan":"rollback"}]
+            store.import_backlog(project_id="P-001", items=incomplete, actor_id="U-001")
+            contract = {item["id"]: item for item in store.backlog_readiness("P-001")}['C-001']
+            self.assertEqual((contract["ready"], contract["contractReady"], contract["contractMissing"]), (False, False, ["design_goal", "test_plan", "acceptance_criteria"]))
             store.close()
 
     def test_engineering_capability_validation_is_deterministic_and_gated(self):

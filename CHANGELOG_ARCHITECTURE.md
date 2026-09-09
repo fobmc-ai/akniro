@@ -16,3 +16,4 @@
 - Added a project-scoped read-only integrity audit for entity revisions/owners, link targets, payload references, and artifact hashes.
 - Release preflight now consumes the integrity audit and blocks release readiness on unresolved control-plane consistency errors.
 - Extended the repository contract workflow to cover all Web Management Center scripts through a dependency-free Node syntax gate.
+- Backlog readiness now validates non-empty design and delivery contract fields instead of treating field presence alone as completion.

@@ -549,7 +549,14 @@ class ProjectStore:
         result = []
         for item in items:
             missing = [dependency for dependency in item["dependencies"] if status.get(dependency) not in ready_states]
-            result.append({"id": item["id"], "status": item["status"], "placeholder": item["placeholder"], "ready": not missing and item["status"] not in {"DEFERRED", "BLOCKED", "FAILED"}, "blockedBy": missing})
+            contract_missing = []
+            for field in ("owner_id", "target_release", "design_goal", "test_plan", "rollback_plan"):
+                if not item.get(field):
+                    contract_missing.append(field)
+            if not item.get("acceptance_criteria"):
+                contract_missing.append("acceptance_criteria")
+            blockers = missing + ["contract:" + field for field in contract_missing]
+            result.append({"id": item["id"], "status": item["status"], "placeholder": item["placeholder"], "ready": not blockers and item["status"] not in {"DEFERRED", "BLOCKED", "FAILED"}, "blockedBy": blockers, "contractReady": not contract_missing, "contractMissing": contract_missing})
         return result
 
     def update_machine_object(self, *, object_id: str, name: str | None, payload: dict[str, Any] | None, expected_revision: int, actor_id: str = "system") -> dict[str, Any]:
