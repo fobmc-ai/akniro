@@ -19,7 +19,7 @@
 - 测试用例执行无论通过或失败都会留存 Evidence；通过结果转为 `VALIDATED`，失败结果保留 `DRAFT` 并关联测试用例，供问题定位与复测审计。
 - PLC 与 Firmware 构建失败会自动创建 OPEN Issue，并以 `diagnosed_by` 关联失败 Evidence；构建能力 ID 与问题标题保持准确对应。
 - `POST /api/projects/{projectId}/test-plans/execute` 批量执行计划内用例，汇总 Test Run/Evidence，并按全通过推进 `COMPLETED`，否则推进 `FAILED`。
-- Release Gate 还必须具备 SBOM 和 `rollbackRevision`，与人工审批、验证证据及已测试资产共同满足发布条件。
+- Release Gate 还必须具备签名、SBOM 和 `rollbackRevision`，与人工审批、验证证据及已测试资产共同满足发布条件。
 - Issue 进入 CLOSED 前必须绑定同项目且状态为 `VALIDATED` 的 Evidence；失败验证自动预填证据链接，防止无证据关单。
 - Knowledge Article 进入 `APPROVED` 前必须具备来源、适用版本、`VALIDATED` 验证状态、关联测试和失效条件。
 - Maintenance Record 进入 `COMPLETED/CLOSED` 前必须记录现场机器、执行人、Release、结果、异常和回滚信息。

@@ -469,10 +469,11 @@ class ProjectStore:
         artifacts = [self.get_artifact_manifest(x) for x in artifact_ids]
         untested_artifacts = [x["id"] for x in artifacts if x["status"] not in {"TESTED", "APPROVED", "ARCHIVED"}]
         approval = bool(release["payload"].get("approvalId"))
+        signature = bool(release["payload"].get("signature"))
         sbom = bool(release["payload"].get("sbom"))
         rollback_revision = bool(release["payload"].get("rollbackRevision"))
-        missing = (["validated evidence"] if not passed else []) + (["human approval"] if not approval else []) + ([f"tested artifacts: {', '.join(untested_artifacts)}"] if untested_artifacts else []) + (["SBOM"] if not sbom else []) + (["rollback revision"] if not rollback_revision else [])
-        return {"releaseId": release_id, "ready": not missing, "validatedEvidence": [x["id"] for x in passed], "artifacts": [x["id"] for x in artifacts], "approval": approval, "sbom": sbom, "rollbackRevision": release["payload"].get("rollbackRevision"), "missing": missing}
+        missing = (["validated evidence"] if not passed else []) + (["human approval"] if not approval else []) + ([f"tested artifacts: {', '.join(untested_artifacts)}"] if untested_artifacts else []) + (["signature"] if not signature else []) + (["SBOM"] if not sbom else []) + (["rollback revision"] if not rollback_revision else [])
+        return {"releaseId": release_id, "ready": not missing, "validatedEvidence": [x["id"] for x in passed], "artifacts": [x["id"] for x in artifacts], "approval": approval, "signature": signature, "sbom": sbom, "rollbackRevision": release["payload"].get("rollbackRevision"), "missing": missing}
 
     def compose_release(self, *, release_id: str, artifact_ids: list[str], rollback_revision: str, actor_id: str) -> dict[str, Any]:
         release = self.get_entity(release_id)
