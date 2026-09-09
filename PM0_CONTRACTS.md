@@ -101,6 +101,8 @@ API 使用 transport-neutral envelope：
 }
 ```
 
+管理平面写入必须在同一事务中产生 Audit 与 Event Outbox 记录。Event Outbox 至少保存 `messageType、schemaVersion、actor、tenantId、projectId、correlationId、causationId、idempotencyKey、payload、status、attempts`；发布失败进入 `FAILED`，只能通过重试回到 `QUEUED`，不得丢弃原始事件。
+
 Query 不产生副作用；Command 必须幂等；写入顺序为 authorize → validate → concurrency check → persist → audit → outbox event。错误必须返回稳定 `code、message、path、retryable、correlationId`。
 
 首批服务边界：Project、Requirement、Work、Problem、Governance、Quality、Release、Knowledge、Identity/Authorization、Audit、Search/Projection、Notification。

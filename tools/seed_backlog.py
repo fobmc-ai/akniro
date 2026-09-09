@@ -23,7 +23,7 @@ for user_id, display_name, role in [('U-002', 'PLC 工程师', 'engineer'), ('U-
     store.add_member(project_id=args.project, user_id=user_id, role=role)
 samples = [
     ('DG-QUAL-001', 'design_goal', '每个功能先定义目标与验收标准', {'source': 'QUALITY_LIFECYCLE_SYSTEM.md', 'placeholder': False}),
-    ('TC-QUAL-001', 'test_case', 'PM API/UI smoke test', {'steps': ['创建项目', '导入实施路线', '查询证据'], 'expected': '可追溯'}),
+    ('TC-QUAL-001', 'test_case', 'PM API/UI smoke test', {'steps': ['创建项目', '导入实施路线', '查询证据'], 'inputs': {'projectKind': 'platform'}, 'expected': {'traceable': True}, 'thresholds': {'maxErrors': 0}}),
     ('TV-PLC-001', 'tool_validation', 'PLC 工具链 Golden Project 验证（占位）', {'toolVersion': 'TBD', 'placeholder': True}),
     ('ART-PLC-001', 'artifact', 'PLC 工程资产索引（占位）', {'artifactType': 'PLC', 'contentHash': 'TBD', 'placeholder': True}),
     ('PAR-001', 'parameter_snapshot', '设备参数快照（占位）', {'source': 'edge-runtime', 'approvalRequired': True, 'placeholder': True}),
