@@ -425,6 +425,24 @@ class ProjectStore:
         self.db.commit()
         return self.get_snapshot(snapshot_id)
 
+    def create_machine_commit(self, *, commit_id: str, project_id: str, tenant_id: str, machine_snapshot_id: str, artifact_ids: list[str], branch: str, parent_commit_id: str | None, rollback_commit_id: str | None, actor_id: str) -> dict[str, Any]:
+        snapshot = self.get_snapshot(machine_snapshot_id)
+        if snapshot["project_id"] != project_id:
+            raise ValueError("machine snapshot must belong to project")
+        if not artifact_ids:
+            raise ValueError("machine commit requires artifacts")
+        artifacts = [self.get_artifact_manifest(artifact_id) for artifact_id in artifact_ids]
+        if any(artifact["project_id"] != project_id for artifact in artifacts):
+            raise ValueError("machine commit artifacts must belong to project")
+        if any(artifact["status"] not in {"TESTED", "APPROVED", "ARCHIVED"} for artifact in artifacts):
+            raise ValueError("machine commit requires tested artifacts")
+        components = [{"id": artifact["id"], "revision": artifact["artifact_revision"], "hash": artifact["content_hash"]} for artifact in artifacts]
+        canonical = json.dumps({"snapshot": machine_snapshot_id, "branch": branch, "parent": parent_commit_id, "components": components}, sort_keys=True, separators=(",", ":"))
+        commit_hash = f"sha256:{hashlib.sha256(canonical.encode()).hexdigest()}"
+        commit = self.create_entity(entity_id=commit_id, entity_type="machine_commit", project_id=project_id, tenant_id=tenant_id, title=f"Machine Commit {commit_id}", owner_id=actor_id, payload={"machineSnapshotId": machine_snapshot_id, "artifactIds": artifact_ids, "components": components, "branch": branch, "parentCommitId": parent_commit_id, "rollbackCommitId": rollback_commit_id, "commitHash": commit_hash})
+        commit = self.transition(entity_id=commit_id, target="BUILT", actor_id=actor_id, expected_revision=commit["revision"])
+        return commit
+
     def get_snapshot(self, snapshot_id: str) -> dict[str, Any]:
         row = self.db.execute("SELECT * FROM machine_snapshots WHERE id = ?", (snapshot_id,)).fetchone()
         if not row:
@@ -572,7 +590,7 @@ class ProjectStore:
     def create_entity(self, *, entity_id: str, entity_type: str, project_id: str, tenant_id: str, title: str, owner_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
         if not self.db.execute("SELECT 1 FROM projects WHERE id = ? AND tenant_id = ?", (project_id, tenant_id)).fetchone():
             raise KeyError("project not found in tenant")
-        status = {"requirement": "DRAFT", "design_goal": "DRAFT", "work_item": "PLANNED", "issue": "OPEN", "adr": "PROPOSED", "test_case": "DRAFT", "knowledge": "DRAFT", "release": "DRAFT", "test_plan": "DRAFT", "test_run": "QUEUED", "evidence": "DRAFT", "tool_validation": "DRAFT", "artifact": "DRAFT", "parameter_snapshot": "DRAFT", "maintenance": "OPEN", "deployment": "REQUESTED"}.get(entity_type)
+        status = {"requirement": "DRAFT", "design_goal": "DRAFT", "work_item": "PLANNED", "issue": "OPEN", "adr": "PROPOSED", "test_case": "DRAFT", "knowledge": "DRAFT", "release": "DRAFT", "test_plan": "DRAFT", "test_run": "QUEUED", "evidence": "DRAFT", "tool_validation": "DRAFT", "artifact": "DRAFT", "parameter_snapshot": "DRAFT", "maintenance": "OPEN", "deployment": "REQUESTED", "machine_commit": "DRAFT"}.get(entity_type)
         if status is None:
             raise ValueError(f"unsupported PM-0 entity: {entity_type}")
         entity_payload = payload or {}

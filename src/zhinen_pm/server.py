@@ -179,6 +179,11 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                     self._authorize(body, "MODIFY", project_id)
                     result = store.create_machine_object(object_id=body["id"], project_id=project_id, tenant_id=body["tenantId"], object_type=body["objectType"], name=body["name"], owner_id=body["ownerId"], payload=body.get("payload"), parent_id=body.get("parentId"))
                     return self._send(201, result)
+                if path.startswith("/api/projects/") and path.endswith("/machine-commits"):
+                    project_id = path.split("/")[3]
+                    self._authorize(body, "MODIFY", project_id)
+                    result = store.create_machine_commit(commit_id=body["id"], project_id=project_id, tenant_id=body["tenantId"], machine_snapshot_id=body["machineSnapshotId"], artifact_ids=body.get("artifactIds", []), branch=body.get("branch", "main"), parent_commit_id=body.get("parentCommitId"), rollback_commit_id=body.get("rollbackCommitId"), actor_id=body["actorId"])
+                    return self._send(201, result)
                 if path.startswith("/api/projects/") and path.endswith("/artifacts"):
                     project_id = path.split("/")[3]
                     self._authorize(body, "MODIFY", project_id)

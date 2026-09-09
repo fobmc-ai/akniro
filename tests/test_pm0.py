@@ -162,6 +162,20 @@ class PM0Tests(unittest.TestCase):
             self.assertEqual(store.diff_snapshots(first["id"], second["id"])["changed"], ["M-001"])
             store.close()
 
+    def test_machine_commit_binds_snapshot_and_tested_artifact(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = ProjectStore(Path(directory) / "pm.db")
+            store.create_project(project_id="P-001", tenant_id="T-001", name="Demo", kind="machine-engineering", owner_id="U-001")
+            machine = store.create_machine_object(object_id="M-001", project_id="P-001", tenant_id="T-001", object_type="machine", name="Machine", owner_id="U-001")
+            snapshot = store.snapshot_machine(snapshot_id="S-COMMIT", project_id="P-001", machine_id=machine["id"], created_by="U-001")
+            artifact = store.create_artifact_manifest(artifact_id="ART-COMMIT", project_id="P-001", artifact_type="PLC", source_uri="inline://plc", content_hash="sha256:commit", artifact_revision="r1", toolchain_version="SIM", target_environment="SIMULATION", sensitivity="INTERNAL", owner_id="U-001")
+            store.transition_artifact(artifact_id=artifact["id"], target="BUILT", actor_id="U-001")
+            store.transition_artifact(artifact_id=artifact["id"], target="TESTED", actor_id="U-001")
+            commit = store.create_machine_commit(commit_id="MC-001", project_id="P-001", tenant_id="T-001", machine_snapshot_id=snapshot["id"], artifact_ids=[artifact["id"]], branch="main", parent_commit_id=None, rollback_commit_id="MC-PREV", actor_id="U-001")
+            self.assertEqual((commit["status"], commit["payload"]["machineSnapshotId"], commit["payload"]["components"][0]["id"]), ("BUILT", "S-COMMIT", "ART-COMMIT"))
+            self.assertTrue(commit["payload"]["commitHash"].startswith("sha256:"))
+            store.close()
+
     def test_machine_domain_objects_have_type_contracts(self):
         with tempfile.TemporaryDirectory() as directory:
             store = ProjectStore(Path(directory) / "pm.db")
