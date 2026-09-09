@@ -172,6 +172,13 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                     self._authorize(body, "MODIFY", project_id)
                     updated = store.reconcile_backlog(project_id=project_id, items=body["items"], actor_id=body["actorId"])
                     return self._send(200, {"updated": updated, "items": len(store.list_backlog(project_id))})
+                if path.startswith("/api/projects/") and path.endswith("/backlog/reconcile-source"):
+                    project_id = path.split("/")[3]
+                    self._authorize(body, "MODIFY", project_id)
+                    source = WEB_ROOT.parent / "examples" / "implementation-backlog.json"
+                    items = json.loads(source.read_text(encoding="utf-8"))
+                    updated = store.reconcile_backlog(project_id=project_id, items=items, actor_id=body["actorId"])
+                    return self._send(200, {"updated": updated, "items": len(store.list_backlog(project_id)), "source": str(source)})
                 if path.startswith("/api/projects/") and path.endswith("/sync-queue"):
                     project_id = path.split("/")[3]
                     self._authorize(body, "MODIFY", project_id)

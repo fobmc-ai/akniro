@@ -63,3 +63,7 @@
 - Web 管理中心新增项目选择器；项目目录树、进度、测试、资产、审计和运维视图按选中项目刷新，避免多项目环境误读第一个项目。
 - 实施 backlog 按当前软件证据回填 CORE/PLC/HMI/EDA/Motion/Vision/Robot/Quality/PM/Release/Edge/COMM/LIFE/AI 为 `VALIDATED`，并明确该状态仅代表软件验证，不代表真实硬件接入。
 - 新增 backlog reconcile API 与 seed 流程，将规划源状态安全同步到既有项目并记录 Audit/Event Outbox，避免仓库规划和管理中心展示脱节。
+
+## 2026-09-10
+
+- 新增管理中心服务端受控 Backlog 源同步入口，统一从 `examples/implementation-backlog.json` 回填状态、占位标记和证据链接，并产生审计与事件记录。
