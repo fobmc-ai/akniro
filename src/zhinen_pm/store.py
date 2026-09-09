@@ -31,6 +31,15 @@ class ProjectStore:
           owner_id TEXT NOT NULL, revision INTEGER NOT NULL DEFAULT 1,
           created_at TEXT NOT NULL, updated_at TEXT NOT NULL
         );
+        CREATE TABLE IF NOT EXISTS users (
+          id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, display_name TEXT NOT NULL,
+          role TEXT NOT NULL, active INTEGER NOT NULL DEFAULT 1
+        );
+        CREATE TABLE IF NOT EXISTS project_members (
+          project_id TEXT NOT NULL, user_id TEXT NOT NULL, role TEXT NOT NULL,
+          PRIMARY KEY(project_id, user_id),
+          FOREIGN KEY(project_id) REFERENCES projects(id), FOREIGN KEY(user_id) REFERENCES users(id)
+        );
         CREATE TABLE IF NOT EXISTS entities (
           id TEXT PRIMARY KEY, project_id TEXT NOT NULL, tenant_id TEXT NOT NULL,
           entity_type TEXT NOT NULL, title TEXT NOT NULL, status TEXT NOT NULL,
@@ -59,7 +68,9 @@ class ProjectStore:
 
     def create_project(self, *, project_id: str, tenant_id: str, name: str, kind: str, owner_id: str) -> dict[str, Any]:
         timestamp = now()
+        self.db.execute("INSERT OR IGNORE INTO users(id, tenant_id, display_name, role) VALUES (?, ?, ?, 'owner')", (owner_id, tenant_id, owner_id))
         self.db.execute("INSERT INTO projects VALUES (?, ?, ?, ?, 'ACTIVE', ?, 1, ?, ?)", (project_id, tenant_id, name, kind, owner_id, timestamp, timestamp))
+        self.db.execute("INSERT INTO project_members(project_id, user_id, role) VALUES (?, ?, 'owner')", (project_id, owner_id))
         self._create_default_tree(project_id)
         self._audit(tenant_id, project_id, owner_id, "project.create", project_id, "success", {})
         self.db.commit()
@@ -88,6 +99,48 @@ class ProjectStore:
             return items
         return attach(None)
 
+    def add_node(self, *, project_id: str, node_id: str, name: str, node_type: str = "section", parent_id: str | None = None, sort_order: int = 0) -> dict[str, Any]:
+        if not self.db.execute("SELECT 1 FROM projects WHERE id = ?", (project_id,)).fetchone():
+            raise KeyError(f"unknown project: {project_id}")
+        if parent_id and not self.db.execute("SELECT 1 FROM project_nodes WHERE id = ? AND project_id = ?", (parent_id, project_id)).fetchone():
+            raise KeyError("parent node not found in project")
+        self.db.execute("INSERT INTO project_nodes(id, project_id, parent_id, name, node_type, sort_order) VALUES (?, ?, ?, ?, ?, ?)", (node_id, project_id, parent_id, name, node_type, sort_order))
+        self.db.commit()
+        return {"id": node_id, "project_id": project_id, "parent_id": parent_id, "name": name, "node_type": node_type, "sort_order": sort_order, "children": []}
+
+    def get_actor(self, actor_id: str, tenant_id: str, project_id: str | None = None) -> dict[str, Any]:
+        row = self.db.execute("SELECT * FROM users WHERE id = ? AND tenant_id = ? AND active = 1", (actor_id, tenant_id)).fetchone()
+        if not row:
+            raise PermissionError("PM-AUTH-004: unknown actor")
+        projects = {x[0] for x in self.db.execute("SELECT project_id FROM project_members WHERE user_id = ?", (actor_id,))}
+        if project_id and projects and project_id not in projects:
+            raise PermissionError("PM-AUTH-002: project scope denied")
+        return {"actor_id": row["id"], "role": row["role"], "tenant_id": row["tenant_id"], "project_ids": projects}
+
+    def list_users(self, tenant_id: str) -> list[dict[str, Any]]:
+        return [dict(row) for row in self.db.execute("SELECT id, tenant_id, display_name, role, active FROM users WHERE tenant_id = ? ORDER BY id", (tenant_id,))]
+
+    def create_user(self, *, user_id: str, tenant_id: str, display_name: str, role: str = "viewer") -> dict[str, Any]:
+        if role not in {"viewer", "engineer", "reviewer", "qa", "owner", "ai"}:
+            raise ValueError(f"invalid role: {role}")
+        self.db.execute("INSERT INTO users(id, tenant_id, display_name, role) VALUES (?, ?, ?, ?)", (user_id, tenant_id, display_name, role))
+        self.db.commit()
+        return dict(self.db.execute("SELECT id, tenant_id, display_name, role, active FROM users WHERE id = ?", (user_id,)).fetchone())
+
+    def add_member(self, *, project_id: str, user_id: str, role: str) -> dict[str, Any]:
+        if role not in {"viewer", "engineer", "reviewer", "qa", "owner", "ai"}:
+            raise ValueError(f"invalid role: {role}")
+        project = self.db.execute("SELECT tenant_id FROM projects WHERE id = ?", (project_id,)).fetchone()
+        user = self.db.execute("SELECT tenant_id FROM users WHERE id = ? AND active = 1", (user_id,)).fetchone()
+        if not project or not user or project["tenant_id"] != user["tenant_id"]:
+            raise PermissionError("PM-AUTH-006: user and project tenant mismatch")
+        self.db.execute("INSERT INTO project_members(project_id, user_id, role) VALUES (?, ?, ?) ON CONFLICT(project_id, user_id) DO UPDATE SET role = excluded.role", (project_id, user_id, role))
+        self.db.commit()
+        return {"project_id": project_id, "user_id": user_id, "role": role}
+
+    def list_members(self, project_id: str) -> list[dict[str, Any]]:
+        return [dict(row) for row in self.db.execute("SELECT m.project_id, m.user_id, m.role, u.display_name FROM project_members m JOIN users u ON u.id = m.user_id WHERE m.project_id = ? ORDER BY m.user_id", (project_id,))]
+
     def get_project(self, project_id: str) -> dict[str, Any]:
         row = self.db.execute("SELECT * FROM projects WHERE id = ?", (project_id,)).fetchone()
         if not row:
@@ -104,7 +157,7 @@ class ProjectStore:
     def create_entity(self, *, entity_id: str, entity_type: str, project_id: str, tenant_id: str, title: str, owner_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
         if not self.db.execute("SELECT 1 FROM projects WHERE id = ? AND tenant_id = ?", (project_id, tenant_id)).fetchone():
             raise KeyError("project not found in tenant")
-        status = {"requirement": "DRAFT", "work_item": "PLANNED", "issue": "OPEN"}.get(entity_type)
+        status = {"requirement": "DRAFT", "design_goal": "DRAFT", "work_item": "PLANNED", "issue": "OPEN", "adr": "PROPOSED", "test_case": "DRAFT", "knowledge": "DRAFT", "release": "DRAFT"}.get(entity_type)
         if status is None:
             raise ValueError(f"unsupported PM-0 entity: {entity_type}")
         timestamp = now()

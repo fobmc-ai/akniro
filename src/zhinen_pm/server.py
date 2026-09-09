@@ -6,6 +6,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from .store import ProjectStore
+from .authorization import Actor, authorize
 
 
 WEB_ROOT = Path(__file__).parents[2] / "web"
@@ -34,6 +35,14 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
             size = int(self.headers.get("Content-Length", "0"))
             return json.loads(self.rfile.read(size) or b"{}")
 
+        def _authorize(self, body: dict, action: str, project_id: str | None = None) -> None:
+            actor_id = body.get("actorId") or self.headers.get("X-Actor-Id")
+            tenant_id = body.get("tenantId") or self.headers.get("X-Tenant-Id")
+            if not actor_id or not tenant_id:
+                raise PermissionError("PM-AUTH-005: actorId and tenantId are required")
+            actor = store.get_actor(actor_id, tenant_id, project_id)
+            authorize(Actor(actor["actor_id"], actor["role"], actor["tenant_id"], frozenset(actor["project_ids"])), action, tenant_id=tenant_id, project_id=project_id)
+
         def do_OPTIONS(self) -> None:  # noqa: N802
             self.send_response(204)
             self.send_header("Access-Control-Allow-Origin", "*")
@@ -48,10 +57,15 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                     return self._send(200, {"status": "ok", "service": "zhinen-pm", "contractVersion": "0.1"})
                 if path == "/api/projects":
                     return self._send(200, {"projects": store.list_projects()})
+                if path == "/api/users":
+                    tenant_id = urlparse(self.path).query.replace("tenantId=", "")
+                    return self._send(200, {"users": store.list_users(tenant_id)})
                 if path.startswith("/api/projects/"):
                     project_id = path.split("/")[3]
                     if path.endswith("/tree"):
                         return self._send(200, {"tree": store.get_tree(project_id)})
+                    if path.endswith("/members"):
+                        return self._send(200, {"members": store.list_members(project_id)})
                     return self._send(200, store.get_project(project_id))
                 if path.startswith("/api/entities/"):
                     entity_id = path.split("/")[3]
@@ -69,19 +83,35 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                 if path == "/api/projects":
                     result = store.create_project(project_id=body["projectId"], tenant_id=body["tenantId"], name=body["name"], kind=body.get("kind", "platform"), owner_id=body["ownerId"])
                     return self._send(201, result)
+                if path == "/api/users":
+                    result = store.create_user(user_id=body["userId"], tenant_id=body["tenantId"], display_name=body.get("displayName", body["userId"]), role=body.get("role", "viewer"))
+                    return self._send(201, result)
+                if path.startswith("/api/projects/") and path.endswith("/members"):
+                    project_id = path.split("/")[3]
+                    self._authorize(body, "MODIFY", project_id)
+                    return self._send(201, store.add_member(project_id=project_id, user_id=body["userId"], role=body["role"]))
                 if path.startswith("/api/projects/") and path.endswith("/entities"):
                     project_id = path.split("/")[3]
+                    self._authorize(body, "MODIFY", project_id)
                     result = store.create_entity(entity_id=body["id"], entity_type=body["type"], project_id=project_id, tenant_id=body["tenantId"], title=body["title"], owner_id=body["ownerId"], payload=body.get("payload"))
                     return self._send(201, result)
+                if path.startswith("/api/projects/") and path.endswith("/tree"):
+                    project_id = path.split("/")[3]
+                    self._authorize(body, "MODIFY", project_id)
+                    return self._send(201, store.add_node(project_id=project_id, node_id=body["id"], name=body["name"], node_type=body.get("nodeType", "section"), parent_id=body.get("parentId"), sort_order=int(body.get("sortOrder", 0))))
                 if path.startswith("/api/entities/") and path.endswith("/transition"):
                     entity_id = path.split("/")[3]
-                    result = store.transition(entity_id=entity_id, target=body["target"], actor_id=body["actorId"], expected_revision=body["expectedRevision"])
+                    entity = store.get_entity(entity_id)
+                    self._authorize(body, "MODIFY", entity["project_id"])
+                    result = store.transition(entity_id=entity_id, target=body["target"], actor_id=body.get("actorId") or self.headers.get("X-Actor-Id"), expected_revision=body["expectedRevision"])
                     return self._send(200, result)
                 return self._send(404, {"code": "PM-NOT-FOUND", "message": "route not found"})
             except KeyError as exc:
                 return self._send(400, {"code": "PM-REQUEST-001", "message": f"missing field: {exc.args[0]}"})
             except (ValueError, RuntimeError) as exc:
                 return self._send(409, {"code": "PM-CONTRACT-001", "message": str(exc)})
+            except PermissionError as exc:
+                return self._send(403, {"code": "PM-AUTH-001", "message": str(exc)})
             except json.JSONDecodeError:
                 return self._send(400, {"code": "PM-REQUEST-002", "message": "invalid JSON"})
 

@@ -36,6 +36,29 @@ class PM0Tests(unittest.TestCase):
             self.assertGreaterEqual(len(store.audit("P-001")), 2)
             store.close()
 
+    def test_database_tree_and_roles(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = ProjectStore(Path(directory) / "pm.db")
+            store.create_project(project_id="P-001", tenant_id="T-001", name="Demo", kind="platform", owner_id="U-001")
+            tree = store.get_tree("P-001")
+            self.assertEqual(len(tree), 9)
+            node = store.add_node(project_id="P-001", node_id="NODE-001", name="Custom", parent_id=tree[0]["id"])
+            self.assertEqual(node["parent_id"], tree[0]["id"])
+            self.assertEqual(store.get_actor("U-001", "T-001")["role"], "owner")
+            store.close()
+
+    def test_project_members_are_tenant_scoped(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = ProjectStore(Path(directory) / "pm.db")
+            store.create_project(project_id="P-001", tenant_id="T-001", name="Demo", kind="platform", owner_id="U-001")
+            store.create_user(user_id="U-002", tenant_id="T-001", display_name="Engineer", role="engineer")
+            store.create_user(user_id="U-003", tenant_id="T-002", display_name="Other", role="engineer")
+            self.assertEqual(store.add_member(project_id="P-001", user_id="U-002", role="engineer")["role"], "engineer")
+            with self.assertRaises(PermissionError):
+                store.add_member(project_id="P-001", user_id="U-003", role="engineer")
+            self.assertEqual(len(store.list_members("P-001")), 2)
+            store.close()
+
     def test_http_api_project_tree_flow(self):
         with tempfile.TemporaryDirectory() as directory:
             server = create_server(str(Path(directory) / "pm.db"), port=0)
@@ -50,9 +73,9 @@ class PM0Tests(unittest.TestCase):
                         return response.status, json.loads(response.read())
                 status, _ = request("/api/projects", {"projectId": "P-001", "tenantId": "T-001", "name": "Demo", "ownerId": "U-001"})
                 self.assertEqual(status, 201)
-                status, entity = request("/api/projects/P-001/entities", {"id": "REQ-001", "type": "requirement", "tenantId": "T-001", "title": "MVP", "ownerId": "U-001"})
+                status, entity = request("/api/projects/P-001/entities", {"id": "REQ-001", "type": "requirement", "tenantId": "T-001", "title": "MVP", "ownerId": "U-001", "actorId": "U-001"})
                 self.assertEqual(status, 201)
-                status, updated = request("/api/entities/REQ-001/transition", {"target": "READY", "actorId": "U-001", "expectedRevision": entity["revision"]})
+                status, updated = request("/api/entities/REQ-001/transition", {"target": "READY", "actorId": "U-001", "tenantId": "T-001", "expectedRevision": entity["revision"]})
                 self.assertEqual((status, updated["status"]), (200, "READY"))
                 status, tree = request("/api/projects/P-001/tree")
                 self.assertEqual((status, len(tree["tree"])), (200, 9))
