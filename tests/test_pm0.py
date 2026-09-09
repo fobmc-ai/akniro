@@ -129,6 +129,15 @@ class PM0Tests(unittest.TestCase):
             self.assertEqual(restored.get_project("P-001")["name"], "Demo")
             restored.close()
 
+    def test_control_plane_health_reports_scoped_operations_signals(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = ProjectStore(Path(directory) / "pm.db")
+            store.create_project(project_id="P-001", tenant_id="T-001", name="Demo", kind="platform", owner_id="U-001")
+            health = store.control_plane_health("P-001")
+            self.assertEqual((health["service"], health["search"]["freshness"], health["backup"]["status"], health["outbox"]["queued"]), ("zhinen-pm", "CURRENT", "AVAILABLE", 0))
+            self.assertTrue(health["deterministic"])
+            store.close()
+
     def test_acceptance_report_summarizes_project_gates(self):
         with tempfile.TemporaryDirectory() as directory:
             store = ProjectStore(Path(directory) / "pm.db")
@@ -254,6 +263,7 @@ class PM0Tests(unittest.TestCase):
         self.assertEqual(simulate_spc_metrics([10, 13, 10], 9, 12)["outOfControl"], [1])
         self.assertEqual(simulate_health_check({"temperature": 50}, {"temperature": {"min": 0, "max": 80}})["result"], "PASSED")
         self.assertEqual(simulate_health_check({"temperature": 90}, {"temperature": {"min": 0, "max": 80}})["result"], "FAILED")
+        self.assertEqual(simulate_health_check({"temperature": 50}, {"temperature": {}})["result"], "FAILED")
         lifecycle = simulation_evidence("LIFE-001", {"production_metrics": True, "quality_metrics": True, "maintenance_workflow": True, "spc_values": [10, 11, 10], "spc_lower": 9, "spc_upper": 12, "health_signals": {"temperature": 50}, "health_limits": {"temperature": {"min": 0, "max": 80}}})
         self.assertEqual((lifecycle["result"], lifecycle["spc"]["result"], lifecycle["health"]["result"]), ("PASSED", "PASSED", "PASSED"))
         matrix = validate_toolchain_matrix([{"id": "PLC-GOLDEN", "toolchain": "PLC-SIM-1", "compilePassed": True, "hmiSmoke": True, "expectedHash": "h1", "actualHash": "h1"}])

@@ -249,8 +249,10 @@ def simulate_health_check(signals: dict[str, float], limits: dict[str, dict[str,
     for name in sorted(signals):
         value = signals[name]
         bound = limits[name]
-        valid = isinstance(value, (int, float)) and isinstance(bound, dict) and bound.get("min") <= value <= bound.get("max")
-        checks.append({"name": name, "value": value, "min": bound.get("min"), "max": bound.get("max"), "passed": valid})
+        lower = bound.get("min") if isinstance(bound, dict) else None
+        upper = bound.get("max") if isinstance(bound, dict) else None
+        valid = isinstance(value, (int, float)) and isinstance(lower, (int, float)) and isinstance(upper, (int, float)) and lower <= upper and lower <= value <= upper
+        checks.append({"name": name, "value": value, "min": lower, "max": upper, "passed": valid})
         if not valid:
             violations.append(name)
     return {"result": "FAILED" if violations else "PASSED", "checks": checks, "violations": violations, "deterministic": True, "reason": "health_limit_exceeded" if violations else None}
