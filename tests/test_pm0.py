@@ -206,6 +206,10 @@ class PM0Tests(unittest.TestCase):
         self.assertEqual(simulation_evidence("LIFE-001", {"production_metrics": True, "quality_metrics": True, "maintenance_workflow": True})["result"], "PASSED")
         runtime_evidence = simulation_evidence("PLC-002", {"cycle_time": True, "watchdog": True, "safe_stop": True, "injected_fault": "watchdog"})
         self.assertEqual((runtime_evidence["diagnostic"], runtime_evidence["result"], runtime_evidence["runtime"]["safeStop"]), ("runtime", "FAILED", True))
+        robot = simulation_evidence("ROB-001", {"handshake": True, "permission_scope": True, "fault_recovery": True, "handshake_sequence": ["INIT", "READY", "START", "DONE"]})
+        self.assertEqual(robot["result"], "PASSED")
+        self.assertEqual(robot["traceHash"], simulation_evidence("ROB-001", {"handshake": True, "permission_scope": True, "fault_recovery": True, "handshake_sequence": ["INIT", "READY", "START", "DONE"]})["traceHash"])
+        self.assertIn("commissioning_checklist_incomplete", simulation_evidence("COMM-001", {"checklist": True, "evidence": True, "signoff": True, "checklist_items": [{"id": "FAT-1", "passed": False}]})["missing"])
 
     def test_release_gate_requires_evidence_and_human_approval(self):
         with tempfile.TemporaryDirectory() as directory:

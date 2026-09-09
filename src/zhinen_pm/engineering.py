@@ -84,6 +84,12 @@ def simulation_evidence(capability_id: str, payload: dict[str, Any]) -> dict[str
         domain_errors.append("binary_hash_not_sha256")
     if capability_id == "EDGE-001" and payload.get("duplicate_event_ids"):
         domain_errors.append("replay_not_idempotent")
+    if capability_id == "ROB-001" and payload.get("handshake_sequence") is not None and payload["handshake_sequence"] != ["INIT", "READY", "START", "DONE"]:
+        domain_errors.append("handshake_sequence_invalid")
+    if capability_id == "COMM-001" and payload.get("checklist_items") is not None and any(not item.get("passed") for item in payload["checklist_items"]):
+        domain_errors.append("commissioning_checklist_incomplete")
+    if capability_id == "LIFE-001" and payload.get("metric_values") is not None and any(not isinstance(value, (int, float)) or value < 0 for value in payload["metric_values"]):
+        domain_errors.append("lifecycle_metric_invalid")
     if capability_id == "PLC-002":
         runtime = simulate_plc_runtime(int(payload.get("cycles", 100)), int(payload.get("cycle_ms", 10)), int(payload.get("watchdog_ms", 50)), payload.get("injected_fault"))
         result["runtime"] = runtime
@@ -93,10 +99,18 @@ def simulation_evidence(capability_id: str, payload: dict[str, Any]) -> dict[str
         result["result"] = "FAILED"
         result["missing"] = sorted(set(result.get("missing", []) + domain_errors))
     result["domainErrors"] = domain_errors
+    result["traceHash"] = hashlib.sha256(jsonable_trace(capability_id, payload, result).encode("utf-8")).hexdigest()
     result["evidenceType"] = "SIMULATION_RESULT"
     result["deterministic"] = True
     result["testPlan"] = f"{capability_id}:golden-validation"
     return result
+
+
+def jsonable_trace(capability_id: str, payload: dict[str, Any], result: dict[str, Any]) -> str:
+    """Return a stable, non-secret trace input for deterministic evidence hashing."""
+    import json
+    trace = {"capabilityId": capability_id, "checks": result.get("checks", []), "domainErrors": result.get("domainErrors", []), "fault": payload.get("injected_fault")}
+    return json.dumps(trace, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
 
 
 def build_plc_project(source: str, toolchain_version: str = "SIMULATED-PLC-0.1") -> dict[str, Any]:
