@@ -46,6 +46,7 @@
 - Firmware 增加 OTA 升级预演 API 和 Web 入口，覆盖审批/签名、健康观察、断电故障、回滚及 Test Run/Evidence 留证。
 - LIFE-001 增加生产质量生命周期专用 API 和页面，统一验证 OEE、SPC、健康信号、Product Trace 并自动留证。
 - 实施就绪页面同步展示工作包契约完整性和缺失字段，避免只看到依赖状态而忽略交付定义。
+- AI 增加人工 Apply 闭环：审批 ID、目标 Revision、危险动作过滤和 `applied_to` 追溯均由服务端强制执行，并接入管理中心。
 - 验证和构建失败接入项目 Owner 通知链，并以 Run ID 做幂等去重。
 - Edge 同步冲突/失败接入 Owner 通知链，并以 Sync ID 做幂等去重。
 - S0/S1 Issue 自动进入 Owner 升级通知链，并校验严重度范围。

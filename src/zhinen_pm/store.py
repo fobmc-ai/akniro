@@ -859,6 +859,42 @@ class ProjectStore:
         applied = self.transition(entity_id=snapshot_id, target="APPLIED", actor_id=actor_id, expected_revision=snapshot["revision"], allow_parameter_apply=True)
         return {"snapshot": applied, "sync": sync}
 
+    def apply_ai_suggestion(self, *, suggestion_id: str, target_entity_id: str, target_expected_revision: int, patch: dict[str, Any], approval_id: str, actor_id: str) -> dict[str, Any]:
+        """Apply an AI-produced patch only after an authorized human approval."""
+        suggestion = self.get_entity(suggestion_id)
+        if suggestion["entity_type"] != "ai_suggestion":
+            raise ValueError("AI apply target must be an ai_suggestion")
+        if suggestion["payload"].get("applied"):
+            raise ValueError("AI suggestion has already been applied")
+        if not approval_id:
+            raise PermissionError("PM-AI-APPLY-001: human approvalId is required")
+        actor = self.get_actor(actor_id, suggestion["tenant_id"])
+        if actor["role"] == "ai":
+            raise PermissionError("PM-AI-APPLY-002: AI actor cannot apply suggestions")
+        target = self.get_entity(target_entity_id)
+        if target["project_id"] != suggestion["project_id"]:
+            raise ValueError("PM-AI-APPLY-003: target must belong to the suggestion project")
+        if target["entity_type"] in {"release", "deployment", "artifact", "machine_commit", "parameter_snapshot"}:
+            raise PermissionError("PM-AI-APPLY-004: controlled release/deployment objects require their dedicated gate")
+        if target["revision"] != target_expected_revision:
+            raise RuntimeError("PM-CONFLICT-001: AI target revision conflict")
+        if not isinstance(patch, dict) or not patch:
+            raise ValueError("PM-AI-APPLY-005: non-empty patch is required")
+        forbidden = {"force", "force_io", "deploy", "deployment", "approval", "approvalid", "safety_override", "direct_deploy"}
+        def contains_forbidden(value: Any) -> bool:
+            if isinstance(value, dict):
+                return any(str(key).lower().replace("_", "") in {item.replace("_", "") for item in forbidden} or contains_forbidden(item) for key, item in value.items())
+            if isinstance(value, list):
+                return any(contains_forbidden(item) for item in value)
+            return False
+        if contains_forbidden(patch):
+            raise PermissionError("PM-AI-APPLY-006: patch contains a forbidden control action")
+        updated_target = self.update_entity_payload(entity_id=target_entity_id, payload={**target["payload"], **patch}, actor_id=actor_id, expected_revision=target_expected_revision)
+        suggestion_payload = {**suggestion["payload"], "applied": True, "appliedBy": actor_id, "approvalId": approval_id, "targetEntityId": target_entity_id, "targetRevision": target_expected_revision, "patch": patch}
+        updated_suggestion = self.update_entity_payload(entity_id=suggestion_id, payload=suggestion_payload, actor_id=actor_id, expected_revision=suggestion["revision"])
+        self.link_entities(project_id=suggestion["project_id"], from_id=suggestion_id, to_id=target_entity_id, link_type="applied_to", actor_id=actor_id)
+        return {"suggestion": updated_suggestion, "target": updated_target, "approvalId": approval_id, "applied": True}
+
     def list_entities(self, project_id: str, entity_type: str | None = None) -> list[dict[str, Any]]:
         if entity_type:
             rows = self.db.execute("SELECT * FROM entities WHERE project_id = ? AND entity_type = ? ORDER BY updated_at DESC", (project_id, entity_type)).fetchall()

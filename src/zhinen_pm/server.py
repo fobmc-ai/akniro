@@ -474,6 +474,11 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                         store.record_ai_context_access(project_id=project_id, actor_id=body["actorId"], object_ids=body.get("objectIds", []), omitted_ids=suggestion["omittedObjectIds"])
                         return self._send(201, {"suggestion": suggestion_entity, "context": context})
                     return self._send(400, suggestion)
+                if path.startswith("/api/projects/") and path.endswith("/ai/apply"):
+                    project_id = path.split("/")[3]
+                    self._authorize(body, "APPLY", project_id)
+                    result = store.apply_ai_suggestion(suggestion_id=body["suggestionId"], target_entity_id=body["targetEntityId"], target_expected_revision=int(body["targetExpectedRevision"]), patch=body.get("patch", {}), approval_id=body["approvalId"], actor_id=body["actorId"])
+                    return self._send(200, result)
                 if path.startswith("/api/projects/") and path.endswith("/machine-snapshots"):
                     project_id = path.split("/")[3]
                     self._authorize(body, "MODIFY", project_id)

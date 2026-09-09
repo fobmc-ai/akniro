@@ -523,6 +523,18 @@ class PM0Tests(unittest.TestCase):
             self.assertEqual(context["omitted"][0]["id"], "EV-DRAFT-AI")
             store.close()
 
+    def test_ai_suggestion_apply_requires_human_and_revision(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = ProjectStore(Path(directory) / "pm.db")
+            store.create_project(project_id="P-001", tenant_id="T-001", name="Demo", kind="platform", owner_id="U-001")
+            suggestion = store.create_entity(entity_id="AI-APPLY-001", entity_type="ai_suggestion", project_id="P-001", tenant_id="T-001", title="Suggestion", owner_id="U-001", payload={"request": "rename"})
+            target = store.create_entity(entity_id="REQ-APPLY-001", entity_type="requirement", project_id="P-001", tenant_id="T-001", title="Requirement", owner_id="U-001", payload={"description": "old"})
+            applied = store.apply_ai_suggestion(suggestion_id=suggestion["id"], target_entity_id=target["id"], target_expected_revision=1, patch={"description": "new"}, approval_id="APR-AI-001", actor_id="U-001")
+            self.assertEqual((applied["applied"], applied["target"]["payload"]["description"], applied["suggestion"]["payload"]["approvalId"]), (True, "new", "APR-AI-001"))
+            with self.assertRaisesRegex(ValueError, "already been applied"):
+                store.apply_ai_suggestion(suggestion_id=suggestion["id"], target_entity_id=target["id"], target_expected_revision=2, patch={"description": "again"}, approval_id="APR-AI-002", actor_id="U-001")
+            store.close()
+
     def test_ai_context_excludes_unconfirmed_deployment(self):
         with tempfile.TemporaryDirectory() as directory:
             store = ProjectStore(Path(directory) / "pm.db")
@@ -591,6 +603,9 @@ class PM0Tests(unittest.TestCase):
                 self.assertEqual((status, result["suggestion"]["status"], result["suggestion"]["payload"]["applied"]), (201, "DRAFT", False))
                 _, entities = call("/api/projects/P-001/entities?type=ai_suggestion")
                 self.assertEqual(entities["entities"][0]["id"], "AI-001")
+                _, target = call("/api/projects/P-001/entities", {"id": "REQ-AI-001", "type": "requirement", "tenantId": "T-001", "title": "AI target", "ownerId": "U-001", "actorId": "U-001", "payload": {"description": "old"}})
+                status, applied = call("/api/projects/P-001/ai/apply", {"suggestionId": "AI-001", "targetEntityId": "REQ-AI-001", "targetExpectedRevision": target["revision"], "patch": {"description": "human approved"}, "approvalId": "APR-AI-001", "tenantId": "T-001", "actorId": "U-001"})
+                self.assertEqual((status, applied["applied"], applied["target"]["payload"]["description"], applied["suggestion"]["payload"]["applied"]), (200, True, "human approved", True))
             finally:
                 server.shutdown(); server.server_close(); thread.join(timeout=2)
 
