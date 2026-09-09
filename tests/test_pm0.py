@@ -11,7 +11,7 @@ from zhinen_pm.authorization import Actor, AuthorizationError, authorize
 from zhinen_pm.state_machine import InvalidTransition, assert_transition
 from zhinen_pm.store import ProjectStore
 from zhinen_pm.server import create_server
-from zhinen_pm.engineering import validate_capability, list_capabilities, simulation_evidence, build_plc_project, build_firmware_image, simulate_plc_runtime, simulate_motion_axis, simulate_vision_algorithm, simulate_edge_replay, validate_toolchain_matrix, simulate_eda_consistency
+from zhinen_pm.engineering import validate_capability, list_capabilities, simulation_evidence, build_plc_project, build_firmware_image, simulate_plc_runtime, simulate_motion_axis, simulate_vision_algorithm, simulate_edge_replay, validate_toolchain_matrix, simulate_eda_consistency, simulate_hmi_screens
 from zhinen_pm.ai_context import build_context
 import threading
 
@@ -223,6 +223,7 @@ class PM0Tests(unittest.TestCase):
         self.assertEqual(simulate_edge_replay(["E1", "E1"], False)["result"], "FAILED")
         eda = simulate_eda_consistency(["DI-1", "DO-1"], ["DI-1", "DI-1"])
         self.assertEqual((eda["result"], eda["missing"], eda["duplicates"]), ("FAILED", ["DO-1"], ["DI-1"]))
+        self.assertTrue(simulate_hmi_screens(["Home", "Alarm", "Recipe"], ["Home", "Recipe"])["missing"] == ["Alarm"])
         matrix = validate_toolchain_matrix([{"id": "PLC-GOLDEN", "toolchain": "PLC-SIM-1", "compilePassed": True, "hmiSmoke": True, "expectedHash": "h1", "actualHash": "h1"}])
         self.assertEqual((matrix["result"], matrix["passed"], matrix["total"]), ("PASSED", 1, 1))
 

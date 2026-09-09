@@ -86,6 +86,11 @@ def simulation_evidence(capability_id: str, payload: dict[str, Any]) -> dict[str
             domain_errors.append("hmi_missing_tags:" + ",".join(sorted(expected_tags - actual_tags)))
         if actual_tags - expected_tags:
             domain_errors.append("hmi_unknown_tags:" + ",".join(sorted(actual_tags - expected_tags)))
+    if capability_id == "HMI-001" and payload.get("screen_sequence") is not None:
+        hmi = simulate_hmi_screens(payload.get("expected_screens", []), payload["screen_sequence"])
+        result["hmi"] = hmi
+        if hmi["result"] != "PASSED":
+            domain_errors.append(hmi["reason"])
     if capability_id == "MOT-001" and payload.get("soft_limit_min") is not None and payload.get("soft_limit_max") is not None and payload["soft_limit_min"] >= payload["soft_limit_max"]:
         domain_errors.append("invalid_soft_limits")
     if capability_id == "MOT-001" and all(key in payload for key in ("position", "target_position", "velocity", "soft_limit_min", "soft_limit_max")):
@@ -190,6 +195,14 @@ def simulate_eda_consistency(expected: list[str], actual: list[str]) -> dict[str
     missing, extra = sorted(expected_set - actual_set), sorted(actual_set - expected_set)
     failed = bool(missing or extra or duplicates)
     return {"result": "FAILED" if failed else "PASSED", "expected": len(expected), "actual": len(actual), "missing": missing, "extra": extra, "duplicates": duplicates, "deterministic": True}
+
+
+def simulate_hmi_screens(expected_screens: list[str], visited_screens: list[str]) -> dict[str, Any]:
+    missing = [screen for screen in expected_screens if screen not in visited_screens]
+    unexpected = [screen for screen in visited_screens if screen not in expected_screens]
+    in_order = [screen for screen in visited_screens if screen in expected_screens] == expected_screens
+    failed = bool(missing or unexpected or not in_order)
+    return {"result": "FAILED" if failed else "PASSED", "expected": expected_screens, "visited": visited_screens, "missing": missing, "unexpected": unexpected, "inOrder": in_order, "deterministic": True, "reason": "screen_smoke_failed" if failed else None}
 
 
 def build_plc_project(source: str, toolchain_version: str = "SIMULATED-PLC-0.1") -> dict[str, Any]:
