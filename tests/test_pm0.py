@@ -53,6 +53,21 @@ class PM0Tests(unittest.TestCase):
                 store.transition(entity_id=goal["id"], target="READY", actor_id="U-001", expected_revision=1)
             store.close()
 
+    def test_review_approval_binds_reviewer_and_revision(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = ProjectStore(Path(directory) / "pm.db")
+            store.create_project(project_id="P-001", tenant_id="T-001", name="Demo", kind="platform", owner_id="U-001")
+            store.create_user(user_id="U-002", tenant_id="T-001", display_name="Reviewer", role="reviewer")
+            store.add_member(project_id="P-001", user_id="U-002", role="reviewer")
+            review = store.create_entity(entity_id="REV-001", entity_type="review", project_id="P-001", tenant_id="T-001", title="Architecture review", owner_id="U-001", payload={"reviewerId":"U-001", "reviewedRevision": 1, "decision":"APPROVED", "comments":"self"})
+            store.transition(entity_id=review["id"], target="IN_REVIEW", actor_id="U-001", expected_revision=1)
+            with self.assertRaisesRegex(ValueError, "PM-REVIEW-002"):
+                store.transition(entity_id=review["id"], target="APPROVED", actor_id="U-001", expected_revision=2)
+            store.update_entity_payload(entity_id=review["id"], payload={"reviewerId":"U-002", "reviewedRevision": 1, "decision":"APPROVED", "comments":"approved"}, actor_id="U-001", expected_revision=2)
+            approved = store.transition(entity_id=review["id"], target="APPROVED", actor_id="U-002", expected_revision=3)
+            self.assertEqual((approved["status"], approved["payload"]["reviewerId"]), ("APPROVED", "U-002"))
+            store.close()
+
     def test_database_tree_and_roles(self):
         with tempfile.TemporaryDirectory() as directory:
             store = ProjectStore(Path(directory) / "pm.db")

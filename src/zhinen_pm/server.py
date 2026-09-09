@@ -353,7 +353,8 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                 if path.startswith("/api/entities/") and path.endswith("/transition"):
                     entity_id = path.split("/")[3]
                     entity = store.get_entity(entity_id)
-                    self._authorize(body, "DEPLOY" if entity["entity_type"] == "deployment" else "MODIFY", entity["project_id"])
+                    action = "DEPLOY" if entity["entity_type"] == "deployment" else ("APPROVE" if entity["entity_type"] == "review" and body["target"] == "APPROVED" else "MODIFY")
+                    self._authorize(body, action, entity["project_id"])
                     result = store.transition(entity_id=entity_id, target=body["target"], actor_id=body.get("actorId") or self.headers.get("X-Actor-Id"), expected_revision=body["expectedRevision"])
                     return self._send(200, result)
                 if path.startswith("/api/entities/") and path.endswith("/payload"):

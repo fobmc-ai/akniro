@@ -44,6 +44,10 @@ Deployment Request 只能由 Release 角色推进授权，状态按 `REQUESTED -
 
 Machine Commit 是机器工程的原子版本单元，必须绑定 Machine Snapshot、已测试 Artifact、branch、parent commit 和 rollback commit 引用。
 
+### Review
+
+Review 记录被评审的 revision、reviewer、结论和意见，状态为 `REQUESTED -> IN_REVIEW -> APPROVED | CHANGES_REQUESTED`。服务端要求 APPROVED 决策由具备 APPROVE 权限且不同于 Review owner 的人员完成。
+
 ### Knowledge Article / Maintenance Record
 
 Knowledge Article 必须带来源、适用版本、验证状态、owner、关联测试和失效条件。Maintenance Record 记录现场机器、执行人、Release、结果、异常和回滚。

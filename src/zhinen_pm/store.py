@@ -658,6 +658,8 @@ class ProjectStore:
         if not self.db.execute("SELECT 1 FROM projects WHERE id = ? AND tenant_id = ?", (project_id, tenant_id)).fetchone():
             raise KeyError("project not found in tenant")
         status = {"requirement": "DRAFT", "design_goal": "DRAFT", "work_item": "PLANNED", "issue": "OPEN", "adr": "PROPOSED", "test_case": "DRAFT", "knowledge": "DRAFT", "release": "DRAFT", "test_plan": "DRAFT", "test_run": "QUEUED", "evidence": "DRAFT", "tool_validation": "DRAFT", "artifact": "DRAFT", "parameter_snapshot": "DRAFT", "maintenance": "OPEN", "deployment": "REQUESTED", "machine_commit": "DRAFT"}.get(entity_type)
+        if entity_type == "review":
+            status = "REQUESTED"
         if status is None:
             raise ValueError(f"unsupported PM-0 entity: {entity_type}")
         entity_payload = payload or {}
@@ -666,7 +668,7 @@ class ProjectStore:
         timestamp = now()
         self.db.execute("INSERT INTO entities VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)", (entity_id, project_id, tenant_id, entity_type, title, status, owner_id, json.dumps(entity_payload, ensure_ascii=False), timestamp, timestamp))
         self._audit(tenant_id, project_id, owner_id, f"{entity_type}.create", entity_id, "success", {})
-        event_name = {"issue": "opened", "test_run": "queued", "deployment": "requested"}.get(entity_type, "created")
+        event_name = {"issue": "opened", "test_run": "queued", "deployment": "requested", "review": "requested"}.get(entity_type, "created")
         self._emit_event(tenant_id=tenant_id, project_id=project_id, message_type=f"pm.{entity_type}.{event_name}", actor_id=owner_id, payload={"entityId": entity_id, "entityType": entity_type, "status": status, "revision": 1}, correlation_id=entity_id, idempotency_key=f"{entity_type}.{event_name}:{entity_id}:1")
         self.db.commit()
         if entity_type == "issue" and entity_payload.get("severity") in {"S0", "S1"}:
@@ -725,6 +727,12 @@ class ProjectStore:
             required = ("purpose", "inputs", "outputs", "constraints", "metrics", "failureBehavior", "risk", "testPlanId", "acceptanceThresholds")
             if any(not payload.get(field) for field in required):
                 raise ValueError("PM-DESIGN-001: design goal ready needs purpose, IO, constraints, metrics, failure behavior, risk, test plan and thresholds")
+        if row["entity_type"] == "review" and target == "APPROVED":
+            required = ("reviewerId", "reviewedRevision", "decision", "comments")
+            if any(not payload.get(field) for field in required) or payload.get("decision") != "APPROVED":
+                raise ValueError("PM-REVIEW-001: review approval needs reviewer, revision, APPROVED decision and comments")
+            if payload.get("reviewerId") == row["owner_id"]:
+                raise ValueError("PM-REVIEW-002: review owner cannot approve their own review")
         if row["entity_type"] == "release" and target == "RELEASED":
             gate = self.release_gate(entity_id)
             if not gate["ready"]:
