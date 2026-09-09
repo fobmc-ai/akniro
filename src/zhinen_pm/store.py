@@ -630,6 +630,30 @@ class ProjectStore:
             rows = self.db.execute("SELECT * FROM entity_links WHERE project_id = ? ORDER BY created_at", (project_id,))
         return [dict(row) for row in rows]
 
+    def traceability_graph(self, project_id: str) -> dict[str, Any]:
+        entities = self.list_entities(project_id)
+        by_id = {item["id"]: item for item in entities}
+        nodes = [{"id": item["id"], "type": item["entity_type"], "status": item["status"], "ownerId": item["owner_id"], "revision": item["revision"]} for item in entities]
+        edges = [{"from": item["from_id"], "to": item["to_id"], "type": item["link_type"], "source": "entity_links"} for item in self.list_links(project_id)]
+        unresolved = []
+        reference_fields = {"evidenceLinks": "evidence", "testIds": "tested_by", "regressionTestIds": "regression_test", "testCaseIds": "contains_test", "artifactIds": "contains_artifact", "releaseId": "release", "sourceTestRunId": "source_run", "evidenceId": "evidence", "parentCommitId": "parent_commit", "rollbackCommitId": "rollback_commit"}
+        seen = {(edge["from"], edge["to"], edge["type"]) for edge in edges}
+        for item in entities:
+            for field, edge_type in reference_fields.items():
+                references = item["payload"].get(field, [])
+                if isinstance(references, str):
+                    references = [references]
+                if not isinstance(references, list):
+                    continue
+                for target_id in references:
+                    if target_id in by_id:
+                        key = (item["id"], target_id, edge_type)
+                        if key not in seen:
+                            edges.append({"from": item["id"], "to": target_id, "type": edge_type, "source": "payload"}); seen.add(key)
+                    else:
+                        unresolved.append({"from": item["id"], "field": field, "reference": target_id})
+        return {"projectId": project_id, "nodes": nodes, "edges": edges, "unresolvedReferences": unresolved, "freshness": "CURRENT", "generatedAt": now()}
+
     def search(self, project_id: str, query: str) -> list[dict[str, Any]]:
         needle = f"%{query}%"
         rows = self.db.execute("SELECT id, entity_type, title, status, owner_id, updated_at FROM entities WHERE project_id = ? AND (id LIKE ? OR title LIKE ?) ORDER BY updated_at DESC", (project_id, needle, needle)).fetchall()

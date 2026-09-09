@@ -43,3 +43,4 @@
 - 管理中心增加项目作用域的控制平面健康快照 API，集中显示数据库容量、Outbox、通知、审计、搜索 freshness 和备份状态。
 - 管理平面写入增加持久化 Event Outbox，带 schema/correlation/idempotency、发布/失败/重试状态，并纳入重启与备份校验。
 - 增加独立 Review 对象与审批门禁，绑定 reviewer、revision、结论和意见，禁止评审 owner 自审通过。
+- 增加项目级 Traceability Graph API 与 Web 页面，解析对象引用并显示未解析关系。

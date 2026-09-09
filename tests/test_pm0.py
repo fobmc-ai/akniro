@@ -139,6 +139,18 @@ class PM0Tests(unittest.TestCase):
             self.assertEqual(store.transition_sync("SYNC-001", "CONFLICT", "hash mismatch")["status"], "CONFLICT")
             store.close()
 
+    def test_traceability_graph_resolves_payload_references_and_reports_gaps(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = ProjectStore(Path(directory) / "pm.db")
+            store.create_project(project_id="P-001", tenant_id="T-001", name="Demo", kind="platform", owner_id="U-001")
+            evidence = store.create_entity(entity_id="EV-001", entity_type="evidence", project_id="P-001", tenant_id="T-001", title="Evidence", owner_id="U-001")
+            release = store.create_entity(entity_id="REL-001", entity_type="release", project_id="P-001", tenant_id="T-001", title="Release", owner_id="U-001", payload={"evidenceLinks":[evidence["id"]], "artifactIds":["ART-MISSING"]})
+            graph = store.traceability_graph("P-001")
+            self.assertTrue(any(edge["from"] == "REL-001" and edge["to"] == "EV-001" for edge in graph["edges"]))
+            self.assertEqual(graph["unresolvedReferences"][0]["reference"], "ART-MISSING")
+            self.assertEqual(graph["freshness"], "CURRENT")
+            store.close()
+
     def test_management_center_stats_notifications_and_backup(self):
         with tempfile.TemporaryDirectory() as directory:
             db = Path(directory) / "pm.db"
