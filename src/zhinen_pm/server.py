@@ -258,7 +258,20 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                 if path.startswith("/api/projects/") and path.endswith("/plc/monitor-simulate"):
                     project_id = path.split("/")[3]
                     self._authorize(body, "READ", project_id)
-                    return self._send(200, simulate_plc_monitor(tags=body.get("tags", {}), cycles=int(body.get("cycles", 10)), fault=body.get("fault")))
+                    monitor = simulate_plc_monitor(tags=body.get("tags", {}), cycles=int(body.get("cycles", 10)), fault=body.get("fault"))
+                    response = dict(monitor)
+                    if body.get("testRunId") and body.get("evidenceId"):
+                        run_id, evidence_id = body["testRunId"], body["evidenceId"]
+                        run = store.create_entity(entity_id=run_id, entity_type="test_run", project_id=project_id, tenant_id=body["tenantId"], title="PLC online monitor snapshot", owner_id=body["actorId"], payload={**monitor, "capabilityId": "PLC-002"})
+                        evidence = store.create_entity(entity_id=evidence_id, entity_type="evidence", project_id=project_id, tenant_id=body["tenantId"], title="PLC online monitor evidence", owner_id=body["actorId"], payload={**monitor, "capabilityId": "PLC-002", "evidenceType": "ONLINE_MONITOR"})
+                        store.transition(entity_id=run_id, target="RUNNING", actor_id=body["actorId"], expected_revision=1)
+                        if monitor["result"] == "PASSED":
+                            store.transition(entity_id=run_id, target="PASSED", actor_id=body["actorId"], expected_revision=2)
+                            store.transition(entity_id=evidence_id, target="VALIDATED", actor_id=body["actorId"], expected_revision=1)
+                        else:
+                            store.transition(entity_id=run_id, target="FAILED", actor_id=body["actorId"], expected_revision=2)
+                        response.update({"testRun": store.get_entity(run_id), "evidence": store.get_entity(evidence_id)})
+                    return self._send(200, response)
                 if path.startswith("/api/projects/") and path.endswith("/digital-twin/simulate"):
                     project_id = path.split("/")[3]
                     self._authorize(body, "MODIFY", project_id)

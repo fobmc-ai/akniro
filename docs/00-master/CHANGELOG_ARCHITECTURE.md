@@ -72,3 +72,4 @@
 - QUAL-001 新增 Logical Digital Twin 组件状态回放、故障注入和 Test Run/Evidence 持久化入口，覆盖气缸、传感器、轴、真空、产品和相机。
 - AI-001 新增项目范围内受控建议接口，建议绑定最小上下文并持久化为 `ai_suggestion`，禁止自动批准、发布、部署或 Force。
 - Runtime/Alarm 诊断新增有界依赖图回放，输出阻塞链、循环依赖、启动许可和稳定 hash，支持管理中心解释“为什么不能启动”。
+- PLC-002 在线监视快照支持可选 Test Run/Evidence 自动留存，正常和故障结果分别进入验证或问题追踪链。

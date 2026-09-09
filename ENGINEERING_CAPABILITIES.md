@@ -17,6 +17,7 @@
 - `POST /api/projects/{projectId}/plc/download-simulate`：校验 APPROVED PLC Artifact、人工审批和回滚版本，生成确定性 Edge 下载清单；明确 `writesController=false`，不直接写控制器；
 - PLC 下载模拟成功/阻塞都会生成对应 Test Run 与 Evidence；成功为 `PASSED/VALIDATED`，阻塞保留 `FAILED/DRAFT`，并返回稳定的操作结果，便于发布与部署前审计；
 - `POST /api/projects/{projectId}/plc/monitor-simulate`：按稳定顺序返回 Tag 在线监视快照，支持通信丢失、看门狗和安全停机故障注入；
+- PLC 在线监视请求可选携带 `testRunId`/`evidenceId`，将快照自动留存为 PLC-002 Test Run/Evidence；通过为 `PASSED/VALIDATED`，故障为 `FAILED/DRAFT`，不影响旧的只读快照调用。
 - `POST /api/projects/{projectId}/builds/firmware`：确定性固件镜像构建，记录 source/image hash，并验证断电恢复和回滚路径；
 - `POST /api/projects/{projectId}/simulate`：生成测试运行和验证证据；除通用检查外，HMI 标签集合、EDA IO/BOM、Motion 软限位、Vision 阈值、Firmware 哈希、Edge 幂等性也会输出结构化失败原因；
 - 测试用例执行无论通过或失败都会留存 Evidence；通过结果转为 `VALIDATED`，失败结果保留 `DRAFT` 并关联测试用例，供问题定位与复测审计。
