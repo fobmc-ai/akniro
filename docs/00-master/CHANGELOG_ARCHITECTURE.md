@@ -61,3 +61,4 @@
 - 能力验证结果区分观测时间与确定性内容，新增不含时间字段的完整 `validationHash`，支持跨运行回归和发布审计比较。
 - 修正基础能力验证接口漏返回稳定 Hash 的问题，并用非空回归断言锁定契约。
 - Web 管理中心新增项目选择器；项目目录树、进度、测试、资产、审计和运维视图按选中项目刷新，避免多项目环境误读第一个项目。
+- 实施 backlog 按当前软件证据回填 CORE/PLC/HMI/EDA/Motion/Vision/Robot/Quality/PM/Release/Edge/COMM/LIFE/AI 为 `VALIDATED`，并明确该状态仅代表软件验证，不代表真实硬件接入。

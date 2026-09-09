@@ -6,6 +6,8 @@
 
 当前实现：结构化源数据位于 [`examples/implementation-backlog.json`](examples/implementation-backlog.json)，由 PM 服务导入 `backlog_items`，通过 `GET /api/projects/{projectId}/backlog` 查询，Web 端“实施路线”页面展示。导入采用稳定 ID 幂等策略；真实实现、测试证据和现场数据到位后，以 revision/关联记录回填，不把 Placeholder 当作完成。
 
+当前源数据中的 `VALIDATED` 表示“软件契约/确定性模拟器/自动化测试已验证”（Web 展示为 `VALIDATED-SW`）；不表示真实 PLC、驱动、固件刷写或现场机器已经接入。真实硬件数据到位后仍须通过 Artifact、Evidence、人工审批和 Edge 部署门禁回填。
+
 ## 2. 工作包状态
 
 ```text
@@ -27,23 +29,23 @@ PLANNED -> CONTRACTED -> IMPLEMENTING -> TESTING -> VALIDATED -> RELEASED
 
 | Work Package | 总纲主题 | 管理软件落点 | 当前状态 | 首个验证 |
 |---|---|---|---|---|
-| CORE-001 | Machine Model / Machine DNA | Machine Project、对象树、版本 | CONTRACTED | Schema + revision round-trip |
-| CORE-002 | Tag/Device/Alarm/Recipe | 领域对象引用和 owner | PLACEHOLDER | ownership/ID contract |
-| PLC-001 | PLC IDE 与 Compiler/IR | PLC 工程资产、构建记录 | PLACEHOLDER | golden project compile |
-| PLC-002 | PLC Runtime | Runtime artifact、部署申请 | PLACEHOLDER | deterministic timing contract |
-| HMI-001 | HMI Designer / shared tags | HMI artifact、Widget 验证 | PLACEHOLDER | PLC-HMI binding test |
-| EDA-001 | EDA / 电气工程 | EDA artifact、BOM、IO 引用 | PLACEHOLDER | IO consistency check |
-| MOT-001 | Motion / EtherCAT | Axis/Device Package、参数快照 | PLACEHOLDER | axis simulation |
-| VIS-001 | Vision / Feeder | Vision artifact、样本和阈值 | PLACEHOLDER | algorithm acceptance set |
-| ROB-001 | Robot capability layer | Capability、流程和测试 | PLACEHOLDER | handshake simulation |
-| QUAL-001 | Digital Twin / tests | Test Plan、Run、Evidence | CONTRACTED | fault injection contract |
-| QUAL-002 | Tool validation | PLC/HMI/driver 验证矩阵 | CONTRACTED | golden project matrix |
-| PM-001 | 项目/需求/任务/问题 | Project Control Center | IMPLEMENTING | API + UI smoke test |
-| PM-002 | 知识与问题闭环 | Problem/CAPA/Knowledge | CONTRACTED | traceability test |
-| REL-001 | Machine Git / Release | Release、SBOM、rollback | CONTRACTED | release composition |
-| EDGE-001 | Edge/remote/sync | Artifact、参数、同步队列 | CONTRACTED | offline/replay/conflict |
-| COMM-001 | Commissioning / FAT/SAT | 调试清单、验收证据 | PLACEHOLDER | commissioning checklist |
-| LIFE-001 | 生产/质量/维护 | OEE/SPC/health/maintenance | PLACEHOLDER | data model contract |
+| CORE-001 | Machine Model / Machine DNA | Machine Project、对象树、版本 | VALIDATED-SW | Schema + revision round-trip |
+| CORE-002 | Tag/Device/Alarm/Recipe | 领域对象引用和 owner | VALIDATED-SW | ownership/ID contract |
+| PLC-001 | PLC IDE 与 Compiler/IR | PLC 工程资产、构建记录 | VALIDATED-SW | golden project compile |
+| PLC-002 | PLC Runtime | Runtime artifact、部署申请 | VALIDATED-SW | deterministic timing contract |
+| HMI-001 | HMI Designer / shared tags | HMI artifact、Widget 验证 | VALIDATED-SW | PLC-HMI binding test |
+| EDA-001 | EDA / 电气工程 | EDA artifact、BOM、IO 引用 | VALIDATED-SW | IO consistency check |
+| MOT-001 | Motion / EtherCAT | Axis/Device Package、参数快照 | VALIDATED-SW | axis simulation |
+| VIS-001 | Vision / Feeder | Vision artifact、样本和阈值 | VALIDATED-SW | algorithm acceptance set |
+| ROB-001 | Robot capability layer | Capability、流程和测试 | VALIDATED-SW | handshake simulation |
+| QUAL-001 | Digital Twin / tests | Test Plan、Run、Evidence | VALIDATED-SW | fault injection contract |
+| QUAL-002 | Tool validation | PLC/HMI/driver 验证矩阵 | VALIDATED-SW | golden project matrix |
+| PM-001 | 项目/需求/任务/问题 | Project Control Center | VALIDATED-SW | API + UI smoke test |
+| PM-002 | 知识与问题闭环 | Problem/CAPA/Knowledge | VALIDATED-SW | traceability test |
+| REL-001 | Machine Git / Release | Release、SBOM、rollback | VALIDATED-SW | release composition |
+| EDGE-001 | Edge/remote/sync | Artifact、参数、同步队列 | VALIDATED-SW | offline/replay/conflict |
+| COMM-001 | Commissioning / FAT/SAT | 调试清单、验收证据 | VALIDATED-SW | commissioning checklist |
+| LIFE-001 | 生产/质量/维护 | OEE/SPC/health/maintenance | VALIDATED-SW | data model contract |
 | ECO-001 | Marketplace / fleet learning | Device Package、模板、授权 | DEFERRED | privacy/consent contract |
 
 ## 4. 每个工作包的最小记录
