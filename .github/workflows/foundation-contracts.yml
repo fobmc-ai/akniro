@@ -35,9 +35,7 @@ jobs:
         with:
           python-version: "3.11"
       - name: Run foundation contract tests
-        run: python -m unittest discover -s tests -v
-      - name: Validate example project
-        run: python tools/validate_machine_project.py examples/machine-project.valid.json
+        run: python tools/verify_all.py
       - name: Check management-center web syntax
         uses: actions/setup-node@v4
         with:

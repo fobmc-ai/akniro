@@ -13,6 +13,8 @@ python -m unittest discover -s tests -v
 python tools/validate_machine_project.py examples/machine-project.valid.json
 node tools/check_web_syntax.js
 git diff --check
+# 一次运行以上全部门禁
+python tools/verify_all.py
 ```
 
 启动 PM-0 开发服务并打开项目总览：
