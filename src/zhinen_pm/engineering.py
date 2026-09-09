@@ -83,6 +83,11 @@ def simulation_evidence(capability_id: str, payload: dict[str, Any]) -> dict[str
             domain_errors.append("hmi_unknown_tags:" + ",".join(sorted(actual_tags - expected_tags)))
     if capability_id == "MOT-001" and payload.get("soft_limit_min") is not None and payload.get("soft_limit_max") is not None and payload["soft_limit_min"] >= payload["soft_limit_max"]:
         domain_errors.append("invalid_soft_limits")
+    if capability_id == "MOT-001" and all(key in payload for key in ("position", "target_position", "velocity", "soft_limit_min", "soft_limit_max")):
+        motion = simulate_motion_axis(float(payload["position"]), float(payload["target_position"]), float(payload["velocity"]), float(payload["soft_limit_min"]), float(payload["soft_limit_max"]))
+        result["motion"] = motion
+        if motion["result"] != "PASSED":
+            domain_errors.append(motion["reason"])
     if capability_id == "VIS-001":
         thresholds = payload.get("threshold_values", [])
         if thresholds and any(not isinstance(x, (int, float)) or x < 0 or x > 1 for x in thresholds):
@@ -118,6 +123,17 @@ def jsonable_trace(capability_id: str, payload: dict[str, Any], result: dict[str
     import json
     trace = {"capabilityId": capability_id, "checks": result.get("checks", []), "domainErrors": result.get("domainErrors", []), "fault": payload.get("injected_fault")}
     return json.dumps(trace, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+
+def simulate_motion_axis(position: float, target_position: float, velocity: float, soft_limit_min: float, soft_limit_max: float) -> dict[str, Any]:
+    if velocity <= 0 or soft_limit_min >= soft_limit_max or not (soft_limit_min <= position <= soft_limit_max):
+        return {"result": "BLOCKED", "reason": "invalid_axis_limits", "safeStop": True, "deterministic": True}
+    if not soft_limit_min <= target_position <= soft_limit_max:
+        return {"result": "FAILED", "reason": "target_outside_soft_limits", "safeStop": True, "deterministic": True}
+    distance = abs(target_position - position)
+    steps = int(distance / velocity) + (1 if distance % velocity else 0)
+    trajectory = [round(position + (target_position - position) * index / max(steps, 1), 6) for index in range(steps + 1)]
+    return {"result": "PASSED", "start": position, "target": target_position, "velocity": velocity, "steps": steps, "trajectory": trajectory, "safeStop": False, "deterministic": True}
 
 
 def build_plc_project(source: str, toolchain_version: str = "SIMULATED-PLC-0.1") -> dict[str, Any]:
