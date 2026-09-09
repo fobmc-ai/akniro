@@ -138,12 +138,13 @@ class PM0Tests(unittest.TestCase):
             store.close()
 
     def test_engineering_capability_validation_is_deterministic_and_gated(self):
-        self.assertEqual(len(list_capabilities()), 10)
+        self.assertEqual(len(list_capabilities()), 11)
         blocked = validate_capability("MOT-001", {"axis_simulation": True})
         self.assertEqual(blocked["result"], "BLOCKED")
         passed = validate_capability("MOT-001", {"axis_simulation": True, "limit_check": True, "state_machine": True})
         self.assertEqual(passed["result"], "CONTRACT_PASSED")
         self.assertEqual(passed["safetyGate"], "HUMAN_APPROVAL_REQUIRED")
+        self.assertEqual(validate_capability("ECO-001", {"consent": True, "scope": True, "retention": True})["result"], "CONTRACT_PASSED")
         self.assertEqual(simulation_evidence("PLC-001", {"source_present": True, "toolchain_pinned": True, "deterministic_build": True})["evidenceType"], "SIMULATION_RESULT")
 
     def test_release_gate_requires_evidence_and_human_approval(self):
