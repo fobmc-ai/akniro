@@ -12,7 +12,7 @@ from zhinen_pm.authorization import Actor, AuthorizationError, authorize
 from zhinen_pm.state_machine import InvalidTransition, assert_transition
 from zhinen_pm.store import ProjectStore
 from zhinen_pm.server import create_server
-from zhinen_pm.engineering import validate_capability, list_capabilities, simulation_evidence, build_plc_project, build_firmware_image, simulate_plc_runtime, simulate_motion_axis, simulate_vision_algorithm, simulate_edge_replay, validate_toolchain_matrix, simulate_eda_consistency, simulate_hmi_screens, simulate_oee_metrics, simulate_spc_metrics, simulate_health_check
+from zhinen_pm.engineering import validate_capability, list_capabilities, simulation_evidence, build_plc_project, build_firmware_image, simulate_plc_runtime, simulate_motion_axis, simulate_vision_algorithm, simulate_edge_replay, validate_toolchain_matrix, simulate_eda_consistency, simulate_hmi_screens, simulate_oee_metrics, simulate_spc_metrics, simulate_health_check, simulate_plc_download, simulate_plc_monitor
 from zhinen_pm.ai_context import build_context
 import threading
 
@@ -540,6 +540,17 @@ class PM0Tests(unittest.TestCase):
             item = store.create_artifact_manifest(artifact_id="ART-001", project_id="P-001", artifact_type="FIRMWARE", source_uri="edge://fw", content_hash="sha256:1234567890", artifact_revision="1", toolchain_version="GCC-TBD", target_environment="EDGE", sensitivity="EDGE_ONLY", owner_id="U-001")
             self.assertEqual((item["artifact_type"], item["sensitivity"]), ("FIRMWARE", "EDGE_ONLY"))
             store.close()
+
+    def test_plc_download_and_monitor_are_gated_and_deterministic(self):
+        ready = simulate_plc_download(artifact_id="ART-PLC", artifact_hash="sha256:abc12345", artifact_status="APPROVED", target_machine_id="M-001", approval_id="APR-001", rollback_revision="MC-000")
+        self.assertEqual((ready["result"], ready["writesController"], ready["humanApprovalRequired"]), ("READY_FOR_EDGE", False, True))
+        self.assertEqual(ready["transferHash"], simulate_plc_download(artifact_id="ART-PLC", artifact_hash="sha256:abc12345", artifact_status="APPROVED", target_machine_id="M-001", approval_id="APR-001", rollback_revision="MC-000")["transferHash"])
+        blocked = simulate_plc_download(artifact_id="ART-PLC", artifact_hash="sha256:abc12345", artifact_status="TESTED", target_machine_id="M-001", approval_id=None, rollback_revision=None)
+        self.assertEqual(blocked["result"], "BLOCKED")
+        monitor = simulate_plc_monitor(tags={"Run": True, "Speed": 10}, cycles=5)
+        self.assertEqual((monitor["result"], [item["name"] for item in monitor["tags"]]), ("PASSED", ["Run", "Speed"]))
+        faulted = simulate_plc_monitor(tags={"Run": True}, cycles=5, fault="safety_trip")
+        self.assertEqual((faulted["result"], faulted["safeStop"], faulted["tags"][0]["quality"]), ("FAILED", True, "BAD"))
 
     def test_http_api_project_tree_flow(self):
         with tempfile.TemporaryDirectory() as directory:

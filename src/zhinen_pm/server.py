@@ -8,7 +8,7 @@ from urllib.parse import parse_qs, urlparse
 
 from .store import ProjectStore
 from .authorization import Actor, authorize
-from .engineering import list_capabilities, validate_capability, simulation_evidence, build_plc_project, build_firmware_image, simulate_plc_runtime, validate_toolchain_matrix
+from .engineering import list_capabilities, validate_capability, simulation_evidence, build_plc_project, build_firmware_image, simulate_plc_runtime, validate_toolchain_matrix, simulate_plc_download, simulate_plc_monitor
 from .ai_context import build_context
 
 
@@ -224,6 +224,17 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                     return self._send(200, validate_capability(body["capabilityId"], body.get("payload", {})))
                 if path == "/api/engineering/runtime-simulate":
                     return self._send(200, simulate_plc_runtime(int(body.get("cycles", 100)), int(body.get("cycleMs", 10)), int(body.get("watchdogMs", 50)), body.get("fault")))
+                if path.startswith("/api/projects/") and path.endswith("/plc/download-simulate"):
+                    project_id = path.split("/")[3]
+                    self._authorize(body, "MODIFY", project_id)
+                    artifact = store.get_artifact_manifest(body["artifactId"])
+                    if artifact["project_id"] != project_id or artifact["artifact_type"] != "PLC":
+                        raise ValueError("PM-PLC-001: artifact must be a PLC artifact in the selected project")
+                    return self._send(200, simulate_plc_download(artifact_id=artifact["id"], artifact_hash=artifact["content_hash"], artifact_status=artifact["status"], target_machine_id=body.get("targetMachineId", ""), approval_id=body.get("approvalId"), rollback_revision=body.get("rollbackRevision")))
+                if path.startswith("/api/projects/") and path.endswith("/plc/monitor-simulate"):
+                    project_id = path.split("/")[3]
+                    self._authorize(body, "READ", project_id)
+                    return self._send(200, simulate_plc_monitor(tags=body.get("tags", {}), cycles=int(body.get("cycles", 10)), fault=body.get("fault")))
                 if path == "/api/engineering/toolchain-matrix":
                     return self._send(200, validate_toolchain_matrix(body.get("cases", [])))
                 if path.startswith("/api/projects/") and path.endswith("/toolchain-matrix"):

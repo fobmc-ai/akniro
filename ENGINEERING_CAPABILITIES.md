@@ -14,6 +14,8 @@
 - `GET /api/engineering/capabilities`：列出能力、检查项和门禁；
 - `POST /api/engineering/validate`：提交 `{capabilityId, payload}`，返回 `PASSED`、`CONTRACT_PASSED` 或 `BLOCKED`；
 - `POST /api/engineering/runtime-simulate`：运行确定性的 PLC 周期/看门狗/安全停机模拟，支持 `watchdog`、`communication_loss`、`safety_trip` 故障注入；
+- `POST /api/projects/{projectId}/plc/download-simulate`：校验 APPROVED PLC Artifact、人工审批和回滚版本，生成确定性 Edge 下载清单；明确 `writesController=false`，不直接写控制器；
+- `POST /api/projects/{projectId}/plc/monitor-simulate`：按稳定顺序返回 Tag 在线监视快照，支持通信丢失、看门狗和安全停机故障注入；
 - `POST /api/projects/{projectId}/builds/firmware`：确定性固件镜像构建，记录 source/image hash，并验证断电恢复和回滚路径；
 - `POST /api/projects/{projectId}/simulate`：生成测试运行和验证证据；除通用检查外，HMI 标签集合、EDA IO/BOM、Motion 软限位、Vision 阈值、Firmware 哈希、Edge 幂等性也会输出结构化失败原因；
 - 测试用例执行无论通过或失败都会留存 Evidence；通过结果转为 `VALIDATED`，失败结果保留 `DRAFT` 并关联测试用例，供问题定位与复测审计。

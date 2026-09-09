@@ -52,3 +52,4 @@
 - 管理中心新增事件 Outbox 页面，展示事件类型、幂等键、Actor、尝试次数和发布状态；QUEUED/FAILED 事件可在项目权限范围内人工发布或重试，形成跨模块协同的可见运维闭环。
 - 管理中心新增 PLC / 固件构建台，调用确定性模拟构建接口并自动登记 Artifact、Test Run、Evidence；失败构建自动进入 Issue/CAPA 处理链路，断电恢复验证保留回滚引用。
 - Artifact 创建事件补齐稳定 `artifactId`、审计和 Event Outbox 同事务写入，失败构建的产物、问题、通知和事件可被下游一致追溯。
+- PLC Phase 1 最小闭环补齐下载清单和在线监视模拟：下载必须绑定 APPROVED Artifact、人工审批和回滚版本，监视输出稳定 Tag 快照与故障安全状态，二者均禁止直接写入真实控制器。

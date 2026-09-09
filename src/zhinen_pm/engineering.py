@@ -271,6 +271,36 @@ def build_plc_project(source: str, toolchain_version: str = "SIMULATED-PLC-0.1")
     return {"result": "FAILED" if errors else "PASSED", "sourceHash": f"sha256:{source_hash}", "buildHash": f"sha256:{build_hash}", "toolchainVersion": toolchain_version, "errors": errors, "log": "PLC SIMULATED BUILD OK" if not errors else "PLC SIMULATED BUILD FAILED", "target": "SIMULATION"}
 
 
+def simulate_plc_download(*, artifact_id: str, artifact_hash: str, artifact_status: str, target_machine_id: str, approval_id: str | None, rollback_revision: str | None) -> dict[str, Any]:
+    """Create a deterministic download manifest without touching a controller."""
+    errors = []
+    if not artifact_id or not artifact_hash.startswith("sha256:"):
+        errors.append("artifact_hash_invalid")
+    if artifact_status != "APPROVED":
+        errors.append("artifact_not_human_approved")
+    if not target_machine_id:
+        errors.append("target_machine_required")
+    if not approval_id:
+        errors.append("approval_required")
+    if not rollback_revision:
+        errors.append("rollback_revision_required")
+    transfer_hash = hashlib.sha256(f"{artifact_id}:{artifact_hash}:{target_machine_id}:{rollback_revision or ''}".encode("utf-8")).hexdigest()
+    return {"result": "BLOCKED" if errors else "READY_FOR_EDGE", "artifactId": artifact_id, "targetMachineId": target_machine_id, "artifactHash": artifact_hash, "transferHash": f"sha256:{transfer_hash}", "approvalId": approval_id, "rollbackRevision": rollback_revision, "errors": errors, "writesController": False, "humanApprovalRequired": True, "deterministic": True}
+
+
+def simulate_plc_monitor(*, tags: dict[str, Any], cycles: int = 10, fault: str | None = None) -> dict[str, Any]:
+    """Return a stable online-monitor snapshot for deterministic software validation."""
+    errors = []
+    if cycles < 1 or cycles > 10000:
+        errors.append("cycles_out_of_range")
+    if not isinstance(tags, dict) or not tags:
+        errors.append("tags_required")
+    if fault and fault not in {"communication_loss", "watchdog", "safety_trip"}:
+        errors.append("unknown_fault")
+    snapshot = [{"name": name, "value": tags[name], "quality": "BAD" if fault else "GOOD"} for name in sorted(tags)] if isinstance(tags, dict) else []
+    return {"result": "FAILED" if errors or fault else "PASSED", "cycles": cycles, "fault": fault, "safeStop": bool(fault), "tags": snapshot, "errors": errors + ([fault] if fault else []), "realtimeSource": "SIMULATION", "deterministic": True}
+
+
 def build_firmware_image(source: str, toolchain_version: str = "SIMULATED-FW-0.1", target: str = "EDGE", previous_hash: str | None = None, inject_power_loss: bool = False) -> dict[str, Any]:
     source_hash = hashlib.sha256(source.encode("utf-8")).hexdigest()
     errors: list[str] = []
