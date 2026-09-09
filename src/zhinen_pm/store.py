@@ -531,6 +531,14 @@ class ProjectStore:
         self.db.commit()
         return self.get_entity(entity_id)
 
+    def apply_parameter_snapshot(self, *, snapshot_id: str, sync_id: str, approval_id: str, actor_id: str) -> dict[str, Any]:
+        snapshot = self.get_entity(snapshot_id)
+        if snapshot["entity_type"] != "parameter_snapshot" or snapshot["status"] != "APPROVED":
+            raise ValueError("parameter snapshot must be APPROVED before apply")
+        sync = self.enqueue_sync(sync_id=sync_id, project_id=snapshot["project_id"], tenant_id=snapshot["tenant_id"], direction="PUSH_APPROVED", object_type="parameter_snapshot", object_id=snapshot_id, idempotency_key=f"apply:{snapshot_id}:{approval_id}", payload={"snapshotId": snapshot_id, "approvalId": approval_id, "parameters": snapshot["payload"]})
+        applied = self.transition(entity_id=snapshot_id, target="APPLIED", actor_id=actor_id, expected_revision=snapshot["revision"])
+        return {"snapshot": applied, "sync": sync}
+
     def list_entities(self, project_id: str, entity_type: str | None = None) -> list[dict[str, Any]]:
         if entity_type:
             rows = self.db.execute("SELECT * FROM entities WHERE project_id = ? AND entity_type = ? ORDER BY updated_at DESC", (project_id, entity_type)).fetchall()

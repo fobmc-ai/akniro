@@ -20,7 +20,7 @@ ROLE_ACTIONS = {
     "engineer": {"READ", "COMMENT", "SUGGEST", "MODIFY"},
     "reviewer": {"READ", "COMMENT", "SUGGEST", "MODIFY", "APPROVE"},
     "qa": {"READ", "COMMENT", "SUGGEST", "MODIFY", "APPROVE"},
-    "owner": {"READ", "COMMENT", "SUGGEST", "MODIFY", "APPROVE", "RELEASE"},
+    "owner": {"READ", "COMMENT", "SUGGEST", "MODIFY", "APPROVE", "RELEASE", "APPLY"},
     "ai": {"READ", "COMMENT", "SUGGEST", "MODIFY"},
 }
 

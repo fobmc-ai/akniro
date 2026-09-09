@@ -271,6 +271,11 @@ class PM0Tests(unittest.TestCase):
                 store.transition(entity_id="ISS-001", target="CLOSED", actor_id="U-001", expected_revision=5)
             updated_issue = store.update_entity_payload(entity_id="ISS-001", actor_id="U-001", expected_revision=5, payload={"rootCause": "binding typo", "fixVersion": "V0.1.1", "regressionTestIds": ["TC-001"], "closureCriteria": ["retest passed"]})
             self.assertEqual(store.transition(entity_id="ISS-001", target="CLOSED", actor_id="U-001", expected_revision=updated_issue["revision"])["status"], "CLOSED")
+            snapshot = store.create_entity(entity_id="PAR-001", entity_type="parameter_snapshot", project_id="P-001", tenant_id="T-001", title="Speed", owner_id="U-001", payload={"speed": 100})
+            approved = store.transition(entity_id=snapshot["id"], target="VALIDATED", actor_id="U-001", expected_revision=1)
+            approved = store.transition(entity_id=approved["id"], target="APPROVED", actor_id="U-001", expected_revision=2)
+            applied = store.apply_parameter_snapshot(snapshot_id=approved["id"], sync_id="SYNC-PAR-001", approval_id="APR-PAR-001", actor_id="U-001")
+            self.assertEqual((applied["snapshot"]["status"], applied["sync"]["direction"], applied["sync"]["payload"]["approvalId"]), ("APPLIED", "PUSH_APPROVED", "APR-PAR-001"))
             store.close()
 
     def test_test_case_execution_generates_validated_evidence_and_release_link(self):

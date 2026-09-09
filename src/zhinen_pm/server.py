@@ -298,6 +298,13 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                     entity = store.get_entity(entity_id)
                     self._authorize(body, "MODIFY", entity["project_id"])
                     return self._send(200, store.update_entity_payload(entity_id=entity_id, payload=body.get("payload", {}), actor_id=body["actorId"], expected_revision=body["expectedRevision"]))
+                if path.startswith("/api/entities/") and path.endswith("/apply"):
+                    entity_id = path.split("/")[3]
+                    entity = store.get_entity(entity_id)
+                    self._authorize(body, "APPLY", entity["project_id"])
+                    if not body.get("approvalId"):
+                        raise PermissionError("PM-PARAM-001: approvalId is required")
+                    return self._send(201, store.apply_parameter_snapshot(snapshot_id=entity_id, sync_id=body["syncId"], approval_id=body["approvalId"], actor_id=body["actorId"]))
                 if path.startswith("/api/artifacts/") and path.endswith("/transition"):
                     artifact_id = path.split("/")[3]
                     artifact = store.get_artifact_manifest(artifact_id)
