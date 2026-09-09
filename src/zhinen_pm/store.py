@@ -779,5 +779,10 @@ class ProjectStore:
     def audit(self, project_id: str) -> list[dict[str, Any]]:
         return [dict(row) for row in self.db.execute("SELECT * FROM audit WHERE project_id = ? ORDER BY occurred_at", (project_id,))]
 
+    def record_ai_context_access(self, *, project_id: str, actor_id: str, object_ids: list[str], omitted_ids: list[str]) -> None:
+        project = self.get_project(project_id)
+        self._audit(project["tenant_id"], project_id, actor_id, "ai.context.read", project_id, "success", {"objectIds": object_ids, "omittedIds": omitted_ids})
+        self.db.commit()
+
     def close(self) -> None:
         self.db.close()
