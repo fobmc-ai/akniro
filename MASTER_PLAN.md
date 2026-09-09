@@ -33,6 +33,8 @@ AI 负责理解、生成、检查、解释、诊断、优化和提出变更；PL
 
 管理软件与机器平台通过 Query、Command、Event 和不可变 revision 引用协同；第一版先做对象、状态机、权限、审计、追溯和离线同步契约，再做 UI、发布和 AI 上下文。详细范围、对象 owner、MVP 和验收标准见 [`PROJECT_MANAGEMENT_PLATFORM.md`](PROJECT_MANAGEMENT_PLATFORM.md)。
 
+测试库、问题库、知识库、PLC/HMI 工具验证和发布维护是管理软件的一级能力，不是售后补丁。每个算法、工具功能和工程能力必须先有 Design Goal、Acceptance Criteria 和 Test Plan，质量门禁见 [`QUALITY_LIFECYCLE_SYSTEM.md`](QUALITY_LIFECYCLE_SYSTEM.md)。
+
 ## 4. 统一 Machine Model / Machine DNA
 
 对象结构为 `Machine → Station → Module → Cylinder/Vacuum/Sensor/Axis/Vision`。每个工业对象可携带 Tag、IO、PLC 逻辑、HMI、参数、报警、Recipe、运动能力、电气连接、仿真、测试、诊断、维护、历史、文档和 AI 语义。

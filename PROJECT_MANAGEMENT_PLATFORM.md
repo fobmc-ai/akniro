@@ -22,6 +22,7 @@
 - 断网时 Edge/本地工程仍可工作，云端只做同步和协作增强；
 - Codex/AI 能获得当前任务的最小、正确、可审计上下文；
 - 管理层能看到进度、风险、质量和交付状态，工程师不需要重复录入数据。
+- 功能和算法在开发前已有设计目标、验收标准和测试计划；工具版本在进入生产前已完成验证。
 
 ## 3. 不负责的事情
 
@@ -55,12 +56,16 @@ Edge Runtime Data Plane：PLC / IO / Motion / Vision / Robot 实时事实
 | Work Item | 任务、依赖、负责人、状态、成本 | Work Service |
 | ADR / Proposal | 架构决策、替代方案、影响和批准 | Governance Service |
 | Issue / Incident | 现象、复现、证据、根因、修复、关闭 | Problem Service |
-| Test Case / Evidence | 测试定义、执行结果、附件、环境 | Quality Service |
+| Test Plan / Test Case / Run / Evidence | 测试定义、执行结果、附件、环境 | Quality Service |
 | Release / Deployment Request | 发布候选、批准、目标和回滚 | Release Service |
 | Machine Project | 机器工程内容和 revision | Machine Project Service |
 | Tag / Device / Alarm / Recipe | 引用和追溯，不复制定义 | 各自 canonical service |
 | Audit Record | 查询和展示，不修改 | Audit Service |
 | Knowledge Article | 已验证的经验和适用范围 | Knowledge Service |
+| Design Goal | 功能/算法/工具的设计目标和验收指标 | Quality Service |
+| Problem / CAPA | 根因、修复、回归和预防措施 | Problem Service |
+| Tool Validation | PLC/HMI/编译器/模拟器/驱动版本验证 | Quality Service |
+| Release / Maintenance | 发布、补丁、升级、回滚和现场维护 | Release Service |
 
 ## 6. 工作流
 
@@ -119,10 +124,12 @@ AI 生成的每个结果必须绑定任务、输入上下文、模型/Agent、�
 2. Requirement、Work Item、Issue、ADR；
 3. ID、依赖、关联和追溯图；
 4. Revision、Branch、Diff、Review、Approval；
-5. Test Case、执行记录和证据附件；
+5. Design Goal、Test Case、执行记录和证据附件；
 6. Release Candidate、部署申请、回滚引用；
 7. Audit、活动流、搜索和最小仪表盘；
-8. Codex/AI 的受限上下文接口。
+8. Problem/CAPA 和 Knowledge Article 基础闭环；
+9. PLC/HMI/工程工具版本验证矩阵；
+10. Codex/AI 的受限上下文接口。
 
 第一版不做复杂甘特图、社交聊天、计费、完整 ERP、完整 MES、在线 PLC 控制和复杂云端分析。
 
@@ -138,6 +145,8 @@ AI 生成的每个结果必须绑定任务、输入上下文、模型/Agent、�
 | PM-5 | AI/Codex 上下文、知识沉淀和跨项目复用 | 最小上下文、审计、评估 |
 
 PM-0 必须先完成，PM-1 才能开始；PM-3 之前不接现场部署；PM-5 之前不允许 AI 读取无关项目。
+
+质量门禁由 [`QUALITY_LIFECYCLE_SYSTEM.md`](QUALITY_LIFECYCLE_SYSTEM.md) 定义。任何功能若没有 Design Goal 和 Acceptance Criteria，不得进入 Implementing 或 Done。
 
 ## 11. 验收标准
 
