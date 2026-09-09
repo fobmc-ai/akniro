@@ -122,6 +122,11 @@ def simulation_evidence(capability_id: str, payload: dict[str, Any]) -> dict[str
         domain_errors.append("commissioning_checklist_incomplete")
     if capability_id == "LIFE-001" and payload.get("metric_values") is not None and any(not isinstance(value, (int, float)) or value < 0 for value in payload["metric_values"]):
         domain_errors.append("lifecycle_metric_invalid")
+    if capability_id == "LIFE-001" and all(key in payload for key in ("planned_minutes", "downtime_minutes", "total_count", "good_count", "ideal_cycle_seconds")):
+        lifecycle = simulate_oee_metrics(float(payload["planned_minutes"]), float(payload["downtime_minutes"]), int(payload["total_count"]), int(payload["good_count"]), float(payload["ideal_cycle_seconds"]))
+        result["lifecycle"] = lifecycle
+        if lifecycle["result"] != "PASSED":
+            domain_errors.append(lifecycle["reason"])
     if capability_id == "PLC-002":
         runtime = simulate_plc_runtime(int(payload.get("cycles", 100)), int(payload.get("cycle_ms", 10)), int(payload.get("watchdog_ms", 50)), payload.get("injected_fault"))
         result["runtime"] = runtime
@@ -203,6 +208,16 @@ def simulate_hmi_screens(expected_screens: list[str], visited_screens: list[str]
     in_order = [screen for screen in visited_screens if screen in expected_screens] == expected_screens
     failed = bool(missing or unexpected or not in_order)
     return {"result": "FAILED" if failed else "PASSED", "expected": expected_screens, "visited": visited_screens, "missing": missing, "unexpected": unexpected, "inOrder": in_order, "deterministic": True, "reason": "screen_smoke_failed" if failed else None}
+
+
+def simulate_oee_metrics(planned_minutes: float, downtime_minutes: float, total_count: int, good_count: int, ideal_cycle_seconds: float) -> dict[str, Any]:
+    if planned_minutes <= 0 or downtime_minutes < 0 or downtime_minutes > planned_minutes or total_count < 0 or good_count < 0 or good_count > total_count or ideal_cycle_seconds <= 0:
+        return {"result": "BLOCKED", "reason": "lifecycle_metric_invalid", "deterministic": True}
+    run_minutes = planned_minutes - downtime_minutes
+    availability = run_minutes / planned_minutes
+    performance = (ideal_cycle_seconds * total_count / 60) / run_minutes if run_minutes else 0
+    quality = good_count / total_count if total_count else 0
+    return {"result": "PASSED", "availability": round(availability, 6), "performance": round(performance, 6), "quality": round(quality, 6), "oee": round(availability * performance * quality, 6), "deterministic": True, "reason": None}
 
 
 def build_plc_project(source: str, toolchain_version: str = "SIMULATED-PLC-0.1") -> dict[str, Any]:
