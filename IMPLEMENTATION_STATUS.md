@@ -18,6 +18,6 @@
 | EDGE-001 | 离线同步队列、幂等、冲突状态和人工审批 | VALIDATED-SW |
 | COMM-001/LIFE-001 | FAT/SAT、维护、生命周期对象和模拟验证入口；生产/质量/维护三类指标检查 | VALIDATED-SW |
 | AI-001 | 最小上下文、跨项目隔离、禁止批准/部署/Force | VALIDATED-SW |
-| ECO-001 | 隐私/授权/保留期 CONTRACT_ONLY 验证接口；真实生态数据仍延后 | CONTRACTED-SW / DEFERRED-DATA |
+| ECO-001 | Device Package/Fleet Learning 隐私、授权、保留期、签名和越权权限确定性验证；真实生态数据仍延后 | VALIDATED-SW / DEFERRED-DATA |
 
 验收命令：`py -3 -m unittest discover -s tests -v`。真实硬件接入必须通过对应 capability adapter、Artifact Manifest、Evidence、人工审批和 Edge owner API，管理中心不会直接写 PLC 内存或下发危险动作。

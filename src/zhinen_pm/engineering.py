@@ -151,6 +151,11 @@ def simulation_evidence(capability_id: str, payload: dict[str, Any]) -> dict[str
         result["productTrace"] = product_trace
         if product_trace["result"] != "PASSED":
             domain_errors.append(product_trace["reason"])
+    if capability_id == "ECO-001" and payload.get("package") is not None:
+        ecosystem = simulate_ecosystem_contract(payload.get("package", {}))
+        result["ecosystem"] = ecosystem
+        if ecosystem["result"] != "PASSED":
+            domain_errors.extend(ecosystem["errors"])
     if capability_id == "PLC-002":
         runtime = simulate_plc_runtime(int(payload.get("cycles", 100)), int(payload.get("cycle_ms", 10)), int(payload.get("watchdog_ms", 50)), payload.get("injected_fault"))
         result["runtime"] = runtime
@@ -302,6 +307,35 @@ def simulate_product_trace(trace: dict[str, Any]) -> dict[str, Any]:
     import json
     canonical = json.dumps({key: trace[key] for key in required}, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     return {"result": "PASSED", "productId": trace["productId"], "machineId": trace["machineId"], "recipeId": trace["recipeId"], "plcState": trace["plcState"], "measurement": trace["measurement"], "parameters": trace["parameters"], "timestamp": trace["timestamp"], "traceHash": "sha256:" + hashlib.sha256(canonical.encode("utf-8")).hexdigest(), "deterministic": True, "reason": None}
+
+
+def simulate_ecosystem_contract(package: dict[str, Any]) -> dict[str, Any]:
+    """Validate a shareable package without accepting customer secrets or control authority."""
+    required = ("packageId", "version", "provider", "consent", "scope", "retentionDays", "signature")
+    errors = [field + "_required" for field in required if package.get(field) in (None, "", [], {})]
+    scope = package.get("scope")
+    if not isinstance(scope, list) or not scope or any(not isinstance(item, str) or not item.strip() for item in scope):
+        errors.append("scope_invalid")
+    retention = package.get("retentionDays")
+    if not isinstance(retention, int) or isinstance(retention, bool) or not 1 <= retention <= 3650:
+        errors.append("retention_days_invalid")
+    if package.get("consent") is not True:
+        errors.append("consent_required")
+    if not str(package.get("signature", "")).startswith("sha256:"):
+        errors.append("signature_invalid")
+    forbidden = {"direct_deploy", "force_io", "safety_override", "raw_customer_program", "credentials"}
+    permissions = package.get("permissions", [])
+    if not isinstance(permissions, list):
+        errors.append("permissions_invalid")
+        permissions = []
+    forbidden_used = sorted(forbidden.intersection(permissions))
+    errors.extend("forbidden_permission:" + item for item in forbidden_used)
+    import json
+    canonical = {key: package.get(key) for key in required}
+    canonical["permissions"] = sorted(permissions)
+    canonical["scope"] = sorted(scope) if isinstance(scope, list) else scope
+    contract_hash = "sha256:" + hashlib.sha256(json.dumps(canonical, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+    return {"result": "FAILED" if errors else "PASSED", "packageId": package.get("packageId"), "version": package.get("version"), "scope": sorted(scope) if isinstance(scope, list) else scope, "retentionDays": retention, "forbiddenPermissions": forbidden_used, "errors": sorted(set(errors)), "contractHash": contract_hash, "deterministic": True, "humanApprovalRequired": True, "directControlAllowed": False}
 
 
 def build_plc_project(source: str, toolchain_version: str = "SIMULATED-PLC-0.1") -> dict[str, Any]:

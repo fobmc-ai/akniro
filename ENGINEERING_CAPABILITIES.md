@@ -59,6 +59,7 @@
 - `COMM-001` 支持固定 FAT/SAT 调试顺序 `24V → Network → EtherCAT → IO → Safety → Servo → Cylinder → Vision → Station → Auto Cycle → Burn-in`，缺阶段、乱序或未通过证据均阻塞验收；
 - 生命周期模拟证据可选包含 `spc_values/spc_lower/spc_upper` 与 `health_signals/health_limits`，越界样本和健康信号会产生结构化失败原因并自动进入问题流程；
 - LIFE-001 支持 `product_trace` 记录 Product、Machine、Recipe、PLC State、Measurement、Parameters 和 Timestamp，并生成稳定 genealogy `traceHash`；字段不完整时阻塞验收。
+- ECO-001 支持 Device Package/Fleet Learning 的确定性隐私契约：校验 consent、scope、retentionDays、签名和权限，并拒绝 direct_deploy、force_io、safety_override、raw_customer_program、credentials 等越权能力；通过时仍标记 `directControlAllowed=false` 且需要人工审批。
 - Release Gate 还要求 source revision、Machine Project revision、Schema/API/Event 版本、已知问题清单和目标环境，发布页提供对应录入字段；
 - `GET /api/projects/{projectId}/readiness`：按工作包依赖计算可开始项；
 - `POST /api/projects/{projectId}/backlog/reconcile`：按总纲源文件安全回填工作包状态、Placeholder 标记和软件证据引用，并记录 Audit/Event Outbox；

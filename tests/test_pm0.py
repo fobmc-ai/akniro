@@ -12,7 +12,7 @@ from zhinen_pm.authorization import Actor, AuthorizationError, authorize
 from zhinen_pm.state_machine import InvalidTransition, assert_transition
 from zhinen_pm.store import ProjectStore
 from zhinen_pm.server import create_server
-from zhinen_pm.engineering import validate_capability, list_capabilities, simulation_evidence, build_plc_project, build_firmware_image, simulate_plc_runtime, simulate_motion_axis, simulate_vision_algorithm, simulate_edge_replay, validate_toolchain_matrix, simulate_eda_consistency, simulate_hmi_screens, simulate_oee_metrics, simulate_spc_metrics, simulate_health_check, simulate_product_trace, simulate_commissioning_checklist, simulate_plc_download, simulate_plc_monitor
+from zhinen_pm.engineering import validate_capability, list_capabilities, simulation_evidence, build_plc_project, build_firmware_image, simulate_plc_runtime, simulate_motion_axis, simulate_vision_algorithm, simulate_edge_replay, validate_toolchain_matrix, simulate_eda_consistency, simulate_hmi_screens, simulate_oee_metrics, simulate_spc_metrics, simulate_health_check, simulate_product_trace, simulate_commissioning_checklist, simulate_plc_download, simulate_plc_monitor, simulate_ecosystem_contract
 from zhinen_pm.ai_context import build_context
 import threading
 
@@ -572,6 +572,16 @@ class PM0Tests(unittest.TestCase):
         self.assertEqual((first["result"], first["traceHash"]), ("PASSED", second["traceHash"]))
         self.assertEqual(simulate_product_trace({"productId": "PRODUCT-001"})["result"], "BLOCKED")
         self.assertEqual(simulation_evidence("LIFE-001", {"production_metrics": True, "quality_metrics": True, "maintenance_workflow": True, "product_trace": trace})["productTrace"]["result"], "PASSED")
+
+    def test_ecosystem_contract_is_deterministic_and_denies_control_authority(self):
+        package = {"packageId": "PKG-001", "version": "1.0.0", "provider": "zhinen", "consent": True, "scope": ["aggregated_oee"], "retentionDays": 90, "signature": "sha256:package", "permissions": ["read_metrics"]}
+        first = simulate_ecosystem_contract(package)
+        second = simulate_ecosystem_contract(package)
+        self.assertEqual((first["result"], first["contractHash"]), ("PASSED", second["contractHash"]))
+        self.assertFalse(first["directControlAllowed"])
+        blocked = simulate_ecosystem_contract({**package, "permissions": ["direct_deploy"]})
+        self.assertIn("forbidden_permission:direct_deploy", blocked["errors"])
+        self.assertEqual(simulation_evidence("ECO-001", {"consent": True, "scope": True, "retention": True, "package": package})["ecosystem"]["result"], "PASSED")
 
     def test_commissioning_fat_sat_order_and_evidence_are_gated(self):
         sequence = ["24V", "Network", "EtherCAT", "IO", "Safety", "Servo", "Cylinder", "Vision", "Station", "Auto Cycle", "Burn-in"]

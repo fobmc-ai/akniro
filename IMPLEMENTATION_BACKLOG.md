@@ -46,7 +46,7 @@ PLANNED -> CONTRACTED -> IMPLEMENTING -> TESTING -> VALIDATED -> RELEASED
 | EDGE-001 | Edge/remote/sync | Artifact、参数、同步队列 | VALIDATED-SW | offline/replay/conflict |
 | COMM-001 | Commissioning / FAT/SAT | 调试清单、验收证据 | VALIDATED-SW | commissioning checklist |
 | LIFE-001 | 生产/质量/维护 | OEE/SPC/health/maintenance | VALIDATED-SW | data model contract |
-| ECO-001 | Marketplace / fleet learning | Device Package、模板、授权 | DEFERRED | privacy/consent contract |
+| ECO-001 | Marketplace / fleet learning | Device Package、模板、授权 | VALIDATED-SW | privacy/consent contract；真实生态数据延后 |
 
 ## 4. 每个工作包的最小记录
 
