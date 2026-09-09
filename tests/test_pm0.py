@@ -11,6 +11,7 @@ from zhinen_pm.authorization import Actor, AuthorizationError, authorize
 from zhinen_pm.state_machine import InvalidTransition, assert_transition
 from zhinen_pm.store import ProjectStore
 from zhinen_pm.server import create_server
+from zhinen_pm.engineering import validate_capability, list_capabilities
 import threading
 
 
@@ -134,6 +135,14 @@ class PM0Tests(unittest.TestCase):
             self.assertTrue(readiness["B-001"]["ready"])
             self.assertTrue(readiness["B-001"]["placeholder"])
             store.close()
+
+    def test_engineering_capability_validation_is_deterministic_and_gated(self):
+        self.assertEqual(len(list_capabilities()), 10)
+        blocked = validate_capability("MOT-001", {"axis_simulation": True})
+        self.assertEqual(blocked["result"], "BLOCKED")
+        passed = validate_capability("MOT-001", {"axis_simulation": True, "limit_check": True, "state_machine": True})
+        self.assertEqual(passed["result"], "CONTRACT_PASSED")
+        self.assertEqual(passed["safetyGate"], "HUMAN_APPROVAL_REQUIRED")
 
     def test_http_api_project_tree_flow(self):
         with tempfile.TemporaryDirectory() as directory:

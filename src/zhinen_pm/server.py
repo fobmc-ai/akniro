@@ -8,6 +8,7 @@ from urllib.parse import parse_qs, urlparse
 
 from .store import ProjectStore
 from .authorization import Actor, authorize
+from .engineering import list_capabilities, validate_capability
 
 
 WEB_ROOT = Path(__file__).parents[2] / "web"
@@ -56,6 +57,8 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
             try:
                 if path == "/api/health":
                     return self._send(200, {"status": "ok", "service": "zhinen-pm", "contractVersion": "0.1"})
+                if path == "/api/engineering/capabilities":
+                    return self._send(200, {"capabilities": list_capabilities()})
                 if path == "/api/projects":
                     return self._send(200, {"projects": store.list_projects()})
                 if path == "/api/users":
@@ -151,6 +154,8 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                     self._authorize(body, "MODIFY", project_id)
                     result = store.create_machine_object(object_id=body["id"], project_id=project_id, tenant_id=body["tenantId"], object_type=body["objectType"], name=body["name"], owner_id=body["ownerId"], payload=body.get("payload"), parent_id=body.get("parentId"))
                     return self._send(201, result)
+                if path == "/api/engineering/validate":
+                    return self._send(200, validate_capability(body["capabilityId"], body.get("payload", {})))
                 if path.startswith("/api/projects/") and path.endswith("/machine-snapshots"):
                     project_id = path.split("/")[3]
                     self._authorize(body, "MODIFY", project_id)
