@@ -1,0 +1,19 @@
+# 工程能力适配与验证契约
+
+管理中心通过统一 capability 适配层承载 PLC、HMI、EDA、Motion、Vision、Robot、Firmware、Edge 和 FAT/SAT 工程能力。当前实现位于 `src/zhinen_pm/engineering.py`，提供稳定 ID、能力域、验证检查项和安全门禁。
+
+## 运行模式
+
+- `SIMULATED`：允许在无真实工具/设备时运行确定性模拟验证，结果只能作为开发证据；
+- `CONTRACT_ONLY`：只验证接口、数据和安全约束，不模拟真实实时行为；
+- 所有能力的 `safetyGate` 均为 `HUMAN_APPROVAL_REQUIRED`；
+- 验证成功不等于可发布、可部署或可操作现场设备。
+
+## API
+
+- `GET /api/engineering/capabilities`：列出能力、检查项和门禁；
+- `POST /api/engineering/validate`：提交 `{capabilityId, payload}`，返回 `PASSED`、`CONTRACT_PASSED` 或 `BLOCKED`；
+- `GET /api/projects/{projectId}/readiness`：按工作包依赖计算可开始项；
+- 工程资产、参数和现场写入仍必须经 Artifact/Edge owner API、审批、回读和审计。
+
+真实工具插件接入时，只替换 capability adapter，不改变项目对象、测试证据、Release 和安全边界。
