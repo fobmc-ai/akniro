@@ -44,7 +44,11 @@ def validate_capability(capability_id: str, payload: dict[str, Any]) -> dict[str
     result = "BLOCKED" if missing else "PASSED"
     if capability.mode == "CONTRACT_ONLY" and result == "PASSED":
         result = "CONTRACT_PASSED"
-    return {"capabilityId": capability.id, "result": result, "missing": missing, "simulated": capability.mode == "SIMULATED", "safetyGate": capability.safety_gate, "validatedAt": datetime.now(timezone.utc).isoformat()}
+    validation = {"capabilityId": capability.id, "result": result, "missing": missing, "simulated": capability.mode == "SIMULATED", "safetyGate": capability.safety_gate}
+    import json
+    validation["validationHash"] = "sha256:" + hashlib.sha256(json.dumps(validation, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+    validation["validatedAt"] = datetime.now(timezone.utc).isoformat()
+    return validation
 
 
 def simulation_evidence(capability_id: str, payload: dict[str, Any]) -> dict[str, Any]:

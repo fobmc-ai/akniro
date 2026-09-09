@@ -48,6 +48,7 @@
 - `POST /api/projects/{projectId}/toolchain-matrix`：将矩阵结果持久化为 `tool_validation`，通过为 VALIDATED，失败为 FAILED，并保留审计记录；
 - 模拟证据包含稳定 `traceHash`；Robot 握手顺序、FAT/SAT 清单、Edge 重放幂等性和生命周期指标均按确定性规则重放，便于回归比较；
 - 能力验证同时保留执行时间 `validatedAt` 与排除时间字段的完整结果 `validationHash`，相同输入可跨运行逐字段比较，避免时间戳破坏回归确定性；
+- 基础 `POST /api/engineering/validate` 也返回非空稳定 `validationHash`；`validatedAt` 仅作为审计观测字段，不参与 Hash。
 - MOT-001 提供离散步进轴模拟，验证起点、目标、速度、软限位、轨迹和越界安全停机；
 - VIS-001 支持样本期望/预测标签回放，输出 TP/TN/FP/FN 混淆矩阵、准确率和确定性回归结果；
 - EDGE-001 支持事件 ID 离线重放，输出重复跳过数、实际应用数，并验证幂等/非幂等结果；
