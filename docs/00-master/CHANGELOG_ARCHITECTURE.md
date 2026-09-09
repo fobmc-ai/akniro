@@ -39,6 +39,7 @@
 - Web Gate 页面接入只读 Release Preflight，统一展示制品、Hash、门禁、机器提交、参数快照、SBOM、审批和回滚检查。
 - 修正页面与 `artifactRevisions` 权威响应契约的字段对接，并增加 HTTP 回归测试，避免制品数量和 revision/hash 展示误报。
 - 增加项目级只读数据完整性审计，提前检查对象 revision/owner、关系目标、Payload 引用和 Artifact Hash，并接入管理中心页面。
+- Demo 数据审计发现 `ISSUE-RUN-CAPA-1788976796647` 引用了尚未登记的 `TC-HMI-001`；该项保留为真实数据阻塞，等待测试用例回填后再关闭。
 - 验证和构建失败接入项目 Owner 通知链，并以 Run ID 做幂等去重。
 - Edge 同步冲突/失败接入 Owner 通知链，并以 Sync ID 做幂等去重。
 - S0/S1 Issue 自动进入 Owner 升级通知链，并校验严重度范围。
