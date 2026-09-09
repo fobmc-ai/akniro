@@ -28,3 +28,4 @@
 - Added DRV-001 driver certification matrix and SAFE-001 explicit software safety-boundary evidence.
 - Added persistent PM schema migration status, project completion audit, issue/CAPA closure preflight, and deterministic metadata-only export manifest.
 - CI now runs for architecture/documentation changes and checks patch whitespace.
+- Added a server-owned 14-capability acceptance-suite endpoint so one-click validation uses one authoritative payload set and persists every Test Run/Evidence.

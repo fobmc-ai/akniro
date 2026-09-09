@@ -359,5 +359,22 @@
       };
     })();
   </script>
+  <script>
+    (() => {
+      const priorShowView = window.showView;
+      window.showView = async function(view, project) {
+        if (view !== 'suite') return priorShowView(view, project);
+        await priorShowView(view, project);
+        el.insertAdjacentHTML('afterbegin', `<div class="panel"><h3>服务端一键验收</h3><p class="muted">由服务端统一执行 14 项能力，使用权威默认契约并自动生成 Test Run/Evidence。</p><button id="server-acceptance-suite">运行服务端 14 项验收</button><p id="server-suite-message" class="muted"></p></div>`);
+        document.getElementById('server-acceptance-suite').onclick = async event => {
+          event.target.disabled = true;
+          const response = await fetch('/api/projects/' + project.id + '/acceptance-suite', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({actorId:'U-001',tenantId:project.tenant_id})});
+          const result = await response.json();
+          document.getElementById('server-suite-message').textContent = response.ok ? `服务端验收完成：${result.passed}/${result.total} 通过，证据已写入项目。` : '服务端验收失败：' + (result.message || result.error || '请求错误');
+          event.target.disabled = false;
+        };
+      };
+    })();
+  </script>
 </body>
 </html>

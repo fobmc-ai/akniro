@@ -13,6 +13,26 @@ from .ai_context import build_context
 from .ai_suggestions import build_suggestion
 
 
+def default_acceptance_payloads() -> dict[str, dict]:
+    sequence = ["24V", "Network", "EtherCAT", "IO", "Safety", "Servo", "Cylinder", "Vision", "Station", "Auto Cycle", "Burn-in"]
+    return {
+        "PLC-001": {"source_present": True, "toolchain_pinned": True, "deterministic_build": True},
+        "PLC-002": {"cycle_time": True, "watchdog": True, "safe_stop": True, "cycles": 5, "cycle_ms": 10, "watchdog_ms": 50},
+        "HMI-001": {"tag_binding": True, "alarm_binding": True, "screen_smoke": True, "tag_ids": ["Start", "Stop"], "bound_tag_ids": ["Start", "Stop"]},
+        "EDA-001": {"io_consistency": True, "bom_consistency": True, "io_expected": ["DI-1", "DO-1"], "io_actual": ["DI-1", "DO-1"]},
+        "MOT-001": {"axis_simulation": True, "limit_check": True, "state_machine": True, "position": 0, "target_position": 10, "velocity": 2, "soft_limit_min": -100, "soft_limit_max": 100},
+        "VIS-001": {"dataset_hash": True, "thresholds": True, "regression_set": True, "threshold_values": [0.5, 0.8], "expected_labels": [1, 0, 1], "predicted_labels": [1, 0, 1]},
+        "ROB-001": {"handshake": True, "permission_scope": True, "fault_recovery": True, "handshake_sequence": ["INIT", "READY", "START", "DONE"], "permission_scope_ids": ["START_CYCLE"]},
+        "FW-001": {"binary_hash": "sha256:demo", "power_recovery": True, "rollback": True},
+        "EDGE-001": {"offline_queue": True, "replay_idempotency": True, "conflict": True, "event_ids": ["E1", "E2"]},
+        "COMM-001": {"checklist": True, "evidence": True, "signoff": True, "checklist_sequence": sequence, "checklist_items": [{"id": item, "passed": True} for item in sequence]},
+        "LIFE-001": {"production_metrics": True, "quality_metrics": True, "maintenance_workflow": True, "metric_values": [0, 1, 100], "planned_minutes": 480, "downtime_minutes": 60, "total_count": 100, "good_count": 95, "ideal_cycle_seconds": 20, "spc_values": [10, 11, 10], "spc_lower": 9, "spc_upper": 12, "health_signals": {"temperature": 50}, "health_limits": {"temperature": {"min": 0, "max": 80}}, "product_trace": {"productId": "PROD-DEMO", "machineId": "M-DEMO", "recipeId": "REC-DEMO", "plcState": "RUN", "measurement": {"length": 10}, "parameters": {"speed": 20}, "timestamp": "2026-01-01T00:00:00Z"}},
+        "ECO-001": {"consent": True, "scope": True, "retention": True, "package": {"packageId": "PKG-DEMO", "version": "1.0.0", "provider": "zhinen", "consent": True, "scope": ["aggregated_oee"], "retentionDays": 90, "signature": "sha256:demo-package", "permissions": ["read_metrics"]}},
+        "DRV-001": {"protocol": "EtherCAT", "connect_passed": True, "readback_passed": True, "fault_recovery": True, "cases": [{"id": "DRV-GOLDEN", "protocol": "EtherCAT", "connect_passed": True, "readback_passed": True, "fault_recovery": True, "expected_hash": "h1", "actual_hash": "h1"}]},
+        "SAFE-001": {"realtime_isolation": True, "controller_write_false": True, "human_approval": True, "fault_safe": True, "ai_direct_deploy_false": True},
+    }
+
+
 WEB_ROOT = Path(__file__).parents[2] / "web"
 
 
@@ -373,6 +393,24 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                         store.link_entities(project_id=project_id, from_id=issue["id"], to_id=evidence["id"], link_type="diagnosed_by", actor_id=body["actorId"])
                         store.notify_project_owner(project_id=project_id, kind="test_failed", message=f"{body['capabilityId']} validation failed: {issue['id']}", correlation_id=body["testRunId"])
                     return self._send(201, {"testRun": store.get_entity(run["id"]), "evidence": store.get_entity(evidence["id"]), "issue": issue, "validation": result})
+                if path.startswith("/api/projects/") and path.endswith("/acceptance-suite"):
+                    project_id = path.split("/")[3]
+                    self._authorize(body, "MODIFY", project_id)
+                    suite_id = body.get("suiteId", f"SUITE-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')}")
+                    results = []
+                    for capability_id, payload in default_acceptance_payloads().items():
+                        result = simulation_evidence(capability_id, payload)
+                        run_id = f"{suite_id}-{capability_id}-RUN"
+                        evidence_id = f"{suite_id}-{capability_id}-EVIDENCE"
+                        run = store.create_entity(entity_id=run_id, entity_type="test_run", project_id=project_id, tenant_id=body["tenantId"], title=f"{capability_id} acceptance suite", owner_id=body["actorId"], payload=result)
+                        evidence = store.create_entity(entity_id=evidence_id, entity_type="evidence", project_id=project_id, tenant_id=body["tenantId"], title=f"{capability_id} acceptance suite evidence", owner_id=body["actorId"], payload=result)
+                        store.transition(entity_id=run["id"], target="RUNNING", actor_id=body["actorId"], expected_revision=1)
+                        passed = result["result"] in {"PASSED", "CONTRACT_PASSED"}
+                        store.transition(entity_id=run["id"], target="PASSED" if passed else "FAILED", actor_id=body["actorId"], expected_revision=2)
+                        if passed:
+                            store.transition(entity_id=evidence["id"], target="VALIDATED", actor_id=body["actorId"], expected_revision=1)
+                        results.append({"capabilityId": capability_id, "result": result["result"], "testRunId": run_id, "evidenceId": evidence_id, "evidenceStatus": "VALIDATED" if passed else "DRAFT", "traceHash": result["traceHash"]})
+                    return self._send(201, {"suiteId": suite_id, "total": len(results), "passed": sum(item["result"] in {"PASSED", "CONTRACT_PASSED"} for item in results), "results": results, "deterministic": True})
                 if path.startswith("/api/projects/") and path.endswith("/builds/plc"):
                     project_id = path.split("/")[3]
                     self._authorize(body, "MODIFY", project_id)
