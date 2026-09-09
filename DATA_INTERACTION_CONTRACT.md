@@ -59,3 +59,7 @@ AI 只能在 Context、Authorization 和 Validation 之后提出变更；任何�
 - additive change 可在同一小版本演进；删除、改语义或改变必填字段必须走 breaking-change ADR 和迁移方案。
 - stable contract 必须有兼容性测试、owner、弃用日期、迁移说明和观测指标。
 - 数据保留、迁移和回滚策略必须在发布前定义，不把迁移责任留给消费者猜测。
+
+## Storage boundary
+
+Edge Control Plane 的 project metadata/revisions、audit、outbox、migration metadata 和索引使用事务存储；V0.1 的参考实现为 SQLite。Realtime Runtime、IO image、scan 状态、Motion/EtherCAT 状态和高频 historian 不得依赖该存储路径。

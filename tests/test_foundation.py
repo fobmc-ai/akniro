@@ -16,6 +16,7 @@ from zhinen_foundation.store import ProjectStore, RevisionConflictError
 from zhinen_foundation.migration import MigrationError, MigrationRegistry
 from zhinen_foundation.outbox import Outbox
 from zhinen_foundation.service import ProjectService, ServiceError
+from zhinen_foundation.durable_outbox import DurableOutbox
 
 
 ROOT = Path(__file__).parents[1]
@@ -107,6 +108,27 @@ class CoordinationContractTests(unittest.TestCase):
             self.assertTrue(Path(path).exists())
             self.assertEqual(len(service.audit.all()), 1)
             self.assertEqual(len(service.outbox.pending()), 1)
+
+    def test_durable_outbox_survives_restart_and_retries(self):
+        message = make_message("event", "project.created", {}, actor="service", tenant_id="T", site_id="S", machine_id="M")
+        with tempfile.TemporaryDirectory() as directory:
+            database = Path(directory) / "control-plane.db"
+            first = DurableOutbox(database)
+            first.append(message)
+            first.close()
+            second = DurableOutbox(database)
+            attempts = []
+            def publisher(item):
+                attempts.append(item["messageId"])
+                if len(attempts) == 1:
+                    raise RuntimeError("broker unavailable")
+            self.assertEqual(second.publish_pending(publisher), 0)
+            second.close()
+            third = DurableOutbox(database)
+            self.assertEqual(third.publish_pending(publisher), 1)
+            self.assertEqual(attempts, [message.messageId, message.messageId])
+            self.assertEqual(third.pending(), [])
+            third.close()
 
 
 if __name__ == "__main__":

@@ -64,7 +64,7 @@ Machine Project
 
 完成该闭环前，不开始 Phase 1 的 PLC 编译、下载和在线控制功能。
 
-当前代码已实现该闭环的基础骨架：项目校验、消息信封、Capability Registry、Resource Lease、Audit Log、不可覆盖的 JSON revision 持久化、显式迁移、Outbox 和 transport-neutral Project Service。HTTP/gRPC/WebSocket 适配层仍需在契约稳定后添加。
+当前代码已实现该闭环的基础骨架：项目校验、消息信封、Capability Registry、Resource Lease、Audit Log、不可覆盖的 JSON revision 持久化、显式迁移、内存/SQLite Outbox 和 transport-neutral Project Service。HTTP/gRPC/WebSocket 适配层仍需在契约稳定后添加。
 
 ## Required evidence
 
