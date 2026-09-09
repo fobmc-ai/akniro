@@ -11,7 +11,7 @@ from zhinen_pm.authorization import Actor, AuthorizationError, authorize
 from zhinen_pm.state_machine import InvalidTransition, assert_transition
 from zhinen_pm.store import ProjectStore
 from zhinen_pm.server import create_server
-from zhinen_pm.engineering import validate_capability, list_capabilities, simulation_evidence
+from zhinen_pm.engineering import validate_capability, list_capabilities, simulation_evidence, build_plc_project
 from zhinen_pm.ai_context import build_context
 import threading
 
@@ -191,6 +191,10 @@ class PM0Tests(unittest.TestCase):
         self.assertEqual((plc_error["result"], plc_error["diagnostic"]), ("FAILED", "compile"))
         hmi_error = simulation_evidence("HMI-001", {"tag_binding": True, "alarm_binding": True, "screen_smoke": True, "duplicate_tag": True})
         self.assertEqual((hmi_error["result"], hmi_error["diagnostic"]), ("FAILED", "binding"))
+        build = build_plc_project("PROGRAM Main\nEND_PROGRAM", "PLC-SIM-1")
+        self.assertEqual(build["result"], "PASSED")
+        self.assertEqual(build["buildHash"], build_plc_project("PROGRAM Main\nEND_PROGRAM", "PLC-SIM-1")["buildHash"])
+        self.assertIn("syntax_error", build_plc_project("SYNTAX_ERROR", "PLC-SIM-1")["errors"])
 
     def test_release_gate_requires_evidence_and_human_approval(self):
         with tempfile.TemporaryDirectory() as directory:

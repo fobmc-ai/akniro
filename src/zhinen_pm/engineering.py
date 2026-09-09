@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
+import hashlib
 from typing import Any
 
 
@@ -71,3 +72,16 @@ def simulation_evidence(capability_id: str, payload: dict[str, Any]) -> dict[str
     result["deterministic"] = True
     result["testPlan"] = f"{capability_id}:golden-validation"
     return result
+
+
+def build_plc_project(source: str, toolchain_version: str = "SIMULATED-PLC-0.1") -> dict[str, Any]:
+    source_hash = hashlib.sha256(source.encode("utf-8")).hexdigest()
+    errors = []
+    if not source.strip():
+        errors.append("empty_source")
+    if "SYNTAX_ERROR" in source:
+        errors.append("syntax_error")
+    if "UNSAFE_FORCE" in source:
+        errors.append("unsafe_force_requires_manual_review")
+    build_hash = hashlib.sha256(f"{source_hash}:{toolchain_version}".encode("utf-8")).hexdigest()
+    return {"result": "FAILED" if errors else "PASSED", "sourceHash": f"sha256:{source_hash}", "buildHash": f"sha256:{build_hash}", "toolchainVersion": toolchain_version, "errors": errors, "log": "PLC SIMULATED BUILD OK" if not errors else "PLC SIMULATED BUILD FAILED", "target": "SIMULATION"}

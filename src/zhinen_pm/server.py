@@ -8,7 +8,7 @@ from urllib.parse import parse_qs, urlparse
 
 from .store import ProjectStore
 from .authorization import Actor, authorize
-from .engineering import list_capabilities, validate_capability, simulation_evidence
+from .engineering import list_capabilities, validate_capability, simulation_evidence, build_plc_project
 from .ai_context import build_context
 
 
@@ -192,6 +192,12 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                         store.transition(entity_id=evidence["id"], target="VALIDATED", actor_id=body["actorId"], expected_revision=1)
                         store.link_entities(project_id=project_id, from_id=body["releaseId"], to_id=evidence["id"], link_type="requires") if body.get("releaseId") else None
                     return self._send(201, {"testRun": store.get_entity(run["id"]), "evidence": store.get_entity(body["evidenceId"]) if result["result"] in {"PASSED", "CONTRACT_PASSED"} else None, "validation": result})
+                if path.startswith("/api/projects/") and path.endswith("/builds/plc"):
+                    project_id = path.split("/")[3]
+                    self._authorize(body, "MODIFY", project_id)
+                    build = build_plc_project(body.get("source", ""), body.get("toolchainVersion", "SIMULATED-PLC-0.1"))
+                    artifact = store.create_artifact_manifest(artifact_id=body["artifactId"], project_id=project_id, artifact_type="PLC", source_uri=body.get("sourceUri", "inline://plc"), content_hash=build["buildHash"], artifact_revision=body.get("artifactRevision", "r1"), toolchain_version=build["toolchainVersion"], target_environment="SIMULATION", sensitivity=body.get("sensitivity", "INTERNAL"), owner_id=body["actorId"])
+                    return self._send(201, {"build": build, "artifact": artifact})
                 if path.startswith("/api/projects/") and path.endswith("/test-runs/execute"):
                     project_id = path.split("/")[3]
                     self._authorize(body, "MODIFY", project_id)
