@@ -8,6 +8,10 @@ on:
       - "tools/**"
       - "examples/**"
       - "web/**"
+      - "docs/**"
+      - "MASTER_PLAN.md"
+      - "IMPLEMENTATION_BACKLOG.md"
+      - "IMPLEMENTATION_STATUS.md"
       - ".github/workflows/foundation-contracts.yml"
   pull_request:
     paths:
@@ -16,6 +20,10 @@ on:
       - "tools/**"
       - "examples/**"
       - "web/**"
+      - "docs/**"
+      - "MASTER_PLAN.md"
+      - "IMPLEMENTATION_BACKLOG.md"
+      - "IMPLEMENTATION_STATUS.md"
       - ".github/workflows/foundation-contracts.yml"
 
 jobs:
@@ -36,3 +44,5 @@ jobs:
           node-version: "20"
       - name: Parse all inline web scripts
         run: node tools/check_web_syntax.js
+      - name: Check patch whitespace
+        run: git diff --check
