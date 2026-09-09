@@ -22,3 +22,4 @@
 - 增加测试计划批量执行入口，统一汇总用例运行、证据和计划状态。
 - Release Gate 增加 SBOM 与 rollback revision 门禁，确保发布包可追溯且可恢复。
 - 增加 Release 组合接口，自动生成确定性 SBOM 摘要与组件清单。
+- Issue 关闭增加同项目 VALIDATED Evidence 校验，自动失败记录预填证据关联。

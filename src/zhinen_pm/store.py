@@ -614,6 +614,13 @@ class ProjectStore:
             required = ("rootCause", "fixVersion", "regressionTestIds", "closureCriteria")
             if any(not payload.get(field) for field in required):
                 raise ValueError("PM-QUALITY-002: issue closure needs root cause, fix version, regression test and criteria")
+            evidence_links = payload.get("evidenceLinks", [])
+            if not evidence_links:
+                raise ValueError("PM-QUALITY-003: issue closure needs evidenceLinks")
+            for evidence_id in evidence_links:
+                evidence_row = self.db.execute("SELECT project_id, entity_type, status FROM entities WHERE id = ?", (evidence_id,)).fetchone()
+                if not evidence_row or evidence_row["project_id"] != row["project_id"] or evidence_row["entity_type"] != "evidence" or evidence_row["status"] != "VALIDATED":
+                    raise ValueError("PM-QUALITY-003: issue closure needs validated project evidence")
         assert_transition(row["entity_type"], row["status"], target)
         timestamp = now()
         self.db.execute("UPDATE entities SET status = ?, revision = revision + 1, updated_at = ? WHERE id = ? AND revision = ?", (target, timestamp, entity_id, expected_revision))

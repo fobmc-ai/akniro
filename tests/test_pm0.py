@@ -276,7 +276,9 @@ class PM0Tests(unittest.TestCase):
                 store.transition(entity_id="ISS-001", target=target, actor_id="U-001", expected_revision=revision)
             with self.assertRaisesRegex(ValueError, "root cause"):
                 store.transition(entity_id="ISS-001", target="CLOSED", actor_id="U-001", expected_revision=5)
-            updated_issue = store.update_entity_payload(entity_id="ISS-001", actor_id="U-001", expected_revision=5, payload={"rootCause": "binding typo", "fixVersion": "V0.1.1", "regressionTestIds": ["TC-001"], "closureCriteria": ["retest passed"]})
+            evidence = store.create_entity(entity_id="EV-ISS-001", entity_type="evidence", project_id="P-001", tenant_id="T-001", title="Issue regression", owner_id="U-001")
+            store.transition(entity_id=evidence["id"], target="VALIDATED", actor_id="U-001", expected_revision=1)
+            updated_issue = store.update_entity_payload(entity_id="ISS-001", actor_id="U-001", expected_revision=5, payload={"rootCause": "binding typo", "fixVersion": "V0.1.1", "regressionTestIds": ["TC-001"], "closureCriteria": ["retest passed"], "evidenceLinks": [evidence["id"]]})
             self.assertEqual(store.transition(entity_id="ISS-001", target="CLOSED", actor_id="U-001", expected_revision=updated_issue["revision"])["status"], "CLOSED")
             snapshot = store.create_entity(entity_id="PAR-001", entity_type="parameter_snapshot", project_id="P-001", tenant_id="T-001", title="Speed", owner_id="U-001", payload={"speed": 100})
             approved = store.transition(entity_id=snapshot["id"], target="VALIDATED", actor_id="U-001", expected_revision=1)
