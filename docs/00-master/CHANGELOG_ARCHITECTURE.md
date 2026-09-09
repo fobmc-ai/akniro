@@ -33,6 +33,11 @@
 - Artifact Manifest 增加 revision 迁移与并发状态迁移保护。
 - 增加备份恢复校验接口，验证完整性、核心表、项目、审计/Outbox 和 revision 一致性。
 - 审计页面接入“创建并校验备份”一键流程。
+
+## 2026-09-10 — 发布前预检闭环
+
+- Web Gate 页面接入只读 Release Preflight，统一展示制品、Hash、门禁、机器提交、参数快照、SBOM、审批和回滚检查。
+- 修正页面与 `artifactRevisions` 权威响应契约的字段对接，并增加 HTTP 回归测试，避免制品数量和 revision/hash 展示误报。
 - 验证和构建失败接入项目 Owner 通知链，并以 Run ID 做幂等去重。
 - Edge 同步冲突/失败接入 Owner 通知链，并以 Sync ID 做幂等去重。
 - S0/S1 Issue 自动进入 Owner 升级通知链，并校验严重度范围。

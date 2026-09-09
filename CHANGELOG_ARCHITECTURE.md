@@ -8,3 +8,8 @@
 - Established platform layers, Control/Data Plane split, realtime isolation, offline edge requirement.
 - Added A/B/C classification and stable ID rules.
 - Added canonical object ownership, project index, architecture map, AI context governance, deployment and recovery contracts.
+
+## 2026-09-10 — Release preflight management-center closure
+
+- Exposed read-only Release Preflight in the Web Gate view for artifact, hash, gate, machine-commit, parameter-snapshot, SBOM, approval, and rollback checks.
+- Aligned the UI with the authoritative `artifactRevisions` response contract and added an HTTP regression test for revision/hash display data.
