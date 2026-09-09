@@ -166,3 +166,5 @@ PM-0 必须先完成，PM-1 才能开始；PM-3 之前不接现场部署；PM-5 
 组织隔离、状态机、环境晋级、备份恢复、搜索 freshness、通知升级、平台可观测性和数据保留规则见 [`PLATFORM_OPERATIONS_GOVERNANCE.md`](PLATFORM_OPERATIONS_GOVERNANCE.md)。这些规则属于 PM-0 门禁，不得等 UI 完成后补充。
 
 PM-0 的对象、状态机、权限矩阵、API envelope 和事件目录见 [`PM0_CONTRACTS.md`](PM0_CONTRACTS.md)。数据库、后端和前端实现必须先通过这些契约测试。
+
+当前已开始 PM-0 实现：`src/zhinen_pm/` 提供状态机、权限和 SQLite 项目/实体/审计存储；完整 Web API 和 UI 将在该契约之上逐步接入。
