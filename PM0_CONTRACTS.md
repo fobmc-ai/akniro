@@ -34,7 +34,7 @@ PM-0 只冻结领域边界和交互契约，不绑定数据库、前端框架或
 
 ### Test Case / Test Run / Evidence
 
-Test Case 定义步骤、输入、预期结果和阈值；Test Run 记录版本、环境、执行人和结果；Evidence 保存日志、波形、截图、数据、校验值和来源。Evidence 不可原地覆盖。
+Test Case 定义步骤、输入、预期结果和阈值；服务端在执行前校验四项定义。Test Run 记录版本、环境、执行人和结果；Evidence 保存日志、波形、截图、数据、校验值和来源。Evidence 不可原地覆盖。
 
 ### Release / Deployment Request
 

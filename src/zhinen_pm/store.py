@@ -524,6 +524,9 @@ class ProjectStore:
         case = self.get_entity(test_case_id)
         if case["project_id"] != project_id or case["entity_type"] != "test_case":
             raise KeyError("test case not found in project")
+        required_definition = ("steps", "inputs", "expected", "thresholds")
+        if any(not case["payload"].get(field) for field in required_definition):
+            raise ValueError("PM-TEST-001: test case execution needs steps, inputs, expected results and thresholds")
         run = self.create_entity(entity_id=run_id, entity_type="test_run", project_id=project_id, tenant_id=tenant_id, title=f"Run: {case['title']}", owner_id=actor_id, payload={"testCaseId": test_case_id, "result": "PASSED" if passed else "FAILED"})
         self.transition(entity_id=run_id, target="RUNNING", actor_id=actor_id, expected_revision=1)
         final = self.transition(entity_id=run_id, target="PASSED" if passed else "FAILED", actor_id=actor_id, expected_revision=2)
