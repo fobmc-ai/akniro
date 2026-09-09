@@ -211,11 +211,13 @@ class PM0Tests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             store = ProjectStore(Path(directory) / "pm.db")
             store.create_project(project_id="P-001", tenant_id="T-001", name="Demo", kind="platform", owner_id="U-001")
+            store.create_entity(entity_id="REL-AUDIT", entity_type="release", project_id="P-001", tenant_id="T-001", title="Release", owner_id="U-001")
             audit = store.completion_audit("P-001")
             self.assertFalse(audit["ready"])
             self.assertEqual((audit["softwareScope"]["validated"], audit["softwareScope"]["total"]), (0, 14))
             self.assertIn("capabilities", audit["checks"])
             self.assertIn("FW-001", audit["hardwareDeferred"])
+            self.assertTrue(any(item["kind"] == "release" and item["id"] == "REL-AUDIT" for item in audit["blockers"]))
             self.assertTrue(audit["deterministic"])
             store.close()
 

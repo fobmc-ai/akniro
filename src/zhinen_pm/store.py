@@ -406,7 +406,7 @@ class ProjectStore:
                 blockers.append({"kind": "capability", "id": item["capabilityId"], "reason": "validated_evidence_missing"})
         blockers.extend({"kind": "backlog", "id": item["id"], "reason": item["blockedBy"] or item["contractMissing"]} for item in readiness if not item["contractReady"] or item["blockedBy"])
         blockers.extend({"kind": "issue", "id": item["id"], "reason": "issue_not_closed"} for item in issues)
-        blockers.extend({"kind": "release", "id": item["releaseId"], "reason": item["missing"]} for item in release_preflights if not item["ready"])
+        blockers.extend({"kind": "release", "id": item["releaseId"], "reason": item["errors"] or item["gate"].get("missing", [])} for item in release_preflights if not item["ready"])
         return {"projectId": project_id, "generatedAt": now(), "softwareScope": {"capabilities": capabilities, "validated": sum(1 for item in capabilities if item["ready"]), "total": len(capabilities)}, "checks": checks, "ready": all(checks.values()), "blockers": blockers, "hardwareDeferred": hardware_deferred, "integrity": integrity, "sync": sync, "releasePreflights": release_preflights, "deterministic": True}
 
     def capability_evidence(self, project_id: str, capability_ids: list[str] | None = None) -> list[dict[str, Any]]:
