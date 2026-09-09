@@ -340,6 +340,16 @@ class PM0Tests(unittest.TestCase):
                 store.transition(entity_id=deployment["id"], target="AUTHORIZED", actor_id="U-001", expected_revision=1)
             store.close()
 
+    def test_critical_issue_triggers_escalation_notification(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = ProjectStore(Path(directory) / "pm.db")
+            store.create_project(project_id="P-001", tenant_id="T-001", name="Demo", kind="platform", owner_id="U-001")
+            issue = store.create_entity(entity_id="ISS-S0", entity_type="issue", project_id="P-001", tenant_id="T-001", title="Safety trip", owner_id="U-001", payload={"severity": "S0"})
+            self.assertEqual(issue["payload"]["severity"], "S0")
+            alerts = store.list_notifications("U-001", "P-001")
+            self.assertEqual((len(alerts), alerts[0]["kind"]), (1, "issue_escalation"))
+            store.close()
+
     def test_failed_test_case_execution_retains_draft_evidence(self):
         with tempfile.TemporaryDirectory() as directory:
             store = ProjectStore(Path(directory) / "pm.db")

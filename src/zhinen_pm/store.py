@@ -574,10 +574,15 @@ class ProjectStore:
         status = {"requirement": "DRAFT", "design_goal": "DRAFT", "work_item": "PLANNED", "issue": "OPEN", "adr": "PROPOSED", "test_case": "DRAFT", "knowledge": "DRAFT", "release": "DRAFT", "test_plan": "DRAFT", "test_run": "QUEUED", "evidence": "DRAFT", "tool_validation": "DRAFT", "artifact": "DRAFT", "parameter_snapshot": "DRAFT", "maintenance": "OPEN", "deployment": "REQUESTED"}.get(entity_type)
         if status is None:
             raise ValueError(f"unsupported PM-0 entity: {entity_type}")
+        entity_payload = payload or {}
+        if entity_type == "issue" and entity_payload.get("severity") and entity_payload["severity"] not in {"S0", "S1", "S2", "S3", "S4"}:
+            raise ValueError("issue severity must be S0-S4")
         timestamp = now()
-        self.db.execute("INSERT INTO entities VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)", (entity_id, project_id, tenant_id, entity_type, title, status, owner_id, json.dumps(payload or {}, ensure_ascii=False), timestamp, timestamp))
+        self.db.execute("INSERT INTO entities VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)", (entity_id, project_id, tenant_id, entity_type, title, status, owner_id, json.dumps(entity_payload, ensure_ascii=False), timestamp, timestamp))
         self._audit(tenant_id, project_id, owner_id, f"{entity_type}.create", entity_id, "success", {})
         self.db.commit()
+        if entity_type == "issue" and entity_payload.get("severity") in {"S0", "S1"}:
+            self.notify_project_owner(project_id=project_id, kind="issue_escalation", message=f"{entity_payload['severity']} issue requires escalation: {entity_id}", correlation_id=f"ISSUE-ESCALATION-{entity_id}")
         return self.get_entity(entity_id)
 
     def get_entity(self, entity_id: str) -> dict[str, Any]:
