@@ -210,6 +210,8 @@ class PM0Tests(unittest.TestCase):
         self.assertEqual(robot["result"], "PASSED")
         self.assertEqual(robot["traceHash"], simulation_evidence("ROB-001", {"handshake": True, "permission_scope": True, "fault_recovery": True, "handshake_sequence": ["INIT", "READY", "START", "DONE"]})["traceHash"])
         self.assertIn("commissioning_checklist_incomplete", simulation_evidence("COMM-001", {"checklist": True, "evidence": True, "signoff": True, "checklist_items": [{"id": "FAT-1", "passed": False}]})["missing"])
+        hmi = simulation_evidence("HMI-001", {"tag_binding": True, "alarm_binding": True, "screen_smoke": True, "tag_ids": ["Start", "Stop"], "bound_tag_ids": ["Start"]})
+        self.assertIn("hmi_missing_tags:Stop", hmi["missing"])
 
     def test_release_gate_requires_evidence_and_human_approval(self):
         with tempfile.TemporaryDirectory() as directory:

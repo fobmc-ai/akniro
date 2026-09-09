@@ -74,6 +74,13 @@ def simulation_evidence(capability_id: str, payload: dict[str, Any]) -> dict[str
     domain_errors: list[str] = []
     if capability_id == "EDA-001" and payload.get("io_expected") is not None and payload.get("io_actual") is not None and payload["io_expected"] != payload["io_actual"]:
         domain_errors.append("io_bom_mismatch")
+    if capability_id == "HMI-001" and payload.get("tag_ids") is not None and payload.get("bound_tag_ids") is not None:
+        expected_tags = set(payload["tag_ids"])
+        actual_tags = set(payload["bound_tag_ids"])
+        if expected_tags - actual_tags:
+            domain_errors.append("hmi_missing_tags:" + ",".join(sorted(expected_tags - actual_tags)))
+        if actual_tags - expected_tags:
+            domain_errors.append("hmi_unknown_tags:" + ",".join(sorted(actual_tags - expected_tags)))
     if capability_id == "MOT-001" and payload.get("soft_limit_min") is not None and payload.get("soft_limit_max") is not None and payload["soft_limit_min"] >= payload["soft_limit_max"]:
         domain_errors.append("invalid_soft_limits")
     if capability_id == "VIS-001":
