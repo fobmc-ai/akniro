@@ -8,7 +8,7 @@ from urllib.parse import parse_qs, urlparse
 
 from .store import ProjectStore
 from .authorization import Actor, authorize
-from .engineering import list_capabilities, validate_capability
+from .engineering import list_capabilities, validate_capability, simulation_evidence
 from .ai_context import build_context
 
 
@@ -171,6 +171,18 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                     return self._send(201, result)
                 if path == "/api/engineering/validate":
                     return self._send(200, validate_capability(body["capabilityId"], body.get("payload", {})))
+                if path.startswith("/api/projects/") and path.endswith("/simulate"):
+                    project_id = path.split("/")[3]
+                    self._authorize(body, "MODIFY", project_id)
+                    result = simulation_evidence(body["capabilityId"], body.get("payload", {}))
+                    run = store.create_entity(entity_id=body["testRunId"], entity_type="test_run", project_id=project_id, tenant_id=body["tenantId"], title=f"{body['capabilityId']} simulation", owner_id=body["actorId"], payload=result)
+                    if result["result"] in {"PASSED", "CONTRACT_PASSED"}:
+                        evidence = store.create_entity(entity_id=body["evidenceId"], entity_type="evidence", project_id=project_id, tenant_id=body["tenantId"], title=f"{body['capabilityId']} simulation evidence", owner_id=body["actorId"], payload=result)
+                        store.transition(entity_id=run["id"], target="RUNNING", actor_id=body["actorId"], expected_revision=1)
+                        store.transition(entity_id=run["id"], target="PASSED", actor_id=body["actorId"], expected_revision=2)
+                        store.transition(entity_id=evidence["id"], target="VALIDATED", actor_id=body["actorId"], expected_revision=1)
+                        store.link_entities(project_id=project_id, from_id=body["releaseId"], to_id=evidence["id"], link_type="requires") if body.get("releaseId") else None
+                    return self._send(201, {"testRun": store.get_entity(run["id"]), "evidence": store.get_entity(body["evidenceId"]) if result["result"] in {"PASSED", "CONTRACT_PASSED"} else None, "validation": result})
                 if path == "/api/ai/context":
                     return self._send(200, build_context(store, project_id=body["projectId"], object_ids=body.get("objectIds", []), actor_id=body["actorId"]))
                 if path.startswith("/api/projects/") and path.endswith("/machine-snapshots"):

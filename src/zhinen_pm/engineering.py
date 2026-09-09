@@ -42,3 +42,11 @@ def validate_capability(capability_id: str, payload: dict[str, Any]) -> dict[str
     if capability.mode == "CONTRACT_ONLY" and result == "PASSED":
         result = "CONTRACT_PASSED"
     return {"capabilityId": capability.id, "result": result, "missing": missing, "simulated": capability.mode == "SIMULATED", "safetyGate": capability.safety_gate, "validatedAt": datetime.now(timezone.utc).isoformat()}
+
+
+def simulation_evidence(capability_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+    result = validate_capability(capability_id, payload)
+    result["evidenceType"] = "SIMULATION_RESULT"
+    result["deterministic"] = True
+    result["testPlan"] = f"{capability_id}:golden-validation"
+    return result
