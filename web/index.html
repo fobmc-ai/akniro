@@ -21,7 +21,7 @@
 </head>
 <body>
   <header><h1>织能工程控制中心</h1><span>Project Control Center · PM-0</span></header>
-  <main><aside><div class="tree"><div class="root">📁 当前项目</div><div class="folder">00-项目总览</div><div class="folder">01-需求</div><div class="folder">02-技术方案</div><div class="folder">03-架构与 ADR</div><div class="folder">04-开发任务</div><div class="folder">05-测试与证据</div><div class="folder">06-问题与 CAPA</div><div class="folder">07-发布与维护</div><div class="folder">08-知识库</div></div></aside>
+  <main><aside><div id="tree" class="tree"><div class="root">📁 当前项目</div><p class="muted">加载目录…</p></div></aside>
     <section><div id="content"><p class="muted">正在加载项目…</p></div></section></main>
   <script>
     const el = document.getElementById('content');
@@ -30,6 +30,8 @@
         const response = await fetch('/api/projects'); const data = await response.json();
         if (!data.projects.length) { el.innerHTML = `<h2>项目总览</h2><p class="muted">还没有项目，先创建 PM 项目。</p><div class="panel"><form id="project-form"><input name="projectId" placeholder="项目 ID，如 P-001" required><input name="name" placeholder="项目名称" required><input name="tenantId" placeholder="租户 ID" value="T-001" required><input name="ownerId" placeholder="Owner ID" value="U-001" required><button>创建项目</button></form><p id="form-message" class="muted"></p></div>`; document.getElementById('project-form').onsubmit = createProject; return; }
         const project = await (await fetch('/api/projects/' + encodeURIComponent(data.projects[0].id))).json();
+        const tree = await (await fetch('/api/projects/' + encodeURIComponent(project.id) + '/tree')).json();
+        document.getElementById('tree').innerHTML = '<div class="root">📁 ' + project.name + '</div>' + renderTree(tree.tree);
         const entities = project.entities || []; const count = type => entities.filter(x => x.entity_type === type).length;
         el.innerHTML = `<h2>${project.name}</h2><p class="muted">${project.id} · ${project.kind} · revision ${project.revision}</p>
           <div class="cards"><div class="card"><label>需求</label><strong>${count('requirement')}</strong></div><div class="card"><label>任务</label><strong>${count('work_item')}</strong></div><div class="card"><label>问题</label><strong>${count('issue')}</strong></div><div class="card"><label>状态</label><strong class="status">${project.status}</strong></div></div>
@@ -40,6 +42,7 @@
       } catch (e) { el.innerHTML = `<p class="error">无法连接 PM 服务：${e.message}</p>`; }
     }
     function nextState(entity) { const map = { requirement:{DRAFT:'READY',READY:'IMPLEMENTING',IMPLEMENTING:'VERIFIED',VERIFIED:'ACCEPTED',ACCEPTED:'CLOSED'}, work_item:{PLANNED:'IN_PROGRESS',IN_PROGRESS:'REVIEW',REVIEW:'TEST',TEST:'DONE'}, issue:{OPEN:'REPRODUCED',REPRODUCED:'ROOT_CAUSED',ROOT_CAUSED:'FIXED',FIXED:'REGRESSION',REGRESSION:'CLOSED'} }; return map[entity.entity_type]?.[entity.status]; }
+    function renderTree(nodes, depth=0) { return nodes.map(node => '<div class="folder" style="margin-left:' + (depth*18+18) + 'px">' + node.name + '</div>' + renderTree(node.children || [], depth+1)).join(''); }
     async function createProject(event) { event.preventDefault(); const form = new FormData(event.target); const payload = Object.fromEntries(form); const response = await fetch('/api/projects', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)}); document.getElementById('form-message').textContent = response.ok ? '项目已创建，正在刷新…' : '创建失败'; if (response.ok) load(); }
     async function createEntity(event, project) { event.preventDefault(); const form = new FormData(event.target); const payload = Object.fromEntries(form); payload.tenantId = project.tenant_id; const response = await fetch('/api/projects/' + project.id + '/entities', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)}); document.getElementById('form-message').textContent = response.ok ? '对象已创建，正在刷新…' : '创建失败'; if (response.ok) load(); }
     async function transition(id, target, expectedRevision) { const response = await fetch('/api/entities/' + id + '/transition', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({target, actorId:'U-001', expectedRevision})}); if (!response.ok) alert('状态变更失败，请重新读取页面'); load(); }

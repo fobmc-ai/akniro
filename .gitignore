@@ -9,3 +9,5 @@ coverage/
 __pycache__/
 *.py[cod]
 .pytest_cache/
+*.db
+*.db-*

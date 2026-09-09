@@ -15,7 +15,7 @@ def _json_bytes(value: object) -> bytes:
     return json.dumps(value, ensure_ascii=False).encode("utf-8")
 
 
-def create_server(database: str = "control-center.db") -> ThreadingHTTPServer:
+def create_server(database: str = "control-center.db", port: int = 8765) -> ThreadingHTTPServer:
     store = ProjectStore(database)
 
     class Handler(BaseHTTPRequestHandler):
@@ -50,6 +50,8 @@ def create_server(database: str = "control-center.db") -> ThreadingHTTPServer:
                     return self._send(200, {"projects": store.list_projects()})
                 if path.startswith("/api/projects/"):
                     project_id = path.split("/")[3]
+                    if path.endswith("/tree"):
+                        return self._send(200, {"tree": store.get_tree(project_id)})
                     return self._send(200, store.get_project(project_id))
                 if path.startswith("/api/entities/"):
                     entity_id = path.split("/")[3]
@@ -91,4 +93,4 @@ def create_server(database: str = "control-center.db") -> ThreadingHTTPServer:
             store.close()
             super().server_close()
 
-    return PMServer(("127.0.0.1", 8765), Handler)
+    return PMServer(("127.0.0.1", port), Handler)

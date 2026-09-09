@@ -38,6 +38,12 @@ class ProjectStore:
           created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
           FOREIGN KEY(project_id) REFERENCES projects(id)
         );
+        CREATE TABLE IF NOT EXISTS project_nodes (
+          id TEXT PRIMARY KEY, project_id TEXT NOT NULL, parent_id TEXT,
+          name TEXT NOT NULL, node_type TEXT NOT NULL, sort_order INTEGER NOT NULL DEFAULT 0,
+          FOREIGN KEY(project_id) REFERENCES projects(id),
+          FOREIGN KEY(parent_id) REFERENCES project_nodes(id)
+        );
         CREATE TABLE IF NOT EXISTS audit (
           id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, project_id TEXT,
           actor_id TEXT NOT NULL, action TEXT NOT NULL, target_id TEXT NOT NULL,
@@ -54,9 +60,33 @@ class ProjectStore:
     def create_project(self, *, project_id: str, tenant_id: str, name: str, kind: str, owner_id: str) -> dict[str, Any]:
         timestamp = now()
         self.db.execute("INSERT INTO projects VALUES (?, ?, ?, ?, 'ACTIVE', ?, 1, ?, ?)", (project_id, tenant_id, name, kind, owner_id, timestamp, timestamp))
+        self._create_default_tree(project_id)
         self._audit(tenant_id, project_id, owner_id, "project.create", project_id, "success", {})
         self.db.commit()
         return self.get_project(project_id)
+
+    def _create_default_tree(self, project_id: str) -> None:
+        nodes = [
+            ("overview", "00-项目总览", "section"), ("requirements", "01-需求", "section"),
+            ("solution", "02-技术方案", "section"), ("architecture", "03-架构与 ADR", "section"),
+            ("work", "04-开发任务", "section"), ("quality", "05-测试与证据", "section"),
+            ("problems", "06-问题与 CAPA", "section"), ("release", "07-发布与维护", "section"),
+            ("knowledge", "08-知识库", "section"),
+        ]
+        self.db.executemany("INSERT INTO project_nodes(id, project_id, name, node_type, sort_order) VALUES (?, ?, ?, ?, ?)", [(f"{project_id}:{node_id}", project_id, name, node_type, index) for index, (node_id, name, node_type) in enumerate(nodes)])
+
+    def get_tree(self, project_id: str) -> list[dict[str, Any]]:
+        rows = self.db.execute("SELECT id, parent_id, name, node_type, sort_order FROM project_nodes WHERE project_id = ? ORDER BY sort_order, name", (project_id,)).fetchall()
+        by_parent: dict[str | None, list[dict[str, Any]]] = {}
+        for row in rows:
+            item = dict(row); item["children"] = []
+            by_parent.setdefault(row["parent_id"], []).append(item)
+        def attach(parent: str | None) -> list[dict[str, Any]]:
+            items = by_parent.get(parent, [])
+            for item in items:
+                item["children"] = attach(item["id"])
+            return items
+        return attach(None)
 
     def get_project(self, project_id: str) -> dict[str, Any]:
         row = self.db.execute("SELECT * FROM projects WHERE id = ?", (project_id,)).fetchone()

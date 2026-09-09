@@ -38,13 +38,14 @@ class PM0Tests(unittest.TestCase):
 
     def test_http_api_project_tree_flow(self):
         with tempfile.TemporaryDirectory() as directory:
-            server = create_server(str(Path(directory) / "pm.db"))
+            server = create_server(str(Path(directory) / "pm.db"), port=0)
             thread = threading.Thread(target=server.serve_forever, daemon=True)
             thread.start()
             try:
                 def request(path, payload=None):
                     data = json.dumps(payload).encode() if payload is not None else None
                     req = urllib.request.Request(f"http://127.0.0.1:8765{path}", data=data, headers={"Content-Type": "application/json"}, method="POST" if payload is not None else "GET")
+                    req = urllib.request.Request(req.full_url.replace("8765", str(server.server_port)), data=req.data, headers=dict(req.header_items()), method=req.method)
                     with urllib.request.urlopen(req) as response:
                         return response.status, json.loads(response.read())
                 status, _ = request("/api/projects", {"projectId": "P-001", "tenantId": "T-001", "name": "Demo", "ownerId": "U-001"})
@@ -53,6 +54,8 @@ class PM0Tests(unittest.TestCase):
                 self.assertEqual(status, 201)
                 status, updated = request("/api/entities/REQ-001/transition", {"target": "READY", "actorId": "U-001", "expectedRevision": entity["revision"]})
                 self.assertEqual((status, updated["status"]), (200, "READY"))
+                status, tree = request("/api/projects/P-001/tree")
+                self.assertEqual((status, len(tree["tree"])), (200, 9))
             finally:
                 server.shutdown(); server.server_close(); thread.join(timeout=2)
 
