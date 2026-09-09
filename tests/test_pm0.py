@@ -264,16 +264,18 @@ class PM0Tests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             store = ProjectStore(Path(directory) / "pm.db")
             store.create_project(project_id="P-001", tenant_id="T-001", name="Demo", kind="platform", owner_id="U-001")
+            store.create_entity(entity_id="REL-SUITE", entity_type="release", project_id="P-001", tenant_id="T-001", title="Suite Release", owner_id="U-001")
             server = create_server(str(Path(directory) / "pm.db"), port=0)
             thread = threading.Thread(target=server.serve_forever, daemon=True)
             thread.start()
             try:
-                payload = json.dumps({"actorId": "U-001", "tenantId": "T-001", "suiteId": "SUITE-HTTP-001"}).encode()
+                payload = json.dumps({"actorId": "U-001", "tenantId": "T-001", "suiteId": "SUITE-HTTP-001", "releaseId": "REL-SUITE"}).encode()
                 request = urllib.request.Request(f"http://127.0.0.1:{server.server_port}/api/projects/P-001/acceptance-suite", data=payload, headers={"Content-Type": "application/json"}, method="POST")
                 with urllib.request.urlopen(request) as response:
                     result = json.loads(response.read())
                 self.assertEqual((response.status, result["total"], result["passed"], result["deterministic"]), (201, 14, 14, True))
                 self.assertEqual(len(store.list_entities("P-001", "evidence")), 14)
+                self.assertEqual(len(store.list_links("P-001", "REL-SUITE")), 14)
                 failing_payload = json.dumps({"actorId": "U-001", "tenantId": "T-001", "suiteId": "SUITE-HTTP-FAIL", "payloads": {"EDA-001": {"io_expected": ["DI-1"], "io_actual": ["DO-1"]}}}).encode()
                 failed_request = urllib.request.Request(f"http://127.0.0.1:{server.server_port}/api/projects/P-001/acceptance-suite", data=failing_payload, headers={"Content-Type": "application/json"}, method="POST")
                 with urllib.request.urlopen(failed_request) as failed_response:

@@ -397,6 +397,10 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                     project_id = path.split("/")[3]
                     self._authorize(body, "MODIFY", project_id)
                     suite_id = body.get("suiteId", f"SUITE-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')}")
+                    if body.get("releaseId"):
+                        release = store.get_entity(body["releaseId"])
+                        if release["project_id"] != project_id or release["entity_type"] != "release":
+                            raise ValueError("acceptance suite release must belong to the project")
                     results = []
                     payloads = default_acceptance_payloads()
                     for capability_id, override in (body.get("payloads", {}) or {}).items():
@@ -414,6 +418,8 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                         issue_id = None
                         if passed:
                             store.transition(entity_id=evidence["id"], target="VALIDATED", actor_id=body["actorId"], expected_revision=1)
+                            if body.get("releaseId"):
+                                store.link_entities(project_id=project_id, from_id=body["releaseId"], to_id=evidence_id, link_type="requires", actor_id=body["actorId"])
                         else:
                             issue_id = f"ISSUE-{run_id}"
                             issue = store.create_entity(entity_id=issue_id, entity_type="issue", project_id=project_id, tenant_id=body["tenantId"], title=f"{capability_id} acceptance suite failed", owner_id=body["actorId"], payload={"sourceTestRunId": run_id, "evidenceId": evidence_id, "evidenceLinks": [evidence_id], "capabilityId": capability_id, "errors": result.get("missing", [])})
