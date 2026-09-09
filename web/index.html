@@ -282,5 +282,21 @@
       }
     })();
   </script>
+  <script>
+    (() => {
+      const priorShowView = window.showView;
+      window.showView = async function(view, project) { if (view === 'deployment') return showDeploymentWithPreflight(project); return priorShowView(view, project); };
+      async function showDeploymentWithPreflight(project) {
+        await priorShowView('deployment', project);
+        const data = await (await fetch('/api/projects/' + project.id + '/entities?type=deployment')).json();
+        const deployments = data.entities || [];
+        el.insertAdjacentHTML('afterbegin', `<div class="panel"><h3>Deployment Preflight</h3><p class="muted">按状态机分阶段检查：授权 → 暂存 → 观察；只读，不执行现场部署。</p><select id="deployment-preflight-id">${deployments.map(item => `<option value="${item.id}">${item.id} · ${item.status}</option>`).join('') || '<option value="">暂无部署请求</option>'}</select><button id="deployment-preflight-run" ${deployments.length ? '' : 'disabled'}>运行预检</button><p id="deployment-preflight-message" class="muted"></p><div id="deployment-preflight-result"></div></div>`);
+        const run = async () => { const id = document.getElementById('deployment-preflight-id').value; if (!id) return; const response = await fetch('/api/projects/' + project.id + '/deployment-preflight?deploymentId=' + encodeURIComponent(id)); const result = await response.json(); document.getElementById('deployment-preflight-message').textContent = response.ok ? '预检完成' : '预检失败：' + (result.message || result.error || '请求错误'); if (response.ok) document.getElementById('deployment-preflight-result').innerHTML = `<p>授权：<strong class="${result.readyForAuthorization ? 'status' : 'warning'}">${result.readyForAuthorization ? 'READY' : 'BLOCKED'}</strong> · 暂存：<strong class="${result.readyForStaging ? 'status' : 'warning'}">${result.readyForStaging ? 'READY' : 'BLOCKED'}</strong> · 观察：<strong class="${result.readyForObservation ? 'status' : 'warning'}">${result.readyForObservation ? 'READY' : 'BLOCKED'}</strong></p><p>缺失：${(result.missing || []).join('、') || '无'}</p>`; };
+        document.getElementById('deployment-preflight-run').onclick = run;
+        document.getElementById('deployment-preflight-id').onchange = run;
+        if (deployments.length) await run();
+      }
+    })();
+  </script>
 </body>
 </html>

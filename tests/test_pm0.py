@@ -453,6 +453,8 @@ class PM0Tests(unittest.TestCase):
             store = ProjectStore(Path(directory) / "pm.db")
             store.create_project(project_id="P-001", tenant_id="T-001", name="Demo", kind="platform", owner_id="U-001")
             deployment = store.create_entity(entity_id="DEP-001", entity_type="deployment", project_id="P-001", tenant_id="T-001", title="Deploy V0.1", owner_id="U-001", payload={})
+            preflight = store.deployment_preflight(deployment["id"])
+            self.assertEqual((preflight["readyForAuthorization"], preflight["readyForStaging"], preflight["readyForObservation"], preflight["checks"]["inputs"], preflight["currentStatus"]), (False, False, False, False, "REQUESTED"))
             with self.assertRaisesRegex(ValueError, "authorization needs release"):
                 store.transition(entity_id=deployment["id"], target="AUTHORIZED", actor_id="U-001", expected_revision=1)
             store.close()

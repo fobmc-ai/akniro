@@ -24,3 +24,4 @@
 - AI Apply now requires same-project VALIDATED test evidence before any non-controlled object patch can be applied.
 - Added a read-only Edge sync replay-safety summary for idempotency, push approvals, conflicts, and failures.
 - Added a reason-bearing human sync conflict resolution form in the Ops view.
+- Added a staged deployment preflight for authorization, staging signature, health observation, and rollback inputs.

@@ -913,6 +913,33 @@ class ProjectStore:
         self.link_entities(project_id=suggestion["project_id"], from_id=suggestion_id, to_id=target_entity_id, link_type="applied_to", actor_id=actor_id)
         return {"suggestion": updated_suggestion, "target": updated_target, "approvalId": approval_id, "applied": True}
 
+    def deployment_preflight(self, deployment_id: str) -> dict[str, Any]:
+        """Check deployment inputs and release readiness before any state transition."""
+        deployment = self.get_entity(deployment_id)
+        if deployment["entity_type"] != "deployment":
+            raise ValueError("deployment preflight target must be deployment")
+        payload = deployment["payload"]
+        required = ("releaseId", "targetMachineId", "environment", "approvalId", "rollbackRevision", "observationWindow")
+        missing = [field for field in required if not payload.get(field)]
+        release = None
+        release_errors: list[str] = []
+        if payload.get("releaseId"):
+            try:
+                release = self.get_entity(payload["releaseId"])
+                if release["project_id"] != deployment["project_id"] or release["entity_type"] != "release":
+                    release_errors.append("release_project_or_type_invalid")
+                else:
+                    release_check = self.release_preflight(release["id"])
+                    if not release_check["ready"]:
+                        release_errors.extend("release:" + error for error in release_check["errors"] or release_check["gate"].get("missing", []))
+            except KeyError:
+                release_errors.append("release_missing")
+        checks = {"inputs": not missing, "release": release is not None and not release_errors, "signature": bool(payload.get("signature")), "healthCheck": bool(payload.get("healthCheck")), "observation": bool(payload.get("observationWindow"))}
+        authorization_ready = checks["inputs"] and checks["release"]
+        staging_ready = authorization_ready and checks["signature"]
+        observation_ready = staging_ready and checks["healthCheck"] and checks["observation"]
+        return {"deploymentId": deployment_id, "readyForAuthorization": authorization_ready, "readyForStaging": staging_ready, "readyForObservation": observation_ready, "checks": checks, "missing": missing + release_errors, "currentStatus": deployment["status"], "releaseId": payload.get("releaseId"), "targetMachineId": payload.get("targetMachineId"), "deterministic": True, "generatedAt": now()}
+
     def list_entities(self, project_id: str, entity_type: str | None = None) -> list[dict[str, Any]]:
         if entity_type:
             rows = self.db.execute("SELECT * FROM entities WHERE project_id = ? AND entity_type = ? ORDER BY updated_at DESC", (project_id, entity_type)).fetchall()
