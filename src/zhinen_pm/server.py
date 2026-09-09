@@ -230,7 +230,18 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                     artifact = store.get_artifact_manifest(body["artifactId"])
                     if artifact["project_id"] != project_id or artifact["artifact_type"] != "PLC":
                         raise ValueError("PM-PLC-001: artifact must be a PLC artifact in the selected project")
-                    return self._send(200, simulate_plc_download(artifact_id=artifact["id"], artifact_hash=artifact["content_hash"], artifact_status=artifact["status"], target_machine_id=body.get("targetMachineId", ""), approval_id=body.get("approvalId"), rollback_revision=body.get("rollbackRevision")))
+                    manifest = simulate_plc_download(artifact_id=artifact["id"], artifact_hash=artifact["content_hash"], artifact_status=artifact["status"], target_machine_id=body.get("targetMachineId", ""), approval_id=body.get("approvalId"), rollback_revision=body.get("rollbackRevision"))
+                    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
+                    run_id = body.get("testRunId", f"PLC-DOWNLOAD-RUN-{artifact['id']}-{stamp}")
+                    evidence_id = body.get("evidenceId", f"PLC-DOWNLOAD-EVIDENCE-{artifact['id']}-{stamp}")
+                    evidence_payload = {**manifest, "capabilityId": "PLC-001", "artifactId": artifact["id"], "evidenceType": "DOWNLOAD_MANIFEST", "environment": "SIMULATION", "executedBy": body["actorId"]}
+                    run = store.create_entity(entity_id=run_id, entity_type="test_run", project_id=project_id, tenant_id=body["tenantId"], title="PLC download manifest simulation", owner_id=body["actorId"], payload=evidence_payload)
+                    store.transition(entity_id=run_id, target="RUNNING", actor_id=body["actorId"], expected_revision=1)
+                    run = store.transition(entity_id=run_id, target="PASSED" if manifest["result"] == "READY_FOR_EDGE" else "FAILED", actor_id=body["actorId"], expected_revision=2)
+                    evidence = store.create_entity(entity_id=evidence_id, entity_type="evidence", project_id=project_id, tenant_id=body["tenantId"], title="PLC download manifest evidence", owner_id=body["actorId"], payload=evidence_payload)
+                    if manifest["result"] == "READY_FOR_EDGE":
+                        evidence = store.transition(entity_id=evidence_id, target="VALIDATED", actor_id=body["actorId"], expected_revision=1)
+                    return self._send(200, {**manifest, "testRun": run, "evidence": evidence})
                 if path.startswith("/api/projects/") and path.endswith("/plc/monitor-simulate"):
                     project_id = path.split("/")[3]
                     self._authorize(body, "READ", project_id)
