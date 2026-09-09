@@ -86,10 +86,22 @@ class ProjectStore:
           kind TEXT NOT NULL, message TEXT NOT NULL, read INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL,
           FOREIGN KEY(project_id) REFERENCES projects(id)
         );
+        CREATE TABLE IF NOT EXISTS machine_objects (
+          id TEXT PRIMARY KEY, project_id TEXT NOT NULL, tenant_id TEXT NOT NULL,
+          object_type TEXT NOT NULL, parent_id TEXT, name TEXT NOT NULL, owner_id TEXT NOT NULL,
+          payload TEXT NOT NULL, revision INTEGER NOT NULL DEFAULT 1, status TEXT NOT NULL DEFAULT 'DRAFT',
+          created_at TEXT NOT NULL, updated_at TEXT NOT NULL, FOREIGN KEY(project_id) REFERENCES projects(id)
+        );
+        CREATE TABLE IF NOT EXISTS machine_snapshots (
+          id TEXT PRIMARY KEY, project_id TEXT NOT NULL, machine_id TEXT NOT NULL,
+          revision INTEGER NOT NULL, payload TEXT NOT NULL, created_by TEXT NOT NULL,
+          created_at TEXT NOT NULL, FOREIGN KEY(project_id) REFERENCES projects(id)
+        );
         CREATE INDEX IF NOT EXISTS idx_entities_project ON entities(project_id, entity_type);
         CREATE INDEX IF NOT EXISTS idx_audit_project ON audit(project_id, occurred_at);
         CREATE INDEX IF NOT EXISTS idx_backlog_project ON backlog_items(project_id, status);
         CREATE INDEX IF NOT EXISTS idx_sync_project ON sync_queue(project_id, status);
+        CREATE INDEX IF NOT EXISTS idx_machine_project ON machine_objects(project_id, object_type);
         """)
         self.db.commit()
 
@@ -269,6 +281,64 @@ class ProjectStore:
         finally:
             target.close()
         return destination
+
+    def create_machine_object(self, *, object_id: str, project_id: str, tenant_id: str, object_type: str, name: str, owner_id: str, payload: dict[str, Any] | None = None, parent_id: str | None = None) -> dict[str, Any]:
+        allowed = {"machine", "module", "device", "tag", "alarm", "recipe"}
+        if object_type not in allowed:
+            raise ValueError(f"unsupported machine object: {object_type}")
+        if not self.db.execute("SELECT 1 FROM projects WHERE id = ? AND tenant_id = ?", (project_id, tenant_id)).fetchone():
+            raise KeyError("project not found in tenant")
+        if parent_id and not self.db.execute("SELECT 1 FROM machine_objects WHERE id = ? AND project_id = ?", (parent_id, project_id)).fetchone():
+            raise KeyError("machine parent not found in project")
+        timestamp = now()
+        self.db.execute("INSERT INTO machine_objects VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, 'DRAFT', ?, ?)", (object_id, project_id, tenant_id, object_type, parent_id, name, owner_id, json.dumps(payload or {}, ensure_ascii=False), timestamp, timestamp))
+        self.db.commit()
+        return self.get_machine_object(object_id)
+
+    def get_machine_object(self, object_id: str) -> dict[str, Any]:
+        row = self.db.execute("SELECT * FROM machine_objects WHERE id = ?", (object_id,)).fetchone()
+        if not row:
+            raise KeyError(f"unknown machine object: {object_id}")
+        result = dict(row); result["payload"] = json.loads(result["payload"]); return result
+
+    def list_machine_objects(self, project_id: str, object_type: str | None = None) -> list[dict[str, Any]]:
+        if object_type:
+            rows = self.db.execute("SELECT * FROM machine_objects WHERE project_id = ? AND object_type = ? ORDER BY id", (project_id, object_type))
+        else:
+            rows = self.db.execute("SELECT * FROM machine_objects WHERE project_id = ? ORDER BY object_type, id", (project_id,))
+        result = []
+        for row in rows:
+            item = dict(row); item["payload"] = json.loads(item["payload"]); result.append(item)
+        return result
+
+    def snapshot_machine(self, *, snapshot_id: str, project_id: str, machine_id: str, created_by: str) -> dict[str, Any]:
+        machine = self.get_machine_object(machine_id)
+        if machine["project_id"] != project_id or machine["object_type"] != "machine":
+            raise ValueError("snapshot target must be a machine in project")
+        objects = self.list_machine_objects(project_id)
+        payload = {"machine": machine, "objects": objects}
+        self.db.execute("INSERT INTO machine_snapshots VALUES (?, ?, ?, ?, ?, ?, ?)", (snapshot_id, project_id, machine_id, machine["revision"], json.dumps(payload, ensure_ascii=False), created_by, now()))
+        self.db.commit()
+        return self.get_snapshot(snapshot_id)
+
+    def get_snapshot(self, snapshot_id: str) -> dict[str, Any]:
+        row = self.db.execute("SELECT * FROM machine_snapshots WHERE id = ?", (snapshot_id,)).fetchone()
+        if not row:
+            raise KeyError(f"unknown snapshot: {snapshot_id}")
+        result = dict(row); result["payload"] = json.loads(result["payload"]); return result
+
+    def update_machine_object(self, *, object_id: str, name: str | None, payload: dict[str, Any] | None, expected_revision: int) -> dict[str, Any]:
+        current = self.get_machine_object(object_id)
+        if current["revision"] != expected_revision:
+            raise RuntimeError("PM-CONFLICT-001: machine object revision conflict")
+        self.db.execute("UPDATE machine_objects SET name = ?, payload = ?, revision = revision + 1, updated_at = ? WHERE id = ? AND revision = ?", (name or current["name"], json.dumps(payload if payload is not None else current["payload"], ensure_ascii=False), now(), object_id, expected_revision))
+        self.db.commit()
+        return self.get_machine_object(object_id)
+
+    def diff_snapshots(self, left_id: str, right_id: str) -> dict[str, Any]:
+        left = self.get_snapshot(left_id); right = self.get_snapshot(right_id)
+        left_map = {x["id"]: x for x in left["payload"]["objects"]}; right_map = {x["id"]: x for x in right["payload"]["objects"]}
+        return {"left": left_id, "right": right_id, "added": sorted(set(right_map) - set(left_map)), "removed": sorted(set(left_map) - set(right_map)), "changed": sorted(key for key in set(left_map) & set(right_map) if left_map[key] != right_map[key])}
 
     def link_entities(self, *, project_id: str, from_id: str, to_id: str, link_type: str) -> dict[str, Any]:
         if not self.db.execute("SELECT 1 FROM entities WHERE id = ? AND project_id = ?", (from_id, project_id)).fetchone() or not self.db.execute("SELECT 1 FROM entities WHERE id = ? AND project_id = ?", (to_id, project_id)).fetchone():

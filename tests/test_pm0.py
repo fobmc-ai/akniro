@@ -111,6 +111,19 @@ class PM0Tests(unittest.TestCase):
             self.assertEqual(restored.get_project("P-001")["name"], "Demo")
             restored.close()
 
+    def test_machine_model_revision_snapshot_and_diff(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = ProjectStore(Path(directory) / "pm.db")
+            store.create_project(project_id="P-001", tenant_id="T-001", name="Demo", kind="machine-engineering", owner_id="U-001")
+            machine = store.create_machine_object(object_id="M-001", project_id="P-001", tenant_id="T-001", object_type="machine", name="Demo Machine", owner_id="U-001")
+            store.create_machine_object(object_id="PLC-001", project_id="P-001", tenant_id="T-001", object_type="device", name="PLC", owner_id="U-001", parent_id="M-001", payload={"protocol": "TBD"})
+            first = store.snapshot_machine(snapshot_id="S-001", project_id="P-001", machine_id="M-001", created_by="U-001")
+            updated = store.update_machine_object(object_id="M-001", name=None, payload={"model": "v2"}, expected_revision=machine["revision"])
+            self.assertEqual(updated["revision"], 2)
+            second = store.snapshot_machine(snapshot_id="S-002", project_id="P-001", machine_id="M-001", created_by="U-001")
+            self.assertEqual(store.diff_snapshots(first["id"], second["id"])["changed"], ["M-001"])
+            store.close()
+
     def test_http_api_project_tree_flow(self):
         with tempfile.TemporaryDirectory() as directory:
             server = create_server(str(Path(directory) / "pm.db"), port=0)

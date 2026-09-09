@@ -82,6 +82,9 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                         return self._send(200, store.project_stats(project_id))
                     if path.endswith("/audit"):
                         return self._send(200, {"audit": store.list_audit(project_id)})
+                    if path.endswith("/machine-objects"):
+                        object_type = parse_qs(urlparse(self.path).query).get("type", [None])[0]
+                        return self._send(200, {"objects": store.list_machine_objects(project_id, object_type)})
                     if path.endswith("/backlog"):
                         status = parse_qs(urlparse(self.path).query).get("status", [None])[0]
                         return self._send(200, {"items": store.list_backlog(project_id, status)})
@@ -141,6 +144,23 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                     destination = str(Path("backups") / f"{project_id}-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}.db")
                     Path("backups").mkdir(exist_ok=True)
                     return self._send(201, {"projectId": project_id, "backup": store.backup(destination)})
+                if path.startswith("/api/projects/") and path.endswith("/machine-objects"):
+                    project_id = path.split("/")[3]
+                    self._authorize(body, "MODIFY", project_id)
+                    result = store.create_machine_object(object_id=body["id"], project_id=project_id, tenant_id=body["tenantId"], object_type=body["objectType"], name=body["name"], owner_id=body["ownerId"], payload=body.get("payload"), parent_id=body.get("parentId"))
+                    return self._send(201, result)
+                if path.startswith("/api/projects/") and path.endswith("/machine-snapshots"):
+                    project_id = path.split("/")[3]
+                    self._authorize(body, "MODIFY", project_id)
+                    return self._send(201, store.snapshot_machine(snapshot_id=body["id"], project_id=project_id, machine_id=body["machineId"], created_by=body["actorId"]))
+                if path.startswith("/api/machine-objects/") and path.endswith("/update"):
+                    object_id = path.split("/")[3]
+                    obj = store.get_machine_object(object_id)
+                    self._authorize(body, "MODIFY", obj["project_id"])
+                    return self._send(200, store.update_machine_object(object_id=object_id, name=body.get("name"), payload=body.get("payload"), expected_revision=body["expectedRevision"]))
+                if path.startswith("/api/machine-snapshots/") and path.endswith("/diff"):
+                    left_id = path.split("/")[3]
+                    return self._send(200, store.diff_snapshots(left_id, body["rightId"]))
                 if path.startswith("/api/projects/") and path.endswith("/backlog/import"):
                     project_id = path.split("/")[3]
                     self._authorize(body, "MODIFY", project_id)
