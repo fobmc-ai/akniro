@@ -29,6 +29,7 @@
 - AI 上下文仅纳入当前项目内已批准知识、已验证证据、通过测试和已批准/发布资产等可信状态；被过滤对象会返回原因。
 - Deployment Request 已纳入管理中心，服务端强制 Release 角色授权、目标机器/环境、签名、健康检查、观察窗口和回滚路径；AI 无部署权限。
 - AI 上下文对 Deployment Request 仅允许 `CONFIRMED` 记录进入，待授权/执行/观察对象默认过滤。
+- `POST /api/projects/{projectId}/ai/suggest`：基于项目范围内允许的最小上下文生成可审计、确定性的 `ai_suggestion` 草案；只允许 READ/COMMENT/SUGGEST，明确拒绝 APPROVE/RELEASE/DEPLOY/FORCE，且 `applied=false`、必须人工评审。
 - Machine Commit 将 Machine Snapshot、已测试 Artifact、branch、parent 和 rollback commit 绑定，并生成确定性 commit hash。
 - Artifact Manifest 增加持久化 revision 与 expectedRevision 冲突保护，旧数据库自动补列。
 - 备份提供恢复校验：完整性、核心表、项目、审计/Outbox/权限相关计数和 revision 一致性必须全部通过。

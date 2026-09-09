@@ -70,3 +70,4 @@
 - ECO-001 补齐 Device Package/Fleet Learning 隐私授权契约、越权权限拒绝和确定性 contract hash，并以 ADR-0013 固化数据边界。
 - ROB-001 补齐握手状态、启动权限范围和故障安全停机的确定性回放证据，明确模拟器不发出运动命令。
 - QUAL-001 新增 Logical Digital Twin 组件状态回放、故障注入和 Test Run/Evidence 持久化入口，覆盖气缸、传感器、轴、真空、产品和相机。
+- AI-001 新增项目范围内受控建议接口，建议绑定最小上下文并持久化为 `ai_suggestion`，禁止自动批准、发布、部署或 Force。

@@ -718,7 +718,7 @@ class ProjectStore:
     def create_entity(self, *, entity_id: str, entity_type: str, project_id: str, tenant_id: str, title: str, owner_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
         if not self.db.execute("SELECT 1 FROM projects WHERE id = ? AND tenant_id = ?", (project_id, tenant_id)).fetchone():
             raise KeyError("project not found in tenant")
-        status = {"requirement": "DRAFT", "design_goal": "DRAFT", "work_item": "PLANNED", "issue": "OPEN", "adr": "PROPOSED", "test_case": "DRAFT", "knowledge": "DRAFT", "release": "DRAFT", "test_plan": "DRAFT", "test_run": "QUEUED", "evidence": "DRAFT", "tool_validation": "DRAFT", "artifact": "DRAFT", "parameter_snapshot": "DRAFT", "maintenance": "OPEN", "deployment": "REQUESTED", "machine_commit": "DRAFT"}.get(entity_type)
+        status = {"requirement": "DRAFT", "design_goal": "DRAFT", "work_item": "PLANNED", "issue": "OPEN", "adr": "PROPOSED", "test_case": "DRAFT", "knowledge": "DRAFT", "release": "DRAFT", "test_plan": "DRAFT", "test_run": "QUEUED", "evidence": "DRAFT", "tool_validation": "DRAFT", "artifact": "DRAFT", "parameter_snapshot": "DRAFT", "maintenance": "OPEN", "deployment": "REQUESTED", "machine_commit": "DRAFT", "ai_suggestion": "DRAFT"}.get(entity_type)
         if entity_type == "review":
             status = "REQUESTED"
         if status is None:

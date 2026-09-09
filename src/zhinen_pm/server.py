@@ -10,6 +10,7 @@ from .store import ProjectStore
 from .authorization import Actor, authorize
 from .engineering import list_capabilities, validate_capability, simulation_evidence, build_plc_project, build_firmware_image, simulate_plc_runtime, validate_toolchain_matrix, simulate_plc_download, simulate_plc_monitor, simulate_digital_twin
 from .ai_context import build_context
+from .ai_suggestions import build_suggestion
 
 
 WEB_ROOT = Path(__file__).parents[2] / "web"
@@ -375,6 +376,16 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                     context = build_context(store, project_id=body["projectId"], object_ids=body.get("objectIds", []), actor_id=body["actorId"])
                     store.record_ai_context_access(project_id=body["projectId"], actor_id=body["actorId"], object_ids=body.get("objectIds", []), omitted_ids=[item["id"] for item in context["omitted"]])
                     return self._send(200, context)
+                if path.startswith("/api/projects/") and path.endswith("/ai/suggest"):
+                    project_id = path.split("/")[3]
+                    self._authorize(body, "READ", project_id)
+                    context = build_context(store, project_id=project_id, object_ids=body.get("objectIds", []), actor_id=body["actorId"])
+                    suggestion = build_suggestion(context, body.get("request", ""))
+                    if suggestion["result"] == "SUGGESTED":
+                        suggestion_entity = store.create_entity(entity_id=body["suggestionId"], entity_type="ai_suggestion", project_id=project_id, tenant_id=body["tenantId"], title="AI governed suggestion", owner_id=body["actorId"], payload=suggestion)
+                        store.record_ai_context_access(project_id=project_id, actor_id=body["actorId"], object_ids=body.get("objectIds", []), omitted_ids=suggestion["omittedObjectIds"])
+                        return self._send(201, {"suggestion": suggestion_entity, "context": context})
+                    return self._send(400, suggestion)
                 if path.startswith("/api/projects/") and path.endswith("/machine-snapshots"):
                     project_id = path.split("/")[3]
                     self._authorize(body, "MODIFY", project_id)

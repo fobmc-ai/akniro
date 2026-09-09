@@ -14,6 +14,7 @@ from zhinen_pm.store import ProjectStore
 from zhinen_pm.server import create_server
 from zhinen_pm.engineering import validate_capability, list_capabilities, simulation_evidence, build_plc_project, build_firmware_image, simulate_plc_runtime, simulate_motion_axis, simulate_vision_algorithm, simulate_edge_replay, validate_toolchain_matrix, simulate_eda_consistency, simulate_hmi_screens, simulate_oee_metrics, simulate_spc_metrics, simulate_health_check, simulate_product_trace, simulate_commissioning_checklist, simulate_plc_download, simulate_plc_monitor, simulate_ecosystem_contract, simulate_robot_handshake, simulate_digital_twin
 from zhinen_pm.ai_context import build_context
+from zhinen_pm.ai_suggestions import build_suggestion
 import threading
 
 
@@ -477,6 +478,14 @@ class PM0Tests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 build_context(store, project_id="P-001", object_ids=["REQ-001"] * 21, actor_id="AI-001")
             store.close()
+
+    def test_ai_suggestion_is_deterministic_and_non_executable(self):
+        context = {"projectId": "P-001", "objects": [{"id": "REQ-001"}], "omitted": []}
+        first = build_suggestion(context, "检查启动条件")
+        second = build_suggestion(context, "检查启动条件")
+        self.assertEqual((first["result"], first["suggestionHash"]), ("SUGGESTED", second["suggestionHash"]))
+        self.assertEqual((first["applied"], first["requiresHumanReview"]), (False, True))
+        self.assertEqual(build_suggestion(context, "")["result"], "BLOCKED")
 
     def test_ai_context_excludes_unvalidated_operational_records(self):
         with tempfile.TemporaryDirectory() as directory:
