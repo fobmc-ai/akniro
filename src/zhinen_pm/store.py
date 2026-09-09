@@ -553,7 +553,9 @@ class ProjectStore:
         signature = bool(release["payload"].get("signature"))
         sbom = bool(release["payload"].get("sbom"))
         rollback_revision = bool(release["payload"].get("rollbackRevision"))
-        missing = (["validated evidence"] if not passed else []) + (["human approval"] if not approval else []) + ([f"tested artifacts: {', '.join(untested_artifacts)}"] if untested_artifacts else []) + (["signature"] if not signature else []) + (["SBOM"] if not sbom else []) + (["rollback revision"] if not rollback_revision else [])
+        bindings = (("source revision", "sourceRevision"), ("Machine Project revision", "machineProjectRevision"), ("Schema version", "schemaVersion"), ("API version", "apiVersion"), ("Event version", "eventVersion"), ("known issues", "knownIssues"), ("target environment", "targetEnvironment"))
+        missing_bindings = [label for label, field in bindings if field not in release["payload"] or release["payload"][field] in (None, "")]
+        missing = (["validated evidence"] if not passed else []) + (["human approval"] if not approval else []) + ([f"tested artifacts: {', '.join(untested_artifacts)}"] if untested_artifacts else []) + (["signature"] if not signature else []) + (["SBOM"] if not sbom else []) + (["rollback revision"] if not rollback_revision else []) + missing_bindings
         return {"releaseId": release_id, "ready": not missing, "validatedEvidence": [x["id"] for x in passed], "artifacts": [x["id"] for x in artifacts], "approval": approval, "signature": signature, "sbom": sbom, "rollbackRevision": release["payload"].get("rollbackRevision"), "missing": missing}
 
     def compose_release(self, *, release_id: str, artifact_ids: list[str], rollback_revision: str, actor_id: str) -> dict[str, Any]:

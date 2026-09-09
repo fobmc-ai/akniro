@@ -51,6 +51,7 @@
 - LIFE-001 支持确定性 OEE 计算，输出 Availability、Performance、Quality、OEE，并拒绝非法停机/产量边界；同时支持显式上下限的 SPC 样本控制带与设备健康信号检查，输出越界样本、均值/σ、逐信号检查和可追溯结果；
 - `LIFE-001`：生产指标、质量指标和维护流程统一进入生命周期验证，缺项会阻止软件验收证据通过；
 - 生命周期模拟证据可选包含 `spc_values/spc_lower/spc_upper` 与 `health_signals/health_limits`，越界样本和健康信号会产生结构化失败原因并自动进入问题流程；
+- Release Gate 还要求 source revision、Machine Project revision、Schema/API/Event 版本、已知问题清单和目标环境，发布页提供对应录入字段；
 - `GET /api/projects/{projectId}/readiness`：按工作包依赖计算可开始项；
 - `GET /api/projects/{projectId}/capability-readiness`：按能力 ID 汇总 VALIDATED Evidence 覆盖情况；验收报告同时返回该矩阵；
 - 验收报告 summary 同时提供 `openIssues` / `closedIssues`，用于确认失败验证是否已经完成 CAPA 收敛；

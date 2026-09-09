@@ -46,3 +46,4 @@
 - 增加项目级 Traceability Graph API 与 Web 页面，解析对象引用并显示未解析关系。
 - 实体内容 revision、Machine Object revision、Artifact 状态和实体关联统一产生 Event Outbox 事件，补齐跨模块协同覆盖面。
 - 实体关联事件和审计改为贯穿真实操作者，避免系统代写掩盖责任主体。
+- Release Gate 增加来源 revision、Machine Project revision、Schema/API/Event 版本、已知问题和目标环境绑定，并同步发布页面录入。
