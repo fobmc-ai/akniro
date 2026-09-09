@@ -87,6 +87,14 @@ class ProjectStore:
           kind TEXT NOT NULL, message TEXT NOT NULL, read INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL,
           FOREIGN KEY(project_id) REFERENCES projects(id)
         );
+        CREATE TABLE IF NOT EXISTS event_outbox (
+          id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, project_id TEXT NOT NULL,
+          message_type TEXT NOT NULL, schema_version TEXT NOT NULL, actor_id TEXT NOT NULL,
+          correlation_id TEXT NOT NULL, causation_id TEXT, idempotency_key TEXT NOT NULL UNIQUE,
+          payload TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'QUEUED', attempts INTEGER NOT NULL DEFAULT 0,
+          last_error TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+          FOREIGN KEY(project_id) REFERENCES projects(id)
+        );
         CREATE TABLE IF NOT EXISTS machine_objects (
           id TEXT PRIMARY KEY, project_id TEXT NOT NULL, tenant_id TEXT NOT NULL,
           object_type TEXT NOT NULL, parent_id TEXT, name TEXT NOT NULL, owner_id TEXT NOT NULL,
@@ -109,6 +117,7 @@ class ProjectStore:
         CREATE INDEX IF NOT EXISTS idx_audit_project ON audit(project_id, occurred_at);
         CREATE INDEX IF NOT EXISTS idx_backlog_project ON backlog_items(project_id, status);
         CREATE INDEX IF NOT EXISTS idx_sync_project ON sync_queue(project_id, status);
+        CREATE INDEX IF NOT EXISTS idx_event_project ON event_outbox(project_id, status, created_at);
         CREATE INDEX IF NOT EXISTS idx_machine_project ON machine_objects(project_id, object_type);
         """)
         artifact_columns = {row[1] for row in self.db.execute("PRAGMA table_info(artifact_manifests)")}
@@ -119,6 +128,35 @@ class ProjectStore:
     def _audit(self, tenant_id: str, project_id: str | None, actor_id: str, action: str, target_id: str, outcome: str, details: dict[str, Any]) -> None:
         self.db.execute("INSERT INTO audit VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", (str(uuid4()), tenant_id, project_id, actor_id, action, target_id, outcome, json.dumps(details, ensure_ascii=False), now()))
 
+    def _emit_event(self, *, tenant_id: str, project_id: str, message_type: str, actor_id: str, payload: dict[str, Any], correlation_id: str, idempotency_key: str, causation_id: str | None = None) -> None:
+        timestamp = now()
+        self.db.execute("INSERT OR IGNORE INTO event_outbox VALUES (?, ?, ?, ?, '0.1', ?, ?, ?, ?, ?, 'QUEUED', 0, '', ?, ?)", (str(uuid4()), tenant_id, project_id, message_type, actor_id, correlation_id, causation_id, idempotency_key, json.dumps(payload, ensure_ascii=False, sort_keys=True), timestamp, timestamp))
+
+    def list_events(self, project_id: str, status: str | None = None) -> list[dict[str, Any]]:
+        query = "SELECT * FROM event_outbox WHERE project_id = ?"
+        args: list[Any] = [project_id]
+        if status:
+            query += " AND status = ?"; args.append(status)
+        query += " ORDER BY created_at"
+        result = []
+        for row in self.db.execute(query, args):
+            item = dict(row); item["payload"] = json.loads(item["payload"]); result.append(item)
+        return result
+
+    def transition_event(self, event_id: str, target: str, actor_id: str, reason: str = "") -> dict[str, Any]:
+        event = self.db.execute("SELECT * FROM event_outbox WHERE id = ?", (event_id,)).fetchone()
+        if not event:
+            raise KeyError(f"unknown event: {event_id}")
+        allowed = {"QUEUED": {"PUBLISHED", "FAILED"}, "FAILED": {"QUEUED"}, "PUBLISHED": set()}
+        if target not in allowed.get(event["status"], set()):
+            raise ValueError(f"PM-EVENT-001: invalid transition {event['status']}->{target}")
+        timestamp = now()
+        attempts = event["attempts"] + (1 if target in {"PUBLISHED", "FAILED"} else 0)
+        self.db.execute("UPDATE event_outbox SET status = ?, attempts = ?, last_error = ?, updated_at = ? WHERE id = ?", (target, attempts, reason if target == "FAILED" else "", timestamp, event_id))
+        self._audit(event["tenant_id"], event["project_id"], actor_id, "event.publish", event_id, "success" if target == "PUBLISHED" else target.lower(), {"target": target, "reason": reason})
+        self.db.commit()
+        result = dict(self.db.execute("SELECT * FROM event_outbox WHERE id = ?", (event_id,)).fetchone()); result["payload"] = json.loads(result["payload"]); return result
+
     def create_project(self, *, project_id: str, tenant_id: str, name: str, kind: str, owner_id: str) -> dict[str, Any]:
         timestamp = now()
         self.db.execute("INSERT OR IGNORE INTO users(id, tenant_id, display_name, role) VALUES (?, ?, ?, 'owner')", (owner_id, tenant_id, owner_id))
@@ -126,6 +164,7 @@ class ProjectStore:
         self.db.execute("INSERT INTO project_members(project_id, user_id, role) VALUES (?, ?, 'owner')", (project_id, owner_id))
         self._create_default_tree(project_id)
         self._audit(tenant_id, project_id, owner_id, "project.create", project_id, "success", {})
+        self._emit_event(tenant_id=tenant_id, project_id=project_id, message_type="pm.project.created", actor_id=owner_id, payload={"projectId": project_id, "kind": kind}, correlation_id=project_id, idempotency_key=f"project.created:{project_id}:1")
         self.db.commit()
         return self.get_project(project_id)
 
@@ -276,9 +315,10 @@ class ProjectStore:
         sync_rows = self.list_sync_queue(project_id)
         unread = self.db.execute("SELECT COUNT(*) FROM notifications WHERE project_id = ? AND read = 0", (project_id,)).fetchone()[0]
         audit_count = self.db.execute("SELECT COUNT(*) FROM audit WHERE project_id = ?", (project_id,)).fetchone()[0]
+        event_rows = self.list_events(project_id)
         page_count = self.db.execute("PRAGMA page_count").fetchone()[0]
         page_size = self.db.execute("PRAGMA page_size").fetchone()[0]
-        return {"projectId": project_id, "service": "zhinen-pm", "contractVersion": "0.1", "database": {"pageCount": page_count, "pageSize": page_size, "bytes": page_count * page_size}, "outbox": {"queued": sum(row["status"] == "QUEUED" for row in sync_rows), "conflict": sum(row["status"] == "CONFLICT" for row in sync_rows), "failed": sum(row["status"] == "FAILED" for row in sync_rows)}, "notifications": {"unread": unread}, "audit": {"count": audit_count, "writeFailures": 0}, "search": {"mode": "CANONICAL_QUERY", "freshness": "CURRENT"}, "backup": {"lastVerification": "ON_DEMAND", "status": "AVAILABLE"}, "deterministic": True}
+        return {"projectId": project_id, "service": "zhinen-pm", "contractVersion": "0.1", "database": {"pageCount": page_count, "pageSize": page_size, "bytes": page_count * page_size}, "outbox": {"queued": sum(row["status"] == "QUEUED" for row in sync_rows), "conflict": sum(row["status"] == "CONFLICT" for row in sync_rows), "failed": sum(row["status"] == "FAILED" for row in sync_rows)}, "eventOutbox": {"queued": sum(row["status"] == "QUEUED" for row in event_rows), "failed": sum(row["status"] == "FAILED" for row in event_rows), "published": sum(row["status"] == "PUBLISHED" for row in event_rows)}, "notifications": {"unread": unread}, "audit": {"count": audit_count, "writeFailures": 0}, "search": {"mode": "CANONICAL_QUERY", "freshness": "CURRENT"}, "backup": {"lastVerification": "ON_DEMAND", "status": "AVAILABLE"}, "deterministic": True}
 
     def acceptance_report(self, project_id: str) -> dict[str, Any]:
         stats = self.project_stats(project_id)
@@ -347,9 +387,9 @@ class ProjectStore:
         try:
             integrity = target.execute("PRAGMA integrity_check").fetchone()[0]
             tables = {row[0] for row in target.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
-            required_tables = {"projects", "users", "project_members", "entities", "audit", "sync_queue", "entity_links"}
-            source_counts = {name: self.db.execute(f"SELECT COUNT(*) FROM {name} WHERE project_id = ?", (project_id,)).fetchone()[0] for name in ("entities", "audit", "sync_queue", "entity_links")}
-            target_counts = {name: target.execute(f"SELECT COUNT(*) FROM {name} WHERE project_id = ?", (project_id,)).fetchone()[0] for name in ("entities", "audit", "sync_queue", "entity_links") if name in tables}
+            required_tables = {"projects", "users", "project_members", "entities", "audit", "sync_queue", "entity_links", "event_outbox"}
+            source_counts = {name: self.db.execute(f"SELECT COUNT(*) FROM {name} WHERE project_id = ?", (project_id,)).fetchone()[0] for name in ("entities", "audit", "sync_queue", "entity_links", "event_outbox")}
+            target_counts = {name: target.execute(f"SELECT COUNT(*) FROM {name} WHERE project_id = ?", (project_id,)).fetchone()[0] for name in ("entities", "audit", "sync_queue", "entity_links", "event_outbox") if name in tables}
             project_exists = bool(target.execute("SELECT 1 FROM projects WHERE id = ?", (project_id,)).fetchone())
             revision_consistent = bool(target.execute("SELECT COUNT(*) FROM entities WHERE project_id = ? AND revision >= 1", (project_id,)).fetchone()[0] == target_counts.get("entities", -1))
             checks = {"integrity": integrity == "ok", "requiredTables": required_tables.issubset(tables), "project": project_exists, "coreCounts": source_counts == target_counts, "revisionConsistency": revision_consistent}
@@ -624,6 +664,8 @@ class ProjectStore:
         timestamp = now()
         self.db.execute("INSERT INTO entities VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)", (entity_id, project_id, tenant_id, entity_type, title, status, owner_id, json.dumps(entity_payload, ensure_ascii=False), timestamp, timestamp))
         self._audit(tenant_id, project_id, owner_id, f"{entity_type}.create", entity_id, "success", {})
+        event_name = {"issue": "opened", "test_run": "queued", "deployment": "requested"}.get(entity_type, "created")
+        self._emit_event(tenant_id=tenant_id, project_id=project_id, message_type=f"pm.{entity_type}.{event_name}", actor_id=owner_id, payload={"entityId": entity_id, "entityType": entity_type, "status": status, "revision": 1}, correlation_id=entity_id, idempotency_key=f"{entity_type}.{event_name}:{entity_id}:1")
         self.db.commit()
         if entity_type == "issue" and entity_payload.get("severity") in {"S0", "S1"}:
             self.notify_project_owner(project_id=project_id, kind="issue_escalation", message=f"{entity_payload['severity']} issue requires escalation: {entity_id}", correlation_id=f"ISSUE-ESCALATION-{entity_id}")
@@ -725,6 +767,8 @@ class ProjectStore:
         timestamp = now()
         self.db.execute("UPDATE entities SET status = ?, revision = revision + 1, updated_at = ? WHERE id = ? AND revision = ?", (target, timestamp, entity_id, expected_revision))
         self._audit(row["tenant_id"], row["project_id"], actor_id, f"{row['entity_type']}.transition", entity_id, "success", {"from": row["status"], "to": target})
+        event_name = {("requirement", "ACCEPTED"): "accepted", ("work_item", "DONE"): "completed", ("issue", "CLOSED"): "closed", ("test_run", "PASSED"): "passed", ("test_run", "FAILED"): "failed", ("release", "APPROVED"): "approved", ("deployment", "CONFIRMED"): "confirmed", ("knowledge", "APPROVED"): "approved"}.get((row["entity_type"], target), "transitioned")
+        self._emit_event(tenant_id=row["tenant_id"], project_id=row["project_id"], message_type=f"pm.{row['entity_type']}.{event_name}", actor_id=actor_id, payload={"entityId": entity_id, "entityType": row["entity_type"], "from": row["status"], "to": target, "revision": expected_revision + 1}, correlation_id=entity_id, idempotency_key=f"{row['entity_type']}.{event_name}:{entity_id}:{expected_revision + 1}")
         self.db.commit()
         return self.get_entity(entity_id)
 

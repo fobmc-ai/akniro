@@ -79,6 +79,9 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                         return self._send(200, {"items": store.list_backlog(project_id, status)})
                     if path.endswith("/sync-queue"):
                         return self._send(200, {"items": store.list_sync_queue(project_id)})
+                    if path.endswith("/events"):
+                        status = parse_qs(urlparse(self.path).query).get("status", [None])[0]
+                        return self._send(200, {"events": store.list_events(project_id, status)})
                     if path.endswith("/links"):
                         entity_id = parse_qs(urlparse(self.path).query).get("entityId", [None])[0]
                         return self._send(200, {"links": store.list_links(project_id, entity_id)})
@@ -158,6 +161,12 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                     self._authorize(body, "MODIFY", sync["project_id"])
                     result = store.transition_sync(path.split("/")[3], body["target"], body.get("reason", ""))
                     return self._send(200, result)
+                if path.startswith("/api/events/") and path.endswith("/transition"):
+                    event = next((item for project in store.list_projects() for item in store.list_events(project["id"]) if item["id"] == path.split("/")[3]), None)
+                    if not event:
+                        raise KeyError(path.split("/")[3])
+                    self._authorize(body, "MODIFY", event["project_id"])
+                    return self._send(200, store.transition_event(path.split("/")[3], body["target"], body["actorId"], body.get("reason", "")))
                 if path.startswith("/api/projects/") and path.endswith("/notify"):
                     project_id = path.split("/")[3]
                     self._authorize(body, "MODIFY", project_id)
