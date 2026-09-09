@@ -136,5 +136,18 @@
       }
     })();
   </script>
+  <script>
+    (() => {
+      const nav = document.getElementById('nav');
+      nav.insertAdjacentHTML('beforeend', '<button data-view="engineering_package">工程包构建</button>');
+      const priorShowView = window.showView;
+      window.showView = async function(view, project) { if (view === 'engineering_package') return showEngineeringPackage(project); return priorShowView(view, project); };
+      nav.querySelector('button[data-view="engineering_package"]').onclick = () => window.showView('engineering_package', window.currentProject);
+      async function showEngineeringPackage(project) {
+        el.innerHTML = '<h2>统一工程包构建</h2><p class="muted">HMI、EDA、Motion、Vision、Robot、Edge 使用统一确定性构建流程，自动登记 Artifact、Test Run 和 Evidence。</p><div class="panel"><form id="engineering-package-form"><select name="capabilityId"><option value="HMI-001">HMI</option><option value="EDA-001">EDA</option><option value="MOT-001">Motion</option><option value="VIS-001">Vision</option><option value="ROB-001">Robot</option><option value="EDGE-001">Edge</option></select><input name="artifactId" placeholder="Artifact ID" required><input name="toolchainVersion" value="SIMULATED-PACKAGE-0.1" required><textarea name="source" rows="7" style="width:100%;font-family:monospace" required>engineering-package-demo</textarea><button>构建并留证</button></form><p id="engineering-package-message" class="muted"></p></div><div id="engineering-package-result"></div>';
+        document.getElementById('engineering-package-form').onsubmit = async event => { event.preventDefault(); const values = Object.fromEntries(new FormData(event.target)); const stamp = Date.now(); const response = await fetch('/api/projects/' + project.id + '/builds/engineering', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({actorId:'U-001',tenantId:project.tenant_id,capabilityId:values.capabilityId,artifactId:values.artifactId,testRunId:'PKG-RUN-' + stamp,evidenceId:'PKG-EVIDENCE-' + stamp,source:values.source,toolchainVersion:values.toolchainVersion})}); const result = await response.json(); document.getElementById('engineering-package-message').textContent = response.ok ? `构建结果：${result.build.result}；资产 ${result.artifact.status}；Evidence ${result.evidence.status}` : '构建失败：' + (result.message || result.error || '请求错误'); if (response.ok) document.getElementById('engineering-package-result').innerHTML = `<div class="panel"><h3 class="${result.build.result === 'PASSED' ? 'status' : 'warning'}">${result.build.result}</h3><p>${result.build.capabilityId} · ${result.build.artifactType} · ${result.artifact.content_hash}</p><p class="muted">Test Run：${result.testRun.status} · Evidence：${result.evidence.status}${result.issue ? ' · Issue：' + result.issue.id : ''}</p></div>`; };
+      }
+    })();
+  </script>
 </body>
 </html>
