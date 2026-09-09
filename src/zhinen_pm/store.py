@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import sqlite3
 import threading
 from datetime import datetime, timezone
@@ -452,6 +453,25 @@ class ProjectStore:
         rollback_revision = bool(release["payload"].get("rollbackRevision"))
         missing = (["validated evidence"] if not passed else []) + (["human approval"] if not approval else []) + ([f"tested artifacts: {', '.join(untested_artifacts)}"] if untested_artifacts else []) + (["SBOM"] if not sbom else []) + (["rollback revision"] if not rollback_revision else [])
         return {"releaseId": release_id, "ready": not missing, "validatedEvidence": [x["id"] for x in passed], "artifacts": [x["id"] for x in artifacts], "approval": approval, "sbom": sbom, "rollbackRevision": release["payload"].get("rollbackRevision"), "missing": missing}
+
+    def compose_release(self, *, release_id: str, artifact_ids: list[str], rollback_revision: str, actor_id: str) -> dict[str, Any]:
+        release = self.get_entity(release_id)
+        if release["entity_type"] != "release":
+            raise ValueError("release composition target must be release")
+        if not artifact_ids:
+            raise ValueError("release requires at least one artifact")
+        artifacts = [self.get_artifact_manifest(artifact_id) for artifact_id in artifact_ids]
+        if any(artifact["project_id"] != release["project_id"] for artifact in artifacts):
+            raise ValueError("release artifacts must belong to the same project")
+        untested = [artifact["id"] for artifact in artifacts if artifact["status"] not in {"TESTED", "APPROVED", "ARCHIVED"}]
+        if untested:
+            raise ValueError(f"release artifacts are not tested: {', '.join(untested)}")
+        components = [{"id": artifact["id"], "type": artifact["artifact_type"], "revision": artifact["artifact_revision"], "hash": artifact["content_hash"], "toolchain": artifact["toolchain_version"]} for artifact in artifacts]
+        sbom_payload = json.dumps({"format": "zhinen-sbom-v1", "releaseId": release_id, "components": components}, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        sbom = f"sha256:{hashlib.sha256(sbom_payload.encode()).hexdigest()}"
+        payload = {**release["payload"], "artifactIds": artifact_ids, "sbom": sbom, "sbomFormat": "zhinen-sbom-v1", "components": components, "rollbackRevision": rollback_revision}
+        updated = self.update_entity_payload(entity_id=release_id, payload=payload, actor_id=actor_id, expected_revision=release["revision"])
+        return {"release": updated, "sbom": sbom, "components": components, "gate": self.release_gate(release_id)}
 
     def execute_test_case(self, *, project_id: str, tenant_id: str, test_case_id: str, run_id: str, evidence_id: str, actor_id: str, passed: bool, release_id: str | None = None) -> dict[str, Any]:
         case = self.get_entity(test_case_id)

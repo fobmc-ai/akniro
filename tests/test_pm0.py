@@ -252,10 +252,12 @@ class PM0Tests(unittest.TestCase):
             self.assertFalse(store.release_gate("REL-001")["ready"])
             store.transition_artifact(artifact_id=artifact["id"], target="BUILT", actor_id="U-001")
             store.transition_artifact(artifact_id=artifact["id"], target="TESTED", actor_id="U-001")
-            self.assertTrue(store.release_gate("REL-001")["ready"])
+            composed = store.compose_release(release_id="REL-001", artifact_ids=[artifact["id"]], rollback_revision="REL-PREV-001", actor_id="U-001")
+            self.assertTrue(composed["gate"]["ready"])
+            self.assertTrue(composed["sbom"].startswith("sha256:"))
             coverage = store.capability_evidence("P-001", ["PLC-001", "HMI-001"])
             self.assertEqual(coverage, [{"capabilityId": "PLC-001", "validatedEvidence": [], "ready": False}, {"capabilityId": "HMI-001", "validatedEvidence": [], "ready": False}])
-            self.assertEqual(store.transition(entity_id="REL-001", target="RELEASED", actor_id="U-001", expected_revision=4)["status"], "RELEASED")
+            self.assertEqual(store.transition(entity_id="REL-001", target="RELEASED", actor_id="U-001", expected_revision=store.get_entity("REL-001")["revision"])["status"], "RELEASED")
             store.close()
 
     def test_quality_closure_requires_evidence_and_regression_data(self):

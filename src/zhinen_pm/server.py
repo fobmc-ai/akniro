@@ -270,6 +270,14 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                     self._authorize(body, "MODIFY", project_id)
                     result = store.execute_test_plan(project_id=project_id, tenant_id=body["tenantId"], test_plan_id=body["testPlanId"], actor_id=body["actorId"], run_prefix=body.get("runPrefix", f"{body['testPlanId']}-RUN"), evidence_prefix=body.get("evidencePrefix", f"{body['testPlanId']}-EVIDENCE"), passed_by_case=body.get("passedByCase"), release_id=body.get("releaseId"))
                     return self._send(201, result)
+                if path.startswith("/api/projects/") and path.endswith("/releases/compose"):
+                    project_id = path.split("/")[3]
+                    self._authorize(body, "MODIFY", project_id)
+                    release = store.get_entity(body["releaseId"])
+                    if release["project_id"] != project_id:
+                        raise KeyError("release not found in project")
+                    result = store.compose_release(release_id=body["releaseId"], artifact_ids=body.get("artifactIds", []), rollback_revision=body["rollbackRevision"], actor_id=body["actorId"])
+                    return self._send(201, result)
                 if path == "/api/ai/context":
                     return self._send(200, build_context(store, project_id=body["projectId"], object_ids=body.get("objectIds", []), actor_id=body["actorId"]))
                 if path.startswith("/api/projects/") and path.endswith("/machine-snapshots"):
