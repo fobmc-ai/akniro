@@ -297,6 +297,18 @@ class PM0Tests(unittest.TestCase):
             self.assertEqual(store.list_links("P-001", "REL-001")[0]["to_id"], "EV-001")
             store.close()
 
+    def test_failed_test_case_execution_retains_draft_evidence(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = ProjectStore(Path(directory) / "pm.db")
+            store.create_project(project_id="P-001", tenant_id="T-001", name="Demo", kind="platform", owner_id="U-001")
+            case = store.create_entity(entity_id="TC-FAIL", entity_type="test_case", project_id="P-001", tenant_id="T-001", title="Failure", owner_id="U-001")
+            result = store.execute_test_case(project_id="P-001", tenant_id="T-001", test_case_id=case["id"], run_id="RUN-FAIL", evidence_id="EV-FAIL", actor_id="U-001", passed=False)
+            self.assertEqual(result["testRun"]["status"], "FAILED")
+            self.assertEqual(result["evidence"]["status"], "DRAFT")
+            self.assertEqual(result["evidence"]["payload"]["result"], "FAILED")
+            self.assertEqual(store.list_links("P-001", "TC-FAIL")[0]["to_id"], "EV-FAIL")
+            store.close()
+
     def test_ai_context_is_minimal_and_denies_cross_project(self):
         with tempfile.TemporaryDirectory() as directory:
             store = ProjectStore(Path(directory) / "pm.db")

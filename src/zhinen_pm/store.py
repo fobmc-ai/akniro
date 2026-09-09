@@ -457,11 +457,10 @@ class ProjectStore:
         run = self.create_entity(entity_id=run_id, entity_type="test_run", project_id=project_id, tenant_id=tenant_id, title=f"Run: {case['title']}", owner_id=actor_id, payload={"testCaseId": test_case_id, "result": "PASSED" if passed else "FAILED"})
         self.transition(entity_id=run_id, target="RUNNING", actor_id=actor_id, expected_revision=1)
         final = self.transition(entity_id=run_id, target="PASSED" if passed else "FAILED", actor_id=actor_id, expected_revision=2)
-        evidence = None
+        evidence = self.create_entity(entity_id=evidence_id, entity_type="evidence", project_id=project_id, tenant_id=tenant_id, title=f"Evidence: {case['title']}", owner_id=actor_id, payload={"testRunId": run_id, "source": "test-case-execution", "result": "PASSED" if passed else "FAILED"})
+        self.link_entities(project_id=project_id, from_id=test_case_id, to_id=evidence_id, link_type="produces")
         if passed:
-            evidence = self.create_entity(entity_id=evidence_id, entity_type="evidence", project_id=project_id, tenant_id=tenant_id, title=f"Evidence: {case['title']}", owner_id=actor_id, payload={"testRunId": run_id, "source": "test-case-execution", "result": "PASSED"})
             evidence = self.transition(entity_id=evidence_id, target="VALIDATED", actor_id=actor_id, expected_revision=1)
-            self.link_entities(project_id=project_id, from_id=test_case_id, to_id=evidence_id, link_type="produces")
             if release_id:
                 self.link_entities(project_id=project_id, from_id=release_id, to_id=evidence_id, link_type="requires")
         return {"testRun": final, "evidence": evidence}

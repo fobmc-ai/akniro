@@ -15,3 +15,6 @@
 - Added domain-specific simulation diagnostics for EDA, Motion, Vision, Firmware, and Edge validation.
 - Exposed runtime simulation and evidence-oriented validation through the PM control-center API.
 - Added set-level HMI tag consistency validation for missing and unknown bindings.
+## 2026-09-10 — 测试失败证据闭环
+
+- `execute_test_case` 对通过和失败结果均持久化 Evidence；失败证据保持 `DRAFT`，并通过 `produces` 关联测试用例，保证问题定位、复测和验收审计链不断裂。
