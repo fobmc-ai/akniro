@@ -153,10 +153,16 @@ class PM0Tests(unittest.TestCase):
             evidence = store.create_entity(entity_id="EV-001", entity_type="evidence", project_id="P-001", tenant_id="T-001", title="Smoke evidence", owner_id="U-001")
             store.link_entities(project_id="P-001", from_id=release["id"], to_id=evidence["id"], link_type="requires")
             self.assertFalse(store.release_gate("REL-001")["ready"])
+            store.transition(entity_id="REL-001", target="CANDIDATE", actor_id="U-001", expected_revision=1)
+            store.transition(entity_id="REL-001", target="VALIDATED", actor_id="U-001", expected_revision=2)
+            store.transition(entity_id="REL-001", target="APPROVED", actor_id="U-001", expected_revision=3)
+            with self.assertRaisesRegex(ValueError, "release gate"):
+                store.transition(entity_id="REL-001", target="RELEASED", actor_id="U-001", expected_revision=4)
             store.transition(entity_id="EV-001", target="VALIDATED", actor_id="U-001", expected_revision=1)
             updated = store.get_entity("REL-001"); updated["payload"]["approvalId"] = "APR-001"
             store.db.execute("UPDATE entities SET payload = ? WHERE id = ?", (json.dumps(updated["payload"], ensure_ascii=False), "REL-001")); store.db.commit()
             self.assertTrue(store.release_gate("REL-001")["ready"])
+            self.assertEqual(store.transition(entity_id="REL-001", target="RELEASED", actor_id="U-001", expected_revision=4)["status"], "RELEASED")
             store.close()
 
     def test_ai_context_is_minimal_and_denies_cross_project(self):

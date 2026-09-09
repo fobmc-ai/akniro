@@ -433,6 +433,10 @@ class ProjectStore:
             raise KeyError(f"unknown entity: {entity_id}")
         if row["revision"] != expected_revision:
             raise RuntimeError("PM-CONFLICT-001: revision conflict")
+        if row["entity_type"] == "release" and target == "RELEASED":
+            gate = self.release_gate(entity_id)
+            if not gate["ready"]:
+                raise ValueError("PM-RELEASE-001: release gate is not satisfied")
         assert_transition(row["entity_type"], row["status"], target)
         timestamp = now()
         self.db.execute("UPDATE entities SET status = ?, revision = revision + 1, updated_at = ? WHERE id = ? AND revision = ?", (target, timestamp, entity_id, expected_revision))
