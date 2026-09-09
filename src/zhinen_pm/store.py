@@ -392,6 +392,22 @@ class ProjectStore:
         approval = bool(release["payload"].get("approvalId"))
         return {"releaseId": release_id, "ready": bool(passed and approval), "validatedEvidence": [x["id"] for x in passed], "approval": approval, "missing": (["validated evidence"] if not passed else []) + (["human approval"] if not approval else [])}
 
+    def execute_test_case(self, *, project_id: str, tenant_id: str, test_case_id: str, run_id: str, evidence_id: str, actor_id: str, passed: bool, release_id: str | None = None) -> dict[str, Any]:
+        case = self.get_entity(test_case_id)
+        if case["project_id"] != project_id or case["entity_type"] != "test_case":
+            raise KeyError("test case not found in project")
+        run = self.create_entity(entity_id=run_id, entity_type="test_run", project_id=project_id, tenant_id=tenant_id, title=f"Run: {case['title']}", owner_id=actor_id, payload={"testCaseId": test_case_id, "result": "PASSED" if passed else "FAILED"})
+        self.transition(entity_id=run_id, target="RUNNING", actor_id=actor_id, expected_revision=1)
+        final = self.transition(entity_id=run_id, target="PASSED" if passed else "FAILED", actor_id=actor_id, expected_revision=2)
+        evidence = None
+        if passed:
+            evidence = self.create_entity(entity_id=evidence_id, entity_type="evidence", project_id=project_id, tenant_id=tenant_id, title=f"Evidence: {case['title']}", owner_id=actor_id, payload={"testRunId": run_id, "source": "test-case-execution", "result": "PASSED"})
+            evidence = self.transition(entity_id=evidence_id, target="VALIDATED", actor_id=actor_id, expected_revision=1)
+            self.link_entities(project_id=project_id, from_id=test_case_id, to_id=evidence_id, link_type="produces")
+            if release_id:
+                self.link_entities(project_id=project_id, from_id=release_id, to_id=evidence_id, link_type="requires")
+        return {"testRun": final, "evidence": evidence}
+
     def link_entities(self, *, project_id: str, from_id: str, to_id: str, link_type: str) -> dict[str, Any]:
         if not self.db.execute("SELECT 1 FROM entities WHERE id = ? AND project_id = ?", (from_id, project_id)).fetchone() or not self.db.execute("SELECT 1 FROM entities WHERE id = ? AND project_id = ?", (to_id, project_id)).fetchone():
             raise KeyError("entity link target not found in project")

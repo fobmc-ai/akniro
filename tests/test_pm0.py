@@ -185,6 +185,18 @@ class PM0Tests(unittest.TestCase):
                 store.transition(entity_id="ISS-001", target="CLOSED", actor_id="U-001", expected_revision=5)
             store.close()
 
+    def test_test_case_execution_generates_validated_evidence_and_release_link(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = ProjectStore(Path(directory) / "pm.db")
+            store.create_project(project_id="P-001", tenant_id="T-001", name="Demo", kind="platform", owner_id="U-001")
+            case = store.create_entity(entity_id="TC-001", entity_type="test_case", project_id="P-001", tenant_id="T-001", title="Smoke", owner_id="U-001")
+            release = store.create_entity(entity_id="REL-001", entity_type="release", project_id="P-001", tenant_id="T-001", title="V0.1", owner_id="U-001")
+            result = store.execute_test_case(project_id="P-001", tenant_id="T-001", test_case_id=case["id"], run_id="RUN-001", evidence_id="EV-001", actor_id="U-001", passed=True, release_id=release["id"])
+            self.assertEqual(result["testRun"]["status"], "PASSED")
+            self.assertEqual(result["evidence"]["status"], "VALIDATED")
+            self.assertEqual(store.list_links("P-001", "REL-001")[0]["to_id"], "EV-001")
+            store.close()
+
     def test_ai_context_is_minimal_and_denies_cross_project(self):
         with tempfile.TemporaryDirectory() as directory:
             store = ProjectStore(Path(directory) / "pm.db")
