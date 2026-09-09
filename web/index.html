@@ -298,5 +298,26 @@
       }
     })();
   </script>
+  <script>
+    (() => {
+      const priorShowSuite = window.showSuite;
+      window.showSuite = async function(project) {
+        await priorShowSuite(project);
+        el.innerHTML = el.innerHTML.replaceAll('12 个工程能力', '14 个工程能力').replaceAll('运行 12 项验证', '运行 12 项基础验证');
+        el.insertAdjacentHTML('beforeend', `<div class="panel"><h3>新增边界验证</h3><p class="muted">DRV-001 驱动认证矩阵与 SAFE-001 软件安全边界证据单独运行，不接触真实硬件。</p><button id="run-boundary-suite">运行 DRV-001 / SAFE-001</button><p id="boundary-suite-message" class="muted"></p></div>`);
+        document.getElementById('run-boundary-suite').onclick = async event => {
+          event.target.disabled = true;
+          const cases = [{id:'DRV-GOLDEN',protocol:'EtherCAT',connect_passed:true,readback_passed:true,fault_recovery:true,expected_hash:'h1',actual_hash:'h1'}];
+          const payloads = { 'DRV-001': {protocol:'EtherCAT',connect_passed:true,readback_passed:true,fault_recovery:true,cases}, 'SAFE-001': {realtime_isolation:true,controller_write_false:true,human_approval:true,fault_safe:true} };
+          const results = [];
+          for (const [capabilityId, payload] of Object.entries(payloads)) {
+            const response = await fetch('/api/projects/' + project.id + '/simulate', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({actorId:'U-001',tenantId:project.tenant_id,capabilityId,testRunId:'BOUNDARY-' + Date.now() + '-' + capabilityId + '-RUN',evidenceId:'BOUNDARY-' + Date.now() + '-' + capabilityId + '-EVIDENCE',payload})});
+            const body = await response.json(); results.push(capabilityId + ': ' + (body.validation?.result || body.message || 'ERROR'));
+          }
+          document.getElementById('boundary-suite-message').textContent = results.join(' · ') + '；结果已留证。'; event.target.disabled = false;
+        };
+      };
+    })();
+  </script>
 </body>
 </html>

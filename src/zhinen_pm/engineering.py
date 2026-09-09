@@ -29,6 +29,8 @@ CAPABILITIES = (
     EngineeringCapability("COMM-001", "FAT / SAT 调试验收", "COMMISSIONING", "SIMULATED", "HUMAN_APPROVAL_REQUIRED", ("checklist", "evidence", "signoff")),
     EngineeringCapability("LIFE-001", "生产质量与维护生命周期", "LIFECYCLE", "SIMULATED", "HUMAN_APPROVAL_REQUIRED", ("production_metrics", "quality_metrics", "maintenance_workflow")),
     EngineeringCapability("ECO-001", "Marketplace / fleet learning", "ECOSYSTEM", "CONTRACT_ONLY", "HUMAN_APPROVAL_REQUIRED", ("consent", "scope", "retention")),
+    EngineeringCapability("DRV-001", "Driver certification matrix", "DRIVER", "SIMULATED", "HUMAN_APPROVAL_REQUIRED", ("protocol", "connect_passed", "readback_passed", "fault_recovery")),
+    EngineeringCapability("SAFE-001", "Safety boundary evidence", "SAFETY", "CONTRACT_ONLY", "HUMAN_APPROVAL_REQUIRED", ("realtime_isolation", "controller_write_false", "human_approval", "fault_safe")),
 )
 
 
@@ -66,6 +68,8 @@ def simulation_evidence(capability_id: str, payload: dict[str, Any]) -> dict[str
         "COMM-001": ("acceptance", "checklist", "evidence", "signoff"),
         "LIFE-001": ("lifecycle", "production_metrics", "quality_metrics", "maintenance_workflow"),
         "ECO-001": ("consent", "consent", "scope", "retention"),
+        "DRV-001": ("driver", "protocol", "connect_passed", "readback_passed", "fault_recovery"),
+        "SAFE-001": ("safety", "realtime_isolation", "controller_write_false", "human_approval", "fault_safe"),
     }
     descriptor = diagnostics.get(capability_id)
     if descriptor:
@@ -161,6 +165,16 @@ def simulation_evidence(capability_id: str, payload: dict[str, Any]) -> dict[str
         result["ecosystem"] = ecosystem
         if ecosystem["result"] != "PASSED":
             domain_errors.extend(ecosystem["errors"])
+    if capability_id == "DRV-001" and payload.get("cases") is not None:
+        driver = simulate_driver_certification_matrix(payload.get("cases", []))
+        result["driverMatrix"] = driver
+        if driver["result"] != "PASSED":
+            domain_errors.append(driver["reason"])
+    if capability_id == "SAFE-001":
+        safety = simulate_safety_boundary_evidence(payload)
+        result["safetyBoundary"] = safety
+        if safety["result"] != "PASSED":
+            domain_errors.extend(safety["errors"])
     if capability_id == "PLC-002":
         runtime = simulate_plc_runtime(int(payload.get("cycles", 100)), int(payload.get("cycle_ms", 10)), int(payload.get("watchdog_ms", 50)), payload.get("injected_fault"))
         result["runtime"] = runtime
@@ -316,6 +330,34 @@ def validate_toolchain_matrix(cases: list[dict[str, Any]]) -> dict[str, Any]:
         passed = bool(case.get("compilePassed")) and bool(case.get("hmiSmoke", True)) and case.get("expectedHash") == case.get("actualHash")
         rows.append({"id": case.get("id", "UNKNOWN"), "toolchain": case.get("toolchain", "TBD"), "passed": passed, "reason": None if passed else "golden_project_mismatch"})
     return {"result": "PASSED" if rows and all(row["passed"] for row in rows) else "FAILED", "cases": rows, "passed": sum(1 for row in rows if row["passed"]), "total": len(rows), "deterministic": True, "matrixHash": hashlib.sha256(jsonable_matrix(rows).encode("utf-8")).hexdigest()}
+
+
+def simulate_driver_certification_matrix(cases: list[dict[str, Any]]) -> dict[str, Any]:
+    """Certify driver behavior from bounded offline cases without touching hardware."""
+    rows = []
+    for case in cases:
+        protocol = case.get("protocol")
+        passed = bool(protocol) and bool(case.get("connect_passed")) and bool(case.get("readback_passed")) and bool(case.get("fault_recovery"))
+        if case.get("expected_hash") is not None or case.get("actual_hash") is not None:
+            passed = passed and case.get("expected_hash") == case.get("actual_hash")
+        rows.append({"id": case.get("id", "UNKNOWN"), "protocol": protocol or "TBD", "passed": passed, "reason": None if passed else "driver_certification_failed"})
+    canonical = jsonable_matrix(rows)
+    return {"result": "PASSED" if rows and all(row["passed"] for row in rows) else "FAILED", "cases": rows, "passed": sum(1 for row in rows if row["passed"]), "total": len(rows), "reason": None if rows and all(row["passed"] for row in rows) else "driver_certification_failed", "matrixHash": "sha256:" + hashlib.sha256(canonical.encode("utf-8")).hexdigest(), "deterministic": True, "hardwareAccess": False}
+
+
+def simulate_safety_boundary_evidence(payload: dict[str, Any]) -> dict[str, Any]:
+    """Prove the software safety boundary contract, never claim certification."""
+    checks = {
+        "realtimeIsolation": payload.get("realtime_isolation") is True,
+        "controllerWriteFalse": payload.get("controller_write_false") is True and payload.get("controller_write") is not True,
+        "humanApproval": payload.get("human_approval") is True,
+        "faultSafe": payload.get("fault_safe") is True,
+        "aiDirectDeployFalse": payload.get("ai_direct_deploy_false", True) is True,
+    }
+    errors = [name + "_failed" for name, passed in checks.items() if not passed]
+    import json
+    evidence_hash = "sha256:" + hashlib.sha256(json.dumps(checks, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+    return {"result": "PASSED" if not errors else "FAILED", "checks": checks, "errors": errors, "evidenceHash": evidence_hash, "deterministic": True, "controllerWrite": False, "certification": "SOFTWARE_BOUNDARY_ONLY", "humanApprovalRequired": True}
 
 
 def jsonable_matrix(rows: list[dict[str, Any]]) -> str:

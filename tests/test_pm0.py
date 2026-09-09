@@ -12,7 +12,7 @@ from zhinen_pm.authorization import Actor, AuthorizationError, authorize
 from zhinen_pm.state_machine import InvalidTransition, assert_transition
 from zhinen_pm.store import ProjectStore
 from zhinen_pm.server import create_server
-from zhinen_pm.engineering import validate_capability, list_capabilities, simulation_evidence, build_plc_project, build_firmware_image, simulate_firmware_upgrade, build_engineering_package, simulate_plc_runtime, simulate_motion_axis, simulate_vision_algorithm, simulate_edge_replay, validate_toolchain_matrix, simulate_eda_consistency, simulate_hmi_screens, simulate_oee_metrics, simulate_spc_metrics, simulate_health_check, simulate_product_trace, simulate_commissioning_checklist, simulate_plc_download, simulate_plc_monitor, simulate_ecosystem_contract, simulate_robot_handshake, simulate_digital_twin, simulate_dependency_diagnosis
+from zhinen_pm.engineering import validate_capability, list_capabilities, simulation_evidence, build_plc_project, build_firmware_image, simulate_firmware_upgrade, build_engineering_package, simulate_plc_runtime, simulate_motion_axis, simulate_vision_algorithm, simulate_edge_replay, validate_toolchain_matrix, simulate_driver_certification_matrix, simulate_safety_boundary_evidence, simulate_eda_consistency, simulate_hmi_screens, simulate_oee_metrics, simulate_spc_metrics, simulate_health_check, simulate_product_trace, simulate_commissioning_checklist, simulate_plc_download, simulate_plc_monitor, simulate_ecosystem_contract, simulate_robot_handshake, simulate_digital_twin, simulate_dependency_diagnosis
 from zhinen_pm.ai_context import build_context
 from zhinen_pm.ai_suggestions import build_suggestion
 import threading
@@ -274,7 +274,7 @@ class PM0Tests(unittest.TestCase):
             store.close()
 
     def test_engineering_capability_validation_is_deterministic_and_gated(self):
-        self.assertEqual(len(list_capabilities()), 12)
+            self.assertEqual(len(list_capabilities()), 14)
         blocked = validate_capability("MOT-001", {"axis_simulation": True})
         self.assertEqual(blocked["result"], "BLOCKED")
         passed = validate_capability("MOT-001", {"axis_simulation": True, "limit_check": True, "state_machine": True})
@@ -657,6 +657,16 @@ class PM0Tests(unittest.TestCase):
         blocked = simulate_ecosystem_contract({**package, "permissions": ["direct_deploy"]})
         self.assertIn("forbidden_permission:direct_deploy", blocked["errors"])
         self.assertEqual(simulation_evidence("ECO-001", {"consent": True, "scope": True, "retention": True, "package": package})["ecosystem"]["result"], "PASSED")
+
+    def test_driver_matrix_and_safety_boundary_are_deterministic(self):
+        cases = [{"id": "DRV-CASE-001", "protocol": "EtherCAT", "connect_passed": True, "readback_passed": True, "fault_recovery": True, "expected_hash": "h1", "actual_hash": "h1"}]
+        first = simulate_driver_certification_matrix(cases)
+        second = simulate_driver_certification_matrix(cases)
+        self.assertEqual((first["result"], first["matrixHash"]), ("PASSED", second["matrixHash"]))
+        self.assertEqual(simulate_driver_certification_matrix([{**cases[0], "actual_hash": "h2"}])["result"], "FAILED")
+        safety = simulate_safety_boundary_evidence({"realtime_isolation": True, "controller_write_false": True, "human_approval": True, "fault_safe": True})
+        self.assertEqual((safety["result"], safety["controllerWrite"], safety["certification"]), ("PASSED", False, "SOFTWARE_BOUNDARY_ONLY"))
+        self.assertEqual(simulation_evidence("SAFE-001", {"realtime_isolation": True, "controller_write_false": True, "human_approval": True, "fault_safe": True})["safetyBoundary"]["result"], "PASSED")
 
     def test_robot_handshake_is_scoped_and_fault_safe(self):
         sequence = ["INIT", "READY", "START", "DONE"]

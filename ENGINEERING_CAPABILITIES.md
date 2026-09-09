@@ -57,6 +57,8 @@
 - `POST /api/artifacts/{artifactId}/transition`：资产 TESTED→APPROVED 需要 Owner 人工批准，资产清单提供操作入口；
 - `POST /api/entities/{entityId}/apply`：参数快照仅允许 APPROVED 对象携带人工 `approvalId` 进入 `PUSH_APPROVED` Edge 队列并转为 APPLIED；
 - `POST /api/engineering/toolchain-matrix`：执行 PLC/HMI Golden Project 矩阵，比较工具链、编译、HMI Smoke 和期望/实际 Hash；
+- `DRV-001` 提供驱动协议连接、读回、故障恢复和 Golden Hash 的确定性认证矩阵；模拟器明确 `hardwareAccess=false`，真实驱动认证仍需现场证据；
+- `SAFE-001` 提供软件安全边界证据，验证实时隔离、禁止控制器写入、人工审批、故障安全和 AI 不得直接部署；结果标记为 `SOFTWARE_BOUNDARY_ONLY`，不冒充安全认证；
 - `POST /api/projects/{projectId}/toolchain-matrix`：将矩阵结果持久化为 `tool_validation`，通过为 VALIDATED，失败为 FAILED，并保留审计记录；
 - 模拟证据包含稳定 `traceHash`；Robot 握手顺序、FAT/SAT 清单、Edge 重放幂等性和生命周期指标均按确定性规则重放，便于回归比较；
 - 能力验证同时保留执行时间 `validatedAt` 与排除时间字段的完整结果 `validationHash`，相同输入可跨运行逐字段比较，避免时间戳破坏回归确定性；

@@ -19,5 +19,7 @@
 | COMM-001/LIFE-001 | FAT/SAT、维护、生命周期对象和专用生产/质量/维护验证流水线 | VALIDATED-SW |
 | AI-001 | 最小上下文、跨项目隔离、受控建议持久化、禁止批准/部署/Force | VALIDATED-SW |
 | ECO-001 | Device Package/Fleet Learning 隐私、授权、保留期、签名和越权权限确定性验证；真实生态数据仍延后 | VALIDATED-SW / DEFERRED-DATA |
+| DRV-001 | 驱动协议连接、读回、故障恢复和 Golden Hash 认证矩阵模拟 | VALIDATED-SW / HARDWARE-DEFERRED |
+| SAFE-001 | 实时隔离、禁止控制器写入、人工审批、故障安全和 AI 越权边界证据 | VALIDATED-SW / SOFTWARE-BOUNDARY-ONLY |
 
 验收命令：`py -3 -m unittest discover -s tests -v`。真实硬件接入必须通过对应 capability adapter、Artifact Manifest、Evidence、人工审批和 Edge owner API，管理中心不会直接写 PLC 内存或下发危险动作。
