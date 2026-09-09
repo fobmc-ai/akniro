@@ -146,6 +146,10 @@ class PM0Tests(unittest.TestCase):
         self.assertEqual(passed["safetyGate"], "HUMAN_APPROVAL_REQUIRED")
         self.assertEqual(validate_capability("ECO-001", {"consent": True, "scope": True, "retention": True})["result"], "CONTRACT_PASSED")
         self.assertEqual(simulation_evidence("PLC-001", {"source_present": True, "toolchain_pinned": True, "deterministic_build": True})["evidenceType"], "SIMULATION_RESULT")
+        plc_error = simulation_evidence("PLC-001", {"source_present": True, "toolchain_pinned": True, "deterministic_build": True, "source": "syntax_error"})
+        self.assertEqual((plc_error["result"], plc_error["diagnostic"]), ("FAILED", "compile"))
+        hmi_error = simulation_evidence("HMI-001", {"tag_binding": True, "alarm_binding": True, "screen_smoke": True, "duplicate_tag": True})
+        self.assertEqual((hmi_error["result"], hmi_error["diagnostic"]), ("FAILED", "binding"))
 
     def test_release_gate_requires_evidence_and_human_approval(self):
         with tempfile.TemporaryDirectory() as directory:

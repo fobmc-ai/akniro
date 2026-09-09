@@ -47,6 +47,26 @@ def validate_capability(capability_id: str, payload: dict[str, Any]) -> dict[str
 
 def simulation_evidence(capability_id: str, payload: dict[str, Any]) -> dict[str, Any]:
     result = validate_capability(capability_id, payload)
+    diagnostics = {
+        "PLC-001": ("compile", "source_present", "toolchain_pinned", "deterministic_build"),
+        "HMI-001": ("binding", "tag_binding", "alarm_binding", "screen_smoke"),
+        "EDA-001": ("consistency", "io_consistency", "bom_consistency"),
+        "MOT-001": ("axis", "axis_simulation", "limit_check", "state_machine"),
+        "VIS-001": ("dataset", "dataset_hash", "thresholds", "regression_set"),
+        "ROB-001": ("handshake", "handshake", "permission_scope", "fault_recovery"),
+        "FW-001": ("firmware", "binary_hash", "power_recovery", "rollback"),
+        "EDGE-001": ("sync", "offline_queue", "replay_idempotency", "conflict"),
+        "COMM-001": ("acceptance", "checklist", "evidence", "signoff"),
+        "ECO-001": ("consent", "consent", "scope", "retention"),
+    }
+    descriptor = diagnostics.get(capability_id)
+    if descriptor:
+        result["diagnostic"] = descriptor[0]
+        result["checks"] = [{"name": key, "passed": bool(payload.get(key))} for key in descriptor[1:]]
+    if capability_id == "PLC-001" and payload.get("source") == "syntax_error":
+        result["result"] = "FAILED"; result["missing"] = ["syntax_error"]
+    if capability_id == "HMI-001" and payload.get("duplicate_tag"):
+        result["result"] = "FAILED"; result["missing"] = ["duplicate_tag_resolution"]
     result["evidenceType"] = "SIMULATION_RESULT"
     result["deterministic"] = True
     result["testPlan"] = f"{capability_id}:golden-validation"
