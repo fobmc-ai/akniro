@@ -124,6 +124,17 @@ class PM0Tests(unittest.TestCase):
             self.assertEqual(store.diff_snapshots(first["id"], second["id"])["changed"], ["M-001"])
             store.close()
 
+    def test_backlog_readiness_respects_dependencies_and_placeholders(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = ProjectStore(Path(directory) / "pm.db")
+            store.create_project(project_id="P-001", tenant_id="T-001", name="Demo", kind="platform", owner_id="U-001")
+            items = [{"id":"A-001","title":"A","area":"CORE","status":"VALIDATED","owner":"U-001","targetRelease":"V0.1","designGoal":"goal","acceptanceCriteria":["pass"],"testPlan":"test","rollbackPlan":"rollback"},{"id":"B-001","title":"B","area":"PLC","status":"PLACEHOLDER","placeholder":True,"owner":"U-001","targetRelease":"V0.2","dependencies":["A-001"],"designGoal":"goal","acceptanceCriteria":["pass"],"testPlan":"test","rollbackPlan":"rollback"}]
+            store.import_backlog(project_id="P-001", items=items, actor_id="U-001")
+            readiness = {item["id"]: item for item in store.backlog_readiness("P-001")}
+            self.assertTrue(readiness["B-001"]["ready"])
+            self.assertTrue(readiness["B-001"]["placeholder"])
+            store.close()
+
     def test_http_api_project_tree_flow(self):
         with tempfile.TemporaryDirectory() as directory:
             server = create_server(str(Path(directory) / "pm.db"), port=0)

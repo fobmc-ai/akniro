@@ -85,6 +85,8 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                     if path.endswith("/machine-objects"):
                         object_type = parse_qs(urlparse(self.path).query).get("type", [None])[0]
                         return self._send(200, {"objects": store.list_machine_objects(project_id, object_type)})
+                    if path.endswith("/readiness"):
+                        return self._send(200, {"items": store.backlog_readiness(project_id)})
                     if path.endswith("/backlog"):
                         status = parse_qs(urlparse(self.path).query).get("status", [None])[0]
                         return self._send(200, {"items": store.list_backlog(project_id, status)})
