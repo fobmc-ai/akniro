@@ -627,14 +627,17 @@ class ProjectStore:
                 errors.append("parameter_snapshot_missing:" + str(payload["parameterSnapshotId"]))
         if payload.get("sbomFormat") and payload["sbomFormat"] != "zhinen-sbom-v1":
             errors.append("sbom_format_invalid")
+        integrity = self.integrity_audit(release["project_id"])
+        if not integrity["ready"]:
+            errors.append("project_integrity_failed")
         try:
             gate = self.release_gate(release_id)
         except KeyError:
             gate = {"releaseId": release_id, "ready": False, "missing": ["artifact reference unresolved"], "validatedEvidence": [], "artifacts": []}
-        checks = {"artifacts": bool(artifacts) and not any(item.startswith("artifact_") for item in errors), "artifactHashes": all(str(item["content_hash"]).startswith("sha256:") for item in artifacts), "gate": gate["ready"], "machineCommit": not any(item.startswith("machine_commit_") for item in errors), "parameterSnapshot": not any(item.startswith("parameter_snapshot_") for item in errors)}
+        checks = {"artifacts": bool(artifacts) and not any(item.startswith("artifact_") for item in errors), "artifactHashes": all(str(item["content_hash"]).startswith("sha256:") for item in artifacts), "gate": gate["ready"], "machineCommit": not any(item.startswith("machine_commit_") for item in errors), "parameterSnapshot": not any(item.startswith("parameter_snapshot_") for item in errors), "integrity": integrity["ready"]}
         if not checks["artifactHashes"]:
             errors.append("artifact_hash_invalid")
-        return {"releaseId": release_id, "ready": not errors and gate["ready"], "checks": checks, "errors": sorted(set(errors)), "gate": gate, "artifactIds": artifact_ids, "artifactRevisions": [{"id": item["id"], "revision": item["artifact_revision"], "hash": item["content_hash"]} for item in artifacts]}
+        return {"releaseId": release_id, "ready": not errors and gate["ready"], "checks": checks, "errors": sorted(set(errors)), "gate": gate, "integrity": integrity, "artifactIds": artifact_ids, "artifactRevisions": [{"id": item["id"], "revision": item["artifact_revision"], "hash": item["content_hash"]} for item in artifacts]}
 
     def compose_release(self, *, release_id: str, artifact_ids: list[str], rollback_revision: str, actor_id: str) -> dict[str, Any]:
         release = self.get_entity(release_id)
@@ -758,7 +761,10 @@ class ProjectStore:
             if link["from_id"] not in entity_ids or link["to_id"] not in entity_ids:
                 errors.append({"code": "link_target_missing", "from": link["from_id"], "to": link["to_id"]})
         graph = self.traceability_graph(project_id)
+        artifact_ids = {item["id"] for item in self.list_artifact_manifests(project_id)}
         for reference in graph["unresolvedReferences"]:
+            if reference["field"] == "artifactIds" and reference["reference"] in artifact_ids:
+                continue
             errors.append({"code": "reference_unresolved", **reference})
         artifacts = self.list_artifact_manifests(project_id)
         for artifact in artifacts:

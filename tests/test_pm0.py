@@ -687,7 +687,7 @@ class PM0Tests(unittest.TestCase):
                 request = urllib.request.Request(f"http://127.0.0.1:{server.server_port}/api/projects/P-001/release-preflight?releaseId=REL-001", headers={"X-Actor-Id": "U-001", "X-Tenant-Id": "T-001"})
                 with urllib.request.urlopen(request) as response:
                     result = json.loads(response.read())
-                self.assertEqual((response.status, result["ready"], result["artifactRevisions"]), (200, True, [{"id": "ART-001", "revision": "r1", "hash": "sha256:abc"}]))
+                self.assertEqual((response.status, result["ready"], result["checks"]["integrity"], result["artifactRevisions"]), (200, True, True, [{"id": "ART-001", "revision": "r1", "hash": "sha256:abc"}]))
             finally:
                 server.shutdown(); server.server_close(); thread.join(timeout=2)
                 store.close()
