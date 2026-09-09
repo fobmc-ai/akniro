@@ -15,3 +15,4 @@
 - Aligned the UI with the authoritative `artifactRevisions` response contract and added an HTTP regression test for revision/hash display data.
 - Added a project-scoped read-only integrity audit for entity revisions/owners, link targets, payload references, and artifact hashes.
 - Release preflight now consumes the integrity audit and blocks release readiness on unresolved control-plane consistency errors.
+- Extended the repository contract workflow to cover all Web Management Center scripts through a dependency-free Node syntax gate.

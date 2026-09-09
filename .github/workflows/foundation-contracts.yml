@@ -7,6 +7,7 @@ on:
       - "tests/**"
       - "tools/**"
       - "examples/**"
+      - "web/**"
       - ".github/workflows/foundation-contracts.yml"
   pull_request:
     paths:
@@ -14,6 +15,7 @@ on:
       - "tests/**"
       - "tools/**"
       - "examples/**"
+      - "web/**"
       - ".github/workflows/foundation-contracts.yml"
 
 jobs:
@@ -28,3 +30,9 @@ jobs:
         run: python -m unittest discover -s tests -v
       - name: Validate example project
         run: python tools/validate_machine_project.py examples/machine-project.valid.json
+      - name: Check management-center web syntax
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Parse all inline web scripts
+        run: node tools/check_web_syntax.js
