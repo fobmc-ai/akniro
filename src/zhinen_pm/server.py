@@ -71,6 +71,12 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                         return self._send(200, {"items": store.list_backlog(project_id, status)})
                     if path.endswith("/sync-queue"):
                         return self._send(200, {"items": store.list_sync_queue(project_id)})
+                    if path.endswith("/links"):
+                        entity_id = parse_qs(urlparse(self.path).query).get("entityId", [None])[0]
+                        return self._send(200, {"links": store.list_links(project_id, entity_id)})
+                    if path.endswith("/search"):
+                        query = parse_qs(urlparse(self.path).query).get("q", [""])[0]
+                        return self._send(200, {"results": store.search(project_id, query)})
                     if path.endswith("/backlog"):
                         status = parse_qs(urlparse(self.path).query).get("status", [None])[0]
                         return self._send(200, {"items": store.list_backlog(project_id, status)})
@@ -111,6 +117,15 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                     self._authorize(body, "MODIFY", project_id)
                     result = store.enqueue_sync(sync_id=body["id"], project_id=project_id, tenant_id=body["tenantId"], direction=body["direction"], object_type=body["objectType"], object_id=body["objectId"], idempotency_key=body["idempotencyKey"], payload=body.get("payload", {}))
                     return self._send(201, result)
+                if path.startswith("/api/projects/") and path.endswith("/links"):
+                    project_id = path.split("/")[3]
+                    self._authorize(body, "MODIFY", project_id)
+                    return self._send(201, store.link_entities(project_id=project_id, from_id=body["fromId"], to_id=body["toId"], link_type=body["linkType"]))
+                if path.startswith("/api/sync/") and path.endswith("/transition"):
+                    sync = store.get_sync(path.split("/")[3])
+                    self._authorize(body, "MODIFY", sync["project_id"])
+                    result = store.transition_sync(path.split("/")[3], body["target"], body.get("reason", ""))
+                    return self._send(200, result)
                 if path.startswith("/api/projects/") and path.endswith("/backlog/import"):
                     project_id = path.split("/")[3]
                     self._authorize(body, "MODIFY", project_id)

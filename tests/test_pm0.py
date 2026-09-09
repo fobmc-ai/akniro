@@ -83,6 +83,19 @@ class PM0Tests(unittest.TestCase):
             self.assertEqual(len(store.list_sync_queue("P-001")), 1)
             store.close()
 
+    def test_traceability_search_and_sync_conflict_flow(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = ProjectStore(Path(directory) / "pm.db")
+            store.create_project(project_id="P-001", tenant_id="T-001", name="Demo", kind="platform", owner_id="U-001")
+            store.create_entity(entity_id="REQ-001", entity_type="requirement", project_id="P-001", tenant_id="T-001", title="Traceable requirement", owner_id="U-001")
+            store.create_entity(entity_id="TC-001", entity_type="test_case", project_id="P-001", tenant_id="T-001", title="Trace test", owner_id="U-001")
+            store.link_entities(project_id="P-001", from_id="REQ-001", to_id="TC-001", link_type="verified-by")
+            self.assertEqual(len(store.search("P-001", "Traceable")), 1)
+            self.assertEqual(store.list_links("P-001", "REQ-001")[0]["link_type"], "verified-by")
+            store.enqueue_sync(sync_id="SYNC-001", project_id="P-001", tenant_id="T-001", direction="PULL_SNAPSHOT", object_type="artifact", object_id="ART-001", idempotency_key="pull-1", payload={})
+            self.assertEqual(store.transition_sync("SYNC-001", "CONFLICT", "hash mismatch")["status"], "CONFLICT")
+            store.close()
+
     def test_http_api_project_tree_flow(self):
         with tempfile.TemporaryDirectory() as directory:
             server = create_server(str(Path(directory) / "pm.db"), port=0)

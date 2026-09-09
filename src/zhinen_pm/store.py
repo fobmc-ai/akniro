@@ -76,6 +76,16 @@ class ProjectStore:
           reason TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
           FOREIGN KEY(project_id) REFERENCES projects(id)
         );
+        CREATE TABLE IF NOT EXISTS entity_links (
+          project_id TEXT NOT NULL, from_id TEXT NOT NULL, to_id TEXT NOT NULL,
+          link_type TEXT NOT NULL, created_at TEXT NOT NULL,
+          PRIMARY KEY(project_id, from_id, to_id, link_type), FOREIGN KEY(project_id) REFERENCES projects(id)
+        );
+        CREATE TABLE IF NOT EXISTS notifications (
+          id TEXT PRIMARY KEY, project_id TEXT NOT NULL, recipient_id TEXT NOT NULL,
+          kind TEXT NOT NULL, message TEXT NOT NULL, read INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL,
+          FOREIGN KEY(project_id) REFERENCES projects(id)
+        );
         CREATE INDEX IF NOT EXISTS idx_entities_project ON entities(project_id, entity_type);
         CREATE INDEX IF NOT EXISTS idx_audit_project ON audit(project_id, occurred_at);
         CREATE INDEX IF NOT EXISTS idx_backlog_project ON backlog_items(project_id, status);
@@ -229,6 +239,42 @@ class ProjectStore:
         for row in self.db.execute("SELECT * FROM sync_queue WHERE project_id = ? ORDER BY created_at", (project_id,)):
             item = dict(row); item["payload"] = json.loads(item["payload"]); result.append(item)
         return result
+
+    def link_entities(self, *, project_id: str, from_id: str, to_id: str, link_type: str) -> dict[str, Any]:
+        if not self.db.execute("SELECT 1 FROM entities WHERE id = ? AND project_id = ?", (from_id, project_id)).fetchone() or not self.db.execute("SELECT 1 FROM entities WHERE id = ? AND project_id = ?", (to_id, project_id)).fetchone():
+            raise KeyError("entity link target not found in project")
+        self.db.execute("INSERT OR IGNORE INTO entity_links VALUES (?, ?, ?, ?, ?)", (project_id, from_id, to_id, link_type, now()))
+        self.db.commit()
+        return {"project_id": project_id, "from_id": from_id, "to_id": to_id, "link_type": link_type}
+
+    def list_links(self, project_id: str, entity_id: str | None = None) -> list[dict[str, Any]]:
+        if entity_id:
+            rows = self.db.execute("SELECT * FROM entity_links WHERE project_id = ? AND (from_id = ? OR to_id = ?) ORDER BY created_at", (project_id, entity_id, entity_id))
+        else:
+            rows = self.db.execute("SELECT * FROM entity_links WHERE project_id = ? ORDER BY created_at", (project_id,))
+        return [dict(row) for row in rows]
+
+    def search(self, project_id: str, query: str) -> list[dict[str, Any]]:
+        needle = f"%{query}%"
+        rows = self.db.execute("SELECT id, entity_type, title, status, owner_id, updated_at FROM entities WHERE project_id = ? AND (id LIKE ? OR title LIKE ?) ORDER BY updated_at DESC", (project_id, needle, needle)).fetchall()
+        return [dict(row) for row in rows]
+
+    def transition_sync(self, sync_id: str, target: str, reason: str = "") -> dict[str, Any]:
+        allowed = {"QUEUED": {"APPLIED", "CONFLICT", "FAILED"}, "CONFLICT": {"QUEUED", "FAILED"}, "FAILED": {"QUEUED"}, "APPLIED": set()}
+        row = self.db.execute("SELECT * FROM sync_queue WHERE id = ?", (sync_id,)).fetchone()
+        if not row:
+            raise KeyError(f"unknown sync: {sync_id}")
+        if target not in allowed.get(row["status"], set()):
+            raise ValueError(f"PM-SYNC-002: invalid transition {row['status']}->{target}")
+        self.db.execute("UPDATE sync_queue SET status = ?, reason = ?, updated_at = ? WHERE id = ?", (target, reason, now(), sync_id))
+        self.db.commit()
+        result = dict(self.db.execute("SELECT * FROM sync_queue WHERE id = ?", (sync_id,)).fetchone()); result["payload"] = json.loads(result["payload"]); return result
+
+    def get_sync(self, sync_id: str) -> dict[str, Any]:
+        row = self.db.execute("SELECT * FROM sync_queue WHERE id = ?", (sync_id,)).fetchone()
+        if not row:
+            raise KeyError(f"unknown sync: {sync_id}")
+        result = dict(row); result["payload"] = json.loads(result["payload"]); return result
 
     def create_entity(self, *, entity_id: str, entity_type: str, project_id: str, tenant_id: str, title: str, owner_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
         if not self.db.execute("SELECT 1 FROM projects WHERE id = ? AND tenant_id = ?", (project_id, tenant_id)).fetchone():
