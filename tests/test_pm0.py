@@ -255,6 +255,8 @@ class PM0Tests(unittest.TestCase):
                 store.transition(entity_id="ISS-001", target=target, actor_id="U-001", expected_revision=revision)
             with self.assertRaisesRegex(ValueError, "root cause"):
                 store.transition(entity_id="ISS-001", target="CLOSED", actor_id="U-001", expected_revision=5)
+            updated_issue = store.update_entity_payload(entity_id="ISS-001", actor_id="U-001", expected_revision=5, payload={"rootCause": "binding typo", "fixVersion": "V0.1.1", "regressionTestIds": ["TC-001"], "closureCriteria": ["retest passed"]})
+            self.assertEqual(store.transition(entity_id="ISS-001", target="CLOSED", actor_id="U-001", expected_revision=updated_issue["revision"])["status"], "CLOSED")
             store.close()
 
     def test_test_case_execution_generates_validated_evidence_and_release_link(self):

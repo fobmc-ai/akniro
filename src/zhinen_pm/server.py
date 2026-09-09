@@ -283,6 +283,11 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                     self._authorize(body, "MODIFY", entity["project_id"])
                     result = store.transition(entity_id=entity_id, target=body["target"], actor_id=body.get("actorId") or self.headers.get("X-Actor-Id"), expected_revision=body["expectedRevision"])
                     return self._send(200, result)
+                if path.startswith("/api/entities/") and path.endswith("/payload"):
+                    entity_id = path.split("/")[3]
+                    entity = store.get_entity(entity_id)
+                    self._authorize(body, "MODIFY", entity["project_id"])
+                    return self._send(200, store.update_entity_payload(entity_id=entity_id, payload=body.get("payload", {}), actor_id=body["actorId"], expected_revision=body["expectedRevision"]))
                 return self._send(404, {"code": "PM-NOT-FOUND", "message": "route not found"})
             except KeyError as exc:
                 return self._send(400, {"code": "PM-REQUEST-001", "message": f"missing field: {exc.args[0]}"})

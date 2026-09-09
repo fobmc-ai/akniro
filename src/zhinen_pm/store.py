@@ -521,6 +521,15 @@ class ProjectStore:
         result["payload"] = json.loads(result["payload"])
         return result
 
+    def update_entity_payload(self, *, entity_id: str, payload: dict[str, Any], actor_id: str, expected_revision: int) -> dict[str, Any]:
+        entity = self.get_entity(entity_id)
+        if entity["revision"] != expected_revision:
+            raise RuntimeError("PM-CONFLICT-001: entity revision conflict")
+        self.db.execute("UPDATE entities SET payload = ?, revision = revision + 1, updated_at = ? WHERE id = ? AND revision = ?", (json.dumps(payload, ensure_ascii=False), now(), entity_id, expected_revision))
+        self._audit(entity["tenant_id"], entity["project_id"], actor_id, f"{entity['entity_type']}.payload.update", entity_id, "success", {})
+        self.db.commit()
+        return self.get_entity(entity_id)
+
     def list_entities(self, project_id: str, entity_type: str | None = None) -> list[dict[str, Any]]:
         if entity_type:
             rows = self.db.execute("SELECT * FROM entities WHERE project_id = ? AND entity_type = ? ORDER BY updated_at DESC", (project_id, entity_type)).fetchall()
