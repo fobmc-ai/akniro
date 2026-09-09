@@ -9,6 +9,7 @@ from urllib.parse import parse_qs, urlparse
 from .store import ProjectStore
 from .authorization import Actor, authorize
 from .engineering import list_capabilities, validate_capability
+from .ai_context import build_context
 
 
 WEB_ROOT = Path(__file__).parents[2] / "web"
@@ -161,6 +162,8 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                     return self._send(201, result)
                 if path == "/api/engineering/validate":
                     return self._send(200, validate_capability(body["capabilityId"], body.get("payload", {})))
+                if path == "/api/ai/context":
+                    return self._send(200, build_context(store, project_id=body["projectId"], object_ids=body.get("objectIds", []), actor_id=body["actorId"]))
                 if path.startswith("/api/projects/") and path.endswith("/machine-snapshots"):
                     project_id = path.split("/")[3]
                     self._authorize(body, "MODIFY", project_id)

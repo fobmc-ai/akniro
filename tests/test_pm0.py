@@ -12,6 +12,7 @@ from zhinen_pm.state_machine import InvalidTransition, assert_transition
 from zhinen_pm.store import ProjectStore
 from zhinen_pm.server import create_server
 from zhinen_pm.engineering import validate_capability, list_capabilities
+from zhinen_pm.ai_context import build_context
 import threading
 
 
@@ -156,6 +157,18 @@ class PM0Tests(unittest.TestCase):
             updated = store.get_entity("REL-001"); updated["payload"]["approvalId"] = "APR-001"
             store.db.execute("UPDATE entities SET payload = ? WHERE id = ?", (json.dumps(updated["payload"], ensure_ascii=False), "REL-001")); store.db.commit()
             self.assertTrue(store.release_gate("REL-001")["ready"])
+            store.close()
+
+    def test_ai_context_is_minimal_and_denies_cross_project(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = ProjectStore(Path(directory) / "pm.db")
+            store.create_project(project_id="P-001", tenant_id="T-001", name="Demo", kind="platform", owner_id="U-001")
+            store.create_entity(entity_id="REQ-001", entity_type="requirement", project_id="P-001", tenant_id="T-001", title="Scoped", owner_id="U-001")
+            context = build_context(store, project_id="P-001", object_ids=["REQ-001"], actor_id="AI-001")
+            self.assertEqual(len(context["objects"]), 1)
+            self.assertNotIn("DEPLOY", context["allowedActions"])
+            with self.assertRaises(ValueError):
+                build_context(store, project_id="P-001", object_ids=["REQ-001"] * 21, actor_id="AI-001")
             store.close()
 
     def test_http_api_project_tree_flow(self):
