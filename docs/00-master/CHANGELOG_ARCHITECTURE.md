@@ -44,3 +44,4 @@
 - 管理平面写入增加持久化 Event Outbox，带 schema/correlation/idempotency、发布/失败/重试状态，并纳入重启与备份校验。
 - 增加独立 Review 对象与审批门禁，绑定 reviewer、revision、结论和意见，禁止评审 owner 自审通过。
 - 增加项目级 Traceability Graph API 与 Web 页面，解析对象引用并显示未解析关系。
+- 实体内容 revision、Machine Object revision、Artifact 状态和实体关联统一产生 Event Outbox 事件，补齐跨模块协同覆盖面。

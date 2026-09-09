@@ -452,6 +452,8 @@ class ProjectStore:
             raise RuntimeError("PM-CONFLICT-001: artifact revision conflict")
         project = self.db.execute("SELECT tenant_id FROM projects WHERE id = ?", (artifact["project_id"],)).fetchone()
         self._audit(project["tenant_id"] if project else "", artifact["project_id"], actor_id, "artifact.transition", artifact_id, "success", {"from": artifact["status"], "to": target})
+        if project:
+            self._emit_event(tenant_id=project["tenant_id"], project_id=artifact["project_id"], message_type="pm.artifact.transitioned", actor_id=actor_id, payload={"artifactId": artifact_id, "from": artifact["status"], "to": target, "revision": expected_revision + 1}, correlation_id=artifact_id, idempotency_key=f"artifact.transitioned:{artifact_id}:{expected_revision + 1}")
         self.db.commit()
         return self.get_artifact_manifest(artifact_id)
 
@@ -521,11 +523,13 @@ class ProjectStore:
             result.append({"id": item["id"], "status": item["status"], "placeholder": item["placeholder"], "ready": not missing and item["status"] not in {"DEFERRED", "BLOCKED", "FAILED"}, "blockedBy": missing})
         return result
 
-    def update_machine_object(self, *, object_id: str, name: str | None, payload: dict[str, Any] | None, expected_revision: int) -> dict[str, Any]:
+    def update_machine_object(self, *, object_id: str, name: str | None, payload: dict[str, Any] | None, expected_revision: int, actor_id: str = "system") -> dict[str, Any]:
         current = self.get_machine_object(object_id)
         if current["revision"] != expected_revision:
             raise RuntimeError("PM-CONFLICT-001: machine object revision conflict")
         self.db.execute("UPDATE machine_objects SET name = ?, payload = ?, revision = revision + 1, updated_at = ? WHERE id = ? AND revision = ?", (name or current["name"], json.dumps(payload if payload is not None else current["payload"], ensure_ascii=False), now(), object_id, expected_revision))
+        self._audit(current["tenant_id"], current["project_id"], actor_id, "machine_object.revision", object_id, "success", {"revision": expected_revision + 1})
+        self._emit_event(tenant_id=current["tenant_id"], project_id=current["project_id"], message_type="pm.machine_object.revised", actor_id=actor_id, payload={"objectId": object_id, "objectType": current["object_type"], "revision": expected_revision + 1}, correlation_id=object_id, idempotency_key=f"machine_object.revised:{object_id}:{expected_revision + 1}")
         self.db.commit()
         return self.get_machine_object(object_id)
 
@@ -620,6 +624,9 @@ class ProjectStore:
         if not self.db.execute("SELECT 1 FROM entities WHERE id = ? AND project_id = ?", (from_id, project_id)).fetchone() or not self.db.execute("SELECT 1 FROM entities WHERE id = ? AND project_id = ?", (to_id, project_id)).fetchone():
             raise KeyError("entity link target not found in project")
         self.db.execute("INSERT OR IGNORE INTO entity_links VALUES (?, ?, ?, ?, ?)", (project_id, from_id, to_id, link_type, now()))
+        project = self.db.execute("SELECT tenant_id FROM projects WHERE id = ?", (project_id,)).fetchone()
+        if project:
+            self._emit_event(tenant_id=project["tenant_id"], project_id=project_id, message_type="pm.entity.linked", actor_id="system", payload={"fromId": from_id, "toId": to_id, "linkType": link_type}, correlation_id=f"{from_id}:{to_id}:{link_type}", idempotency_key=f"entity.linked:{project_id}:{from_id}:{to_id}:{link_type}")
         self.db.commit()
         return {"project_id": project_id, "from_id": from_id, "to_id": to_id, "link_type": link_type}
 
@@ -713,6 +720,7 @@ class ProjectStore:
             raise RuntimeError("PM-CONFLICT-001: entity revision conflict")
         self.db.execute("UPDATE entities SET payload = ?, revision = revision + 1, updated_at = ? WHERE id = ? AND revision = ?", (json.dumps(payload, ensure_ascii=False), now(), entity_id, expected_revision))
         self._audit(entity["tenant_id"], entity["project_id"], actor_id, f"{entity['entity_type']}.payload.update", entity_id, "success", {})
+        self._emit_event(tenant_id=entity["tenant_id"], project_id=entity["project_id"], message_type=f"pm.{entity['entity_type']}.revised", actor_id=actor_id, payload={"entityId": entity_id, "entityType": entity["entity_type"], "revision": expected_revision + 1}, correlation_id=entity_id, idempotency_key=f"{entity['entity_type']}.revised:{entity_id}:{expected_revision + 1}")
         self.db.commit()
         return self.get_entity(entity_id)
 

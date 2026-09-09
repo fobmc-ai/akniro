@@ -105,7 +105,7 @@ API 使用 transport-neutral envelope：
 }
 ```
 
-管理平面写入必须在同一事务中产生 Audit 与 Event Outbox 记录。Event Outbox 至少保存 `messageType、schemaVersion、actor、tenantId、projectId、correlationId、causationId、idempotencyKey、payload、status、attempts`；发布失败进入 `FAILED`，只能通过重试回到 `QUEUED`，不得丢弃原始事件。
+管理平面写入必须在同一事务中产生 Audit 与 Event Outbox 记录。项目/实体创建、实体内容 revision、状态迁移、实体关联、Machine Object revision 和 Artifact 状态变化都属于事件源。Event Outbox 至少保存 `messageType、schemaVersion、actor、tenantId、projectId、correlationId、causationId、idempotencyKey、payload、status、attempts`；发布失败进入 `FAILED`，只能通过重试回到 `QUEUED`，不得丢弃原始事件。
 
 Query 不产生副作用；Command 必须幂等；写入顺序为 authorize → validate → concurrency check → persist → audit → outbox event。错误必须返回稳定 `code、message、path、retryable、correlationId`。
 

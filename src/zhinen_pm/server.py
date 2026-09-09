@@ -334,7 +334,7 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                     object_id = path.split("/")[3]
                     obj = store.get_machine_object(object_id)
                     self._authorize(body, "MODIFY", obj["project_id"])
-                    return self._send(200, store.update_machine_object(object_id=object_id, name=body.get("name"), payload=body.get("payload"), expected_revision=body["expectedRevision"]))
+                    return self._send(200, store.update_machine_object(object_id=object_id, name=body.get("name"), payload=body.get("payload"), expected_revision=body["expectedRevision"], actor_id=body["actorId"]))
                 if path.startswith("/api/machine-snapshots/") and path.endswith("/diff"):
                     left_id = path.split("/")[3]
                     return self._send(200, store.diff_snapshots(left_id, body["rightId"]))
