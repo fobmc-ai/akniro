@@ -185,6 +185,7 @@ class ProjectStore:
         if not project or not user or project["tenant_id"] != user["tenant_id"]:
             raise PermissionError("PM-AUTH-006: user and project tenant mismatch")
         self.db.execute("INSERT INTO project_members(project_id, user_id, role) VALUES (?, ?, ?) ON CONFLICT(project_id, user_id) DO UPDATE SET role = excluded.role", (project_id, user_id, role))
+        self._audit(project["tenant_id"], project_id, user_id, "project.member.update", user_id, "success", {"role": role})
         self.db.commit()
         return {"project_id": project_id, "user_id": user_id, "role": role}
 

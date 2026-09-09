@@ -61,6 +61,15 @@ class PM0Tests(unittest.TestCase):
             self.assertEqual(len(store.list_members("P-001")), 2)
             store.close()
 
+    def test_member_update_is_audited(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = ProjectStore(Path(directory) / "pm.db")
+            store.create_project(project_id="P-001", tenant_id="T-001", name="Demo", kind="platform", owner_id="U-001")
+            store.create_user(user_id="U-002", tenant_id="T-001", display_name="Engineer", role="engineer")
+            store.add_member(project_id="P-001", user_id="U-002", role="engineer")
+            self.assertTrue(any(row["action"] == "project.member.update" for row in store.list_audit("P-001")))
+            store.close()
+
     def test_backlog_import_is_idempotent_and_preserves_placeholder(self):
         with tempfile.TemporaryDirectory() as directory:
             store = ProjectStore(Path(directory) / "pm.db")
