@@ -428,6 +428,8 @@ class PM0Tests(unittest.TestCase):
                 self.assertEqual((status, matrix["validation"]["status"], matrix["matrix"]["result"]), (201, "VALIDATED", "PASSED"))
                 status, simulation = request("/api/projects/P-001/simulate", {"actorId": "U-001", "tenantId": "T-001", "capabilityId": "HMI-001", "testRunId": "RUN-HMI-001", "evidenceId": "EV-HMI-001", "payload": {"tag_binding": True, "alarm_binding": True, "screen_smoke": True, "duplicate_tag": True}})
                 self.assertEqual((status, simulation["validation"]["result"], simulation["testRun"]["status"], simulation["evidence"]["status"], simulation["issue"]["status"]), (201, "FAILED", "FAILED", "DRAFT", "OPEN"))
+                status, notifications = request("/api/notifications?recipientId=U-001&projectId=P-001")
+                self.assertTrue(any(item["kind"] == "test_failed" for item in notifications["notifications"]))
                 status, issue_links = request("/api/projects/P-001/links?entityId=" + simulation["issue"]["id"])
                 self.assertEqual((status, issue_links["links"][0]["to_id"], issue_links["links"][0]["link_type"]), (200, simulation["evidence"]["id"], "diagnosed_by"))
                 status, tree = request("/api/projects/P-001/tree")

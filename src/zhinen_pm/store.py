@@ -296,6 +296,10 @@ class ProjectStore:
         self.db.commit()
         return dict(self.db.execute("SELECT * FROM notifications WHERE id = ?", (notification_id,)).fetchone())
 
+    def notify_project_owner(self, *, project_id: str, kind: str, message: str, correlation_id: str) -> dict[str, Any]:
+        project = self.get_project(project_id)
+        return self.notify(notification_id=f"NOTIFY-{correlation_id}", project_id=project_id, recipient_id=project["owner_id"], kind=kind, message=message)
+
     def list_notifications(self, recipient_id: str, project_id: str | None = None) -> list[dict[str, Any]]:
         if project_id:
             rows = self.db.execute("SELECT * FROM notifications WHERE recipient_id = ? AND project_id = ? ORDER BY created_at DESC", (recipient_id, project_id))

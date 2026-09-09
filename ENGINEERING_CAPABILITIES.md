@@ -27,6 +27,7 @@
 - Deployment Request 已纳入管理中心，服务端强制 Release 角色授权、目标机器/环境、签名、健康检查、观察窗口和回滚路径；AI 无部署权限。
 - 备份提供恢复校验：完整性、核心表、项目、审计/Outbox/权限相关计数和 revision 一致性必须全部通过。
 - Web 审计页支持创建备份后立即执行恢复校验并显示结果。
+- 验证/PLC/Firmware 构建失败会向项目 Owner 发送可去重的通知，通知关联 Test Run/构建 Run correlation ID。
 - `POST /api/projects/{projectId}/releases/compose` 根据已测试 Artifact 生成确定性 SBOM 摘要、组件清单和回滚版本，并返回最新 Release Gate。
 - 验证失败会自动创建 OPEN Issue，关联 `sourceTestRunId`、`evidenceId`、能力 ID 和错误列表，进入问题/CAPA 状态机；
 - `POST /api/entities/{entityId}/payload`：以 Revision 乐观并发保护更新 CAPA 根因、修复版本、回归测试和关闭标准；Issue 页面提供对应录入入口；
