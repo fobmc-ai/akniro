@@ -656,6 +656,29 @@ class PM0Tests(unittest.TestCase):
         self.assertEqual(simulate_commissioning_checklist(sequence, items[:-1])["reason"], "commissioning_evidence_incomplete")
         self.assertEqual(simulation_evidence("COMM-001", {"checklist": True, "evidence": True, "signoff": True, "checklist_sequence": sequence, "checklist_items": items})["commissioning"]["result"], "PASSED")
 
+    def test_http_release_preflight_exposes_artifact_revisions(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = ProjectStore(Path(directory) / "pm.db")
+            store.create_project(project_id="P-001", tenant_id="T-001", name="Demo", kind="platform", owner_id="U-001")
+            release = store.create_entity(entity_id="REL-001", entity_type="release", project_id="P-001", tenant_id="T-001", title="V0.1", owner_id="U-001", payload={"artifactIds": ["ART-001"], "approvalId": "APR-001", "signature": "sig://REL-001", "sbom": "sbom://REL-001", "rollbackRevision": "r0", "sourceRevision": "git:demo@abc", "machineProjectRevision": "m1", "schemaVersion": "0.1", "apiVersion": "0.1", "eventVersion": "0.1", "knownIssues": [], "targetEnvironment": "SIMULATION"})
+            evidence = store.create_entity(entity_id="EV-001", entity_type="evidence", project_id="P-001", tenant_id="T-001", title="Evidence", owner_id="U-001")
+            store.transition(entity_id=evidence["id"], target="VALIDATED", actor_id="U-001", expected_revision=1)
+            store.link_entities(project_id="P-001", from_id=release["id"], to_id=evidence["id"], link_type="requires")
+            artifact = store.create_artifact_manifest(artifact_id="ART-001", project_id="P-001", artifact_type="PLC", source_uri="inline://plc", content_hash="sha256:abc", artifact_revision="r1", toolchain_version="SIM", target_environment="SIMULATION", sensitivity="INTERNAL", owner_id="U-001")
+            store.transition_artifact(artifact_id=artifact["id"], target="BUILT", actor_id="U-001")
+            store.transition_artifact(artifact_id=artifact["id"], target="TESTED", actor_id="U-001")
+            server = create_server(str(Path(directory) / "pm.db"), port=0)
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                request = urllib.request.Request(f"http://127.0.0.1:{server.server_port}/api/projects/P-001/release-preflight?releaseId=REL-001", headers={"X-Actor-Id": "U-001", "X-Tenant-Id": "T-001"})
+                with urllib.request.urlopen(request) as response:
+                    result = json.loads(response.read())
+                self.assertEqual((response.status, result["ready"], result["artifactRevisions"]), (200, True, [{"id": "ART-001", "revision": "r1", "hash": "sha256:abc"}]))
+            finally:
+                server.shutdown(); server.server_close(); thread.join(timeout=2)
+                store.close()
+
     def test_http_api_project_tree_flow(self):
         with tempfile.TemporaryDirectory() as directory:
             server = create_server(str(Path(directory) / "pm.db"), port=0)
