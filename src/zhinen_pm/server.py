@@ -275,7 +275,7 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                 if path.startswith("/api/projects/") and path.endswith("/test-runs/execute"):
                     project_id = path.split("/")[3]
                     self._authorize(body, "MODIFY", project_id)
-                    result = store.execute_test_case(project_id=project_id, tenant_id=body["tenantId"], test_case_id=body["testCaseId"], run_id=body["runId"], evidence_id=body["evidenceId"], actor_id=body["actorId"], passed=bool(body.get("passed", False)), release_id=body.get("releaseId"))
+                    result = store.execute_test_case(project_id=project_id, tenant_id=body["tenantId"], test_case_id=body["testCaseId"], run_id=body["runId"], evidence_id=body["evidenceId"], actor_id=body["actorId"], passed=bool(body.get("passed", False)), release_id=body.get("releaseId"), issue_id=body.get("issueId"))
                     return self._send(201, result)
                 if path.startswith("/api/projects/") and path.endswith("/test-plans/execute"):
                     project_id = path.split("/")[3]

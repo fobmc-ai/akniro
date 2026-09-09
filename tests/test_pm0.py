@@ -373,6 +373,8 @@ class PM0Tests(unittest.TestCase):
             self.assertEqual(result["testRun"]["status"], "FAILED")
             self.assertEqual(result["evidence"]["status"], "DRAFT")
             self.assertEqual(result["evidence"]["payload"]["result"], "FAILED")
+            self.assertEqual((result["issue"]["status"], result["issue"]["payload"]["evidenceLinks"]), ("OPEN", ["EV-FAIL"]))
+            self.assertEqual(store.list_links("P-001", "ISSUE-RUN-FAIL")[0]["link_type"], "diagnosed_by")
             self.assertEqual(store.list_links("P-001", "TC-FAIL")[0]["to_id"], "EV-FAIL")
             store.close()
 

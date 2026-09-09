@@ -512,7 +512,7 @@ class ProjectStore:
         updated = self.update_entity_payload(entity_id=release_id, payload=payload, actor_id=actor_id, expected_revision=release["revision"])
         return {"release": updated, "sbom": sbom, "components": components, "gate": self.release_gate(release_id)}
 
-    def execute_test_case(self, *, project_id: str, tenant_id: str, test_case_id: str, run_id: str, evidence_id: str, actor_id: str, passed: bool, release_id: str | None = None) -> dict[str, Any]:
+    def execute_test_case(self, *, project_id: str, tenant_id: str, test_case_id: str, run_id: str, evidence_id: str, actor_id: str, passed: bool, release_id: str | None = None, issue_id: str | None = None) -> dict[str, Any]:
         case = self.get_entity(test_case_id)
         if case["project_id"] != project_id or case["entity_type"] != "test_case":
             raise KeyError("test case not found in project")
@@ -521,11 +521,16 @@ class ProjectStore:
         final = self.transition(entity_id=run_id, target="PASSED" if passed else "FAILED", actor_id=actor_id, expected_revision=2)
         evidence = self.create_entity(entity_id=evidence_id, entity_type="evidence", project_id=project_id, tenant_id=tenant_id, title=f"Evidence: {case['title']}", owner_id=actor_id, payload={"testRunId": run_id, "source": "test-case-execution", "result": "PASSED" if passed else "FAILED"})
         self.link_entities(project_id=project_id, from_id=test_case_id, to_id=evidence_id, link_type="produces")
+        issue = None
         if passed:
             evidence = self.transition(entity_id=evidence_id, target="VALIDATED", actor_id=actor_id, expected_revision=1)
             if release_id:
                 self.link_entities(project_id=project_id, from_id=release_id, to_id=evidence_id, link_type="requires")
-        return {"testRun": final, "evidence": evidence}
+        else:
+            issue = self.create_entity(entity_id=issue_id or f"ISSUE-{run_id}", entity_type="issue", project_id=project_id, tenant_id=tenant_id, title=f"Test case failed: {case['title']}", owner_id=actor_id, payload={"sourceTestRunId": run_id, "evidenceId": evidence_id, "evidenceLinks": [evidence_id], "testCaseId": test_case_id})
+            self.link_entities(project_id=project_id, from_id=issue["id"], to_id=evidence_id, link_type="diagnosed_by")
+            self.notify_project_owner(project_id=project_id, kind="test_failed", message=f"Test case failed: {issue['id']}", correlation_id=run_id)
+        return {"testRun": final, "evidence": evidence, "issue": issue}
 
     def execute_test_plan(self, *, project_id: str, tenant_id: str, test_plan_id: str, actor_id: str, run_prefix: str, evidence_prefix: str, passed_by_case: dict[str, bool] | None = None, release_id: str | None = None) -> dict[str, Any]:
         plan = self.get_entity(test_plan_id)
