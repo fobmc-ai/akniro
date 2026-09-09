@@ -186,6 +186,7 @@ class PM0Tests(unittest.TestCase):
             store.create_project(project_id="P-001", tenant_id="T-001", name="Demo", kind="platform", owner_id="U-001")
             health = store.control_plane_health("P-001")
             self.assertEqual((health["service"], health["search"]["freshness"], health["backup"]["status"], health["outbox"]["queued"]), ("zhinen-pm", "CURRENT", "AVAILABLE", 0))
+            self.assertEqual((health["schema"]["currentVersion"], health["schema"]["userVersion"], health["schema"]["ready"]), ("0.1", 1, True))
             events = store.list_events("P-001")
             self.assertEqual((len(events), events[0]["message_type"], events[0]["status"], events[0]["schema_version"]), (1, "pm.project.created", "QUEUED", "0.1"))
             published = store.transition_event(events[0]["id"], "PUBLISHED", "U-001")

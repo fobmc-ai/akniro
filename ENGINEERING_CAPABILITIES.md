@@ -51,6 +51,7 @@
 - `GET /api/projects/{projectId}/sync-summary`：汇总离线同步队列的状态、幂等键、PUSH 审批、冲突和失败对象，返回是否可安全重放；只读，不自动应用变更。
 - Ops 页面提供带裁决理由的人工冲突处理入口，使用既有 Sync 状态机重新排队或确认失败，所有结果进入 Audit/Event Outbox。
 - `GET /api/projects/{projectId}/deployment-preflight?deploymentId=...`：按授权、暂存、观察三个阶段检查 Deployment Request 与 Release Gate，不执行真实部署。
+- `GET /api/projects/{projectId}/schema`：返回当前持久化 schema、已应用迁移记录和幂等迁移策略；Ops 健康与备份恢复校验同时检查 schema 版本。
 - `GET /api/projects/{projectId}/readiness`：检查工作包依赖和必填设计契约（Owner、目标版本、Design Goal、Acceptance Criteria、Test Plan、Rollback Plan），空契约不会被计算为就绪。
 - 验证失败会自动创建 OPEN Issue，关联 `sourceTestRunId`、`evidenceId`、能力 ID 和错误列表，进入问题/CAPA 状态机；
 - `POST /api/entities/{entityId}/payload`：以 Revision 乐观并发保护更新 CAPA 根因、修复版本、回归测试和关闭标准；Issue 页面提供对应录入入口；

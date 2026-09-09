@@ -12,6 +12,9 @@ from uuid import uuid4
 from .state_machine import assert_transition
 
 
+CURRENT_SCHEMA_VERSION = "0.1"
+
+
 def now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -31,6 +34,9 @@ class ProjectStore:
           kind TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'ACTIVE',
           owner_id TEXT NOT NULL, revision INTEGER NOT NULL DEFAULT 1,
           created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS schema_migrations (
+          version TEXT PRIMARY KEY, applied_at TEXT NOT NULL, description TEXT NOT NULL
         );
         CREATE TABLE IF NOT EXISTS users (
           id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, display_name TEXT NOT NULL,
@@ -123,7 +129,13 @@ class ProjectStore:
         artifact_columns = {row[1] for row in self.db.execute("PRAGMA table_info(artifact_manifests)")}
         if "revision" not in artifact_columns:
             self.db.execute("ALTER TABLE artifact_manifests ADD COLUMN revision INTEGER NOT NULL DEFAULT 1")
+        self.db.execute("INSERT OR IGNORE INTO schema_migrations(version, applied_at, description) VALUES (?, ?, ?)", (CURRENT_SCHEMA_VERSION, now(), "foundation schema with artifact revision migration"))
+        self.db.execute("PRAGMA user_version = 1")
         self.db.commit()
+
+    def schema_status(self) -> dict[str, Any]:
+        rows = [dict(row) for row in self.db.execute("SELECT version, applied_at, description FROM schema_migrations ORDER BY version")]
+        return {"currentVersion": CURRENT_SCHEMA_VERSION, "userVersion": self.db.execute("PRAGMA user_version").fetchone()[0], "applied": rows, "migrationPolicy": "explicit_ordered_idempotent", "ready": bool(rows and rows[-1]["version"] == CURRENT_SCHEMA_VERSION)}
 
     def _audit(self, tenant_id: str, project_id: str | None, actor_id: str, action: str, target_id: str, outcome: str, details: dict[str, Any]) -> None:
         self.db.execute("INSERT INTO audit VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", (str(uuid4()), tenant_id, project_id, actor_id, action, target_id, outcome, json.dumps(details, ensure_ascii=False), now()))
@@ -339,7 +351,7 @@ class ProjectStore:
         event_rows = self.list_events(project_id)
         page_count = self.db.execute("PRAGMA page_count").fetchone()[0]
         page_size = self.db.execute("PRAGMA page_size").fetchone()[0]
-        return {"projectId": project_id, "service": "zhinen-pm", "contractVersion": "0.1", "database": {"pageCount": page_count, "pageSize": page_size, "bytes": page_count * page_size}, "outbox": {"queued": sum(row["status"] == "QUEUED" for row in sync_rows), "conflict": sum(row["status"] == "CONFLICT" for row in sync_rows), "failed": sum(row["status"] == "FAILED" for row in sync_rows)}, "eventOutbox": {"queued": sum(row["status"] == "QUEUED" for row in event_rows), "failed": sum(row["status"] == "FAILED" for row in event_rows), "published": sum(row["status"] == "PUBLISHED" for row in event_rows)}, "notifications": {"unread": unread}, "audit": {"count": audit_count, "writeFailures": 0}, "search": {"mode": "CANONICAL_QUERY", "freshness": "CURRENT"}, "backup": {"lastVerification": "ON_DEMAND", "status": "AVAILABLE"}, "deterministic": True}
+        return {"projectId": project_id, "service": "zhinen-pm", "contractVersion": "0.1", "database": {"pageCount": page_count, "pageSize": page_size, "bytes": page_count * page_size}, "schema": self.schema_status(), "outbox": {"queued": sum(row["status"] == "QUEUED" for row in sync_rows), "conflict": sum(row["status"] == "CONFLICT" for row in sync_rows), "failed": sum(row["status"] == "FAILED" for row in sync_rows)}, "eventOutbox": {"queued": sum(row["status"] == "QUEUED" for row in event_rows), "failed": sum(row["status"] == "FAILED" for row in event_rows), "published": sum(row["status"] == "PUBLISHED" for row in event_rows)}, "notifications": {"unread": unread}, "audit": {"count": audit_count, "writeFailures": 0}, "search": {"mode": "CANONICAL_QUERY", "freshness": "CURRENT"}, "backup": {"lastVerification": "ON_DEMAND", "status": "AVAILABLE"}, "deterministic": True}
 
     def sync_summary(self, project_id: str) -> dict[str, Any]:
         """Summarize offline replay safety without applying any queued change."""
@@ -426,7 +438,7 @@ class ProjectStore:
         try:
             integrity = target.execute("PRAGMA integrity_check").fetchone()[0]
             tables = {row[0] for row in target.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
-            required_tables = {"projects", "users", "project_members", "entities", "audit", "sync_queue", "entity_links", "event_outbox"}
+            required_tables = {"projects", "users", "project_members", "entities", "audit", "sync_queue", "entity_links", "event_outbox", "schema_migrations"}
             source_counts = {name: self.db.execute(f"SELECT COUNT(*) FROM {name} WHERE project_id = ?", (project_id,)).fetchone()[0] for name in ("entities", "audit", "sync_queue", "entity_links", "event_outbox")}
             target_counts = {name: target.execute(f"SELECT COUNT(*) FROM {name} WHERE project_id = ?", (project_id,)).fetchone()[0] for name in ("entities", "audit", "sync_queue", "entity_links", "event_outbox") if name in tables}
             project_exists = bool(target.execute("SELECT 1 FROM projects WHERE id = ?", (project_id,)).fetchone())
