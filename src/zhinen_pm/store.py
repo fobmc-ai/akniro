@@ -245,7 +245,9 @@ class ProjectStore:
             item["payload"] = json.loads(item["payload"])
         return result
 
-    def list_projects(self) -> list[dict[str, Any]]:
+    def list_projects(self, tenant_id: str | None = None) -> list[dict[str, Any]]:
+        if tenant_id:
+            return [dict(row) for row in self.db.execute("SELECT * FROM projects WHERE tenant_id = ? ORDER BY updated_at DESC", (tenant_id,))]
         return [dict(row) for row in self.db.execute("SELECT * FROM projects ORDER BY updated_at DESC")]
 
     def import_backlog(self, *, project_id: str, items: list[dict[str, Any]], actor_id: str) -> int:

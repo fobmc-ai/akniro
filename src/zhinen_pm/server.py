@@ -69,7 +69,12 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                 if path == "/api/engineering/capabilities":
                     return self._send(200, {"capabilities": list_capabilities()})
                 if path == "/api/projects":
-                    return self._send(200, {"projects": store.list_projects()})
+                    actor_id = self.headers.get("X-Actor-Id")
+                    tenant_id = self.headers.get("X-Tenant-Id")
+                    if not actor_id or not tenant_id:
+                        raise PermissionError("PM-AUTH-005: project discovery requires X-Actor-Id and X-Tenant-Id")
+                    store.get_actor(actor_id, tenant_id)
+                    return self._send(200, {"projects": store.list_projects(tenant_id)})
                 if path == "/api/users":
                     tenant_id = urlparse(self.path).query.replace("tenantId=", "")
                     return self._send(200, {"users": store.list_users(tenant_id)})

@@ -482,6 +482,27 @@ class PM0Tests(unittest.TestCase):
             self.assertTrue(any(item["action"] == "authorization.denied" and item["outcome"] == "denied" for item in audit_after_denial["audit"]))
             server.shutdown(); server.server_close()
 
+    def test_project_discovery_is_tenant_scoped(self):
+        with tempfile.TemporaryDirectory() as directory:
+            server = create_server(str(Path(directory) / "pm.db"), port=0)
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            def get_projects(headers):
+                req = urllib.request.Request(f"http://127.0.0.1:{server.server_port}/api/projects", headers=headers)
+                with urllib.request.urlopen(req) as response:
+                    return json.loads(response.read())
+            def post_project(project):
+                req = urllib.request.Request(f"http://127.0.0.1:{server.server_port}/api/projects", data=json.dumps(project).encode(), headers={"Content-Type": "application/json"}, method="POST")
+                with urllib.request.urlopen(req) as response:
+                    return response.status
+            post_project({"projectId": "P-001", "tenantId": "T-001", "name": "One", "ownerId": "U-001"})
+            post_project({"projectId": "P-002", "tenantId": "T-002", "name": "Two", "ownerId": "U-002"})
+            scoped = get_projects({"X-Actor-Id": "U-001", "X-Tenant-Id": "T-001"})
+            self.assertEqual([item["id"] for item in scoped["projects"]], ["P-001"])
+            with self.assertRaises(urllib.error.HTTPError):
+                get_projects({})
+            server.shutdown(); server.server_close()
+
     def test_artifact_manifest_requires_hash_and_preserves_engineering_metadata(self):
         with tempfile.TemporaryDirectory() as directory:
             store = ProjectStore(Path(directory) / "pm.db")
