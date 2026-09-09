@@ -269,5 +269,17 @@
       }
     })();
   </script>
+  <script>
+    (() => {
+      const priorShowView = window.showView;
+      window.showView = async function(view, project) { if (view === 'ops') return showOpsWithSync(project); return priorShowView(view, project); };
+      async function showOpsWithSync(project) {
+        await priorShowView('ops', project);
+        const result = await (await fetch('/api/projects/' + project.id + '/sync-summary')).json();
+        const checks = result.checks || {};
+        el.insertAdjacentHTML('afterbegin', `<div class="panel"><h3>Edge 离线同步重放安全摘要</h3><div class="cards"><div class="card"><label>可安全重放</label><strong class="${result.readyForReplay ? 'status' : 'warning'}">${result.readyForReplay ? 'READY' : 'BLOCKED'}</strong></div><div class="card"><label>队列 / 已应用</label><strong>${result.statusCounts?.QUEUED || 0} / ${result.statusCounts?.APPLIED || 0}</strong></div><div class="card"><label>冲突 / 失败</label><strong class="${result.statusCounts?.CONFLICT || result.statusCounts?.FAILED ? 'warning' : 'status'}">${result.statusCounts?.CONFLICT || 0} / ${result.statusCounts?.FAILED || 0}</strong></div></div><p>幂等键：${checks.idempotency ? '通过' : '失败'} · PUSH 审批：${checks.pushApprovals ? '通过' : '失败'} · 冲突：${checks.noConflicts ? '无' : result.conflictIds.join('、')} · 失败：${checks.noFailures ? '无' : result.failedIds.join('、')}</p></div>`);
+      }
+    })();
+  </script>
 </body>
 </html>

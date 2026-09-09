@@ -341,6 +341,19 @@ class ProjectStore:
         page_size = self.db.execute("PRAGMA page_size").fetchone()[0]
         return {"projectId": project_id, "service": "zhinen-pm", "contractVersion": "0.1", "database": {"pageCount": page_count, "pageSize": page_size, "bytes": page_count * page_size}, "outbox": {"queued": sum(row["status"] == "QUEUED" for row in sync_rows), "conflict": sum(row["status"] == "CONFLICT" for row in sync_rows), "failed": sum(row["status"] == "FAILED" for row in sync_rows)}, "eventOutbox": {"queued": sum(row["status"] == "QUEUED" for row in event_rows), "failed": sum(row["status"] == "FAILED" for row in event_rows), "published": sum(row["status"] == "PUBLISHED" for row in event_rows)}, "notifications": {"unread": unread}, "audit": {"count": audit_count, "writeFailures": 0}, "search": {"mode": "CANONICAL_QUERY", "freshness": "CURRENT"}, "backup": {"lastVerification": "ON_DEMAND", "status": "AVAILABLE"}, "deterministic": True}
 
+    def sync_summary(self, project_id: str) -> dict[str, Any]:
+        """Summarize offline replay safety without applying any queued change."""
+        rows = self.list_sync_queue(project_id)
+        status_counts = {status: sum(row["status"] == status for row in rows) for status in ("QUEUED", "APPLIED", "CONFLICT", "FAILED")}
+        push_rows = [row for row in rows if row["direction"] == "PUSH_APPROVED"]
+        missing_approval = [row["id"] for row in push_rows if not row["payload"].get("approvalId")]
+        conflicts = [row["id"] for row in rows if row["status"] == "CONFLICT"]
+        failed = [row["id"] for row in rows if row["status"] == "FAILED"]
+        idempotency_keys = [row["idempotency_key"] for row in rows]
+        unique_keys = len(idempotency_keys) == len(set(idempotency_keys))
+        checks = {"idempotency": unique_keys, "pushApprovals": not missing_approval, "noConflicts": not conflicts, "noFailures": not failed}
+        return {"projectId": project_id, "readyForReplay": all(checks.values()), "checks": checks, "statusCounts": status_counts, "queuedIds": [row["id"] for row in rows if row["status"] == "QUEUED"], "conflictIds": conflicts, "failedIds": failed, "missingApprovalIds": missing_approval, "deterministic": True, "generatedAt": now()}
+
     def acceptance_report(self, project_id: str) -> dict[str, Any]:
         stats = self.project_stats(project_id)
         readiness = self.backlog_readiness(project_id)

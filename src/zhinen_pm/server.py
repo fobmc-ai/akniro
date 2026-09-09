@@ -111,6 +111,8 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                         return self._send(200, store.project_stats(project_id))
                     if path.endswith("/ops"):
                         return self._send(200, store.control_plane_health(project_id))
+                    if path.endswith("/sync-summary"):
+                        return self._send(200, store.sync_summary(project_id))
                     if path.endswith("/acceptance-report"):
                         return self._send(200, store.acceptance_report(project_id))
                     if path.endswith("/audit"):

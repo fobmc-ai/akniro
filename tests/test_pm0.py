@@ -131,6 +131,8 @@ class PM0Tests(unittest.TestCase):
             events = store.list_events("P-001")
             self.assertTrue(any(item["message_type"] == "pm.sync.queued" and item["payload"]["syncId"] == "SYNC-001" for item in events))
             self.assertTrue(any(item["message_type"] == "pm.sync.transitioned" and item["payload"]["to"] == "CONFLICT" for item in events))
+            summary = store.sync_summary("P-001")
+            self.assertEqual((summary["readyForReplay"], summary["checks"]["idempotency"], summary["statusCounts"]["CONFLICT"], summary["conflictIds"]), (False, True, 1, ["SYNC-001"]))
             store.close()
 
     def test_traceability_search_and_sync_conflict_flow(self):
