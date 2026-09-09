@@ -210,6 +210,7 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                     issue = None
                     if result["result"] not in {"PASSED", "CONTRACT_PASSED"}:
                         issue = store.create_entity(entity_id=body.get("issueId", f"ISSUE-{body['testRunId']}"), entity_type="issue", project_id=project_id, tenant_id=body["tenantId"], title=f"{body['capabilityId']} validation failed", owner_id=body["actorId"], payload={"sourceTestRunId": body["testRunId"], "evidenceId": body["evidenceId"], "capabilityId": body["capabilityId"], "errors": result.get("missing", [])})
+                        store.link_entities(project_id=project_id, from_id=issue["id"], to_id=evidence["id"], link_type="diagnosed_by")
                     return self._send(201, {"testRun": store.get_entity(run["id"]), "evidence": store.get_entity(evidence["id"]), "issue": issue, "validation": result})
                 if path.startswith("/api/projects/") and path.endswith("/builds/plc"):
                     project_id = path.split("/")[3]
