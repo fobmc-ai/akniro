@@ -1,5 +1,19 @@
 # Roadmap
 
+## Current position
+
+The repository is currently at **Phase 0 — Foundation**. The complete long-term product and technology route is maintained in [`MASTER_PLAN.md`](MASTER_PLAN.md).
+
+## Delivery phases
+
+| Phase | Focus | Classification |
+|---|---|---|
+| 0 | Project Schema, IDs, Machine Model, permissions, audit, storage | A — now |
+| 1 | Minimal PLC compile/download/monitor loop | A — next |
+| 2 | Industrial usability: alarm, recipe, commissioning, trace, standard FB | A — next |
+| 3–4 | Platform extensions, Device Package, Motion/Vision, Edge, Logical Twin, CI | B — define interfaces first |
+| 5–7 | AI engineering, lifecycle intelligence, ecosystem and migration | C — long-term route |
+
 ## A — foundation now
 
 - Repository governance, IDs, object ownership, project manifest, capability registry, resource manager contract.
