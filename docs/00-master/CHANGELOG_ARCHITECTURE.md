@@ -14,3 +14,4 @@
 - Added deterministic PLC runtime simulation with watchdog, communication-loss, safety-trip, and safe-stop outcomes.
 - Added domain-specific simulation diagnostics for EDA, Motion, Vision, Firmware, and Edge validation.
 - Exposed runtime simulation and evidence-oriented validation through the PM control-center API.
+- Added set-level HMI tag consistency validation for missing and unknown bindings.
