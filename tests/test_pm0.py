@@ -201,6 +201,8 @@ class PM0Tests(unittest.TestCase):
         self.assertIn("invalid_soft_limits", simulation_evidence("MOT-001", {"axis_simulation": True, "limit_check": True, "state_machine": True, "soft_limit_min": 10, "soft_limit_max": 1})["missing"])
         self.assertEqual(simulation_evidence("VIS-001", {"dataset_hash": True, "thresholds": True, "regression_set": True, "threshold_values": [0.5, 1.2]})["result"], "FAILED")
         self.assertEqual(simulation_evidence("LIFE-001", {"production_metrics": True, "quality_metrics": True, "maintenance_workflow": True})["result"], "PASSED")
+        runtime_evidence = simulation_evidence("PLC-002", {"cycle_time": True, "watchdog": True, "safe_stop": True, "injected_fault": "watchdog"})
+        self.assertEqual((runtime_evidence["diagnostic"], runtime_evidence["result"], runtime_evidence["runtime"]["safeStop"]), ("runtime", "FAILED", True))
 
     def test_release_gate_requires_evidence_and_human_approval(self):
         with tempfile.TemporaryDirectory() as directory:

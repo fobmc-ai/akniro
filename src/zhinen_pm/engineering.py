@@ -51,6 +51,7 @@ def simulation_evidence(capability_id: str, payload: dict[str, Any]) -> dict[str
     result = validate_capability(capability_id, payload)
     diagnostics = {
         "PLC-001": ("compile", "source_present", "toolchain_pinned", "deterministic_build"),
+        "PLC-002": ("runtime", "cycle_time", "watchdog", "safe_stop"),
         "HMI-001": ("binding", "tag_binding", "alarm_binding", "screen_smoke"),
         "EDA-001": ("consistency", "io_consistency", "bom_consistency"),
         "MOT-001": ("axis", "axis_simulation", "limit_check", "state_machine"),
@@ -83,6 +84,11 @@ def simulation_evidence(capability_id: str, payload: dict[str, Any]) -> dict[str
         domain_errors.append("binary_hash_not_sha256")
     if capability_id == "EDGE-001" and payload.get("duplicate_event_ids"):
         domain_errors.append("replay_not_idempotent")
+    if capability_id == "PLC-002":
+        runtime = simulate_plc_runtime(int(payload.get("cycles", 100)), int(payload.get("cycle_ms", 10)), int(payload.get("watchdog_ms", 50)), payload.get("injected_fault"))
+        result["runtime"] = runtime
+        if runtime["result"] != "PASSED":
+            domain_errors.append(runtime.get("reason") or runtime.get("fault") or "runtime_failed")
     if domain_errors:
         result["result"] = "FAILED"
         result["missing"] = sorted(set(result.get("missing", []) + domain_errors))
