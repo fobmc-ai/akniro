@@ -8,7 +8,7 @@ from urllib.parse import parse_qs, urlparse
 
 from .store import ProjectStore
 from .authorization import Actor, authorize
-from .engineering import list_capabilities, validate_capability, simulation_evidence, build_plc_project, build_firmware_image, simulate_plc_runtime, validate_toolchain_matrix, simulate_plc_download, simulate_plc_monitor
+from .engineering import list_capabilities, validate_capability, simulation_evidence, build_plc_project, build_firmware_image, simulate_plc_runtime, validate_toolchain_matrix, simulate_plc_download, simulate_plc_monitor, simulate_digital_twin
 from .ai_context import build_context
 
 
@@ -258,6 +258,21 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                     project_id = path.split("/")[3]
                     self._authorize(body, "READ", project_id)
                     return self._send(200, simulate_plc_monitor(tags=body.get("tags", {}), cycles=int(body.get("cycles", 10)), fault=body.get("fault")))
+                if path.startswith("/api/projects/") and path.endswith("/digital-twin/simulate"):
+                    project_id = path.split("/")[3]
+                    self._authorize(body, "MODIFY", project_id)
+                    twin = simulate_digital_twin(body.get("state", {}), body.get("fault"))
+                    run_id = body["testRunId"]
+                    evidence_id = body["evidenceId"]
+                    run = store.create_entity(entity_id=run_id, entity_type="test_run", project_id=project_id, tenant_id=body["tenantId"], title="Logical Digital Twin simulation", owner_id=body["actorId"], payload={**twin, "capabilityId": "QUAL-001"})
+                    evidence = store.create_entity(entity_id=evidence_id, entity_type="evidence", project_id=project_id, tenant_id=body["tenantId"], title="Logical Digital Twin evidence", owner_id=body["actorId"], payload={**twin, "capabilityId": "QUAL-001", "evidenceType": "DIGITAL_TWIN_RESULT"})
+                    store.transition(entity_id=run_id, target="RUNNING", actor_id=body["actorId"], expected_revision=1)
+                    if twin["result"] == "PASSED":
+                        store.transition(entity_id=run_id, target="PASSED", actor_id=body["actorId"], expected_revision=2)
+                        store.transition(entity_id=evidence_id, target="VALIDATED", actor_id=body["actorId"], expected_revision=1)
+                    else:
+                        store.transition(entity_id=run_id, target="FAILED", actor_id=body["actorId"], expected_revision=2)
+                    return self._send(201, {"twin": twin, "testRun": store.get_entity(run_id), "evidence": store.get_entity(evidence_id)})
                 if path == "/api/engineering/toolchain-matrix":
                     return self._send(200, validate_toolchain_matrix(body.get("cases", [])))
                 if path.startswith("/api/projects/") and path.endswith("/toolchain-matrix"):

@@ -12,7 +12,7 @@ from zhinen_pm.authorization import Actor, AuthorizationError, authorize
 from zhinen_pm.state_machine import InvalidTransition, assert_transition
 from zhinen_pm.store import ProjectStore
 from zhinen_pm.server import create_server
-from zhinen_pm.engineering import validate_capability, list_capabilities, simulation_evidence, build_plc_project, build_firmware_image, simulate_plc_runtime, simulate_motion_axis, simulate_vision_algorithm, simulate_edge_replay, validate_toolchain_matrix, simulate_eda_consistency, simulate_hmi_screens, simulate_oee_metrics, simulate_spc_metrics, simulate_health_check, simulate_product_trace, simulate_commissioning_checklist, simulate_plc_download, simulate_plc_monitor, simulate_ecosystem_contract, simulate_robot_handshake
+from zhinen_pm.engineering import validate_capability, list_capabilities, simulation_evidence, build_plc_project, build_firmware_image, simulate_plc_runtime, simulate_motion_axis, simulate_vision_algorithm, simulate_edge_replay, validate_toolchain_matrix, simulate_eda_consistency, simulate_hmi_screens, simulate_oee_metrics, simulate_spc_metrics, simulate_health_check, simulate_product_trace, simulate_commissioning_checklist, simulate_plc_download, simulate_plc_monitor, simulate_ecosystem_contract, simulate_robot_handshake, simulate_digital_twin
 from zhinen_pm.ai_context import build_context
 import threading
 
@@ -592,6 +592,15 @@ class PM0Tests(unittest.TestCase):
         self.assertEqual(simulate_robot_handshake(sequence, ["READ_STATUS"])["result"], "FAILED")
         self.assertTrue(simulate_robot_handshake(sequence, ["START_CYCLE"], "safety_stop")["safeStop"])
         self.assertEqual(simulation_evidence("ROB-001", {"handshake": True, "permission_scope": True, "fault_recovery": True, "handshake_sequence": sequence, "permission_scope_ids": ["START_CYCLE"]})["robot"]["result"], "PASSED")
+
+    def test_digital_twin_replay_covers_components_and_fault_injection(self):
+        state = {"cylinder": {"extended": True}, "sensor": {"present": True}, "axis": {"position": 10, "target": 10}, "vacuum": {"kpa": -60, "minKpa": -80}, "product": {"id": "PRODUCT-001"}, "camera": {"ready": True, "score": 0.99, "minScore": 0.9}}
+        first = simulate_digital_twin(state)
+        second = simulate_digital_twin(state)
+        self.assertEqual((first["result"], first["traceHash"]), ("PASSED", second["traceHash"]))
+        self.assertFalse(first["controllerWrite"])
+        self.assertEqual(simulate_digital_twin(state, "servo_alarm")["result"], "FAILED")
+        self.assertEqual(simulate_digital_twin({})["reason"], "twin_state_incomplete")
 
     def test_commissioning_fat_sat_order_and_evidence_are_gated(self):
         sequence = ["24V", "Network", "EtherCAT", "IO", "Safety", "Servo", "Cylinder", "Vision", "Station", "Auto Cycle", "Burn-in"]

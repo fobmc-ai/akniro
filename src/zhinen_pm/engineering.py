@@ -236,6 +236,43 @@ def simulate_robot_handshake(sequence: list[str], permission_scope: list[str], f
     return {"result": "FAILED" if errors else "PASSED", "expectedSequence": expected, "actualSequence": sequence, "permissionScope": sorted(permission_scope) if isinstance(permission_scope, list) else permission_scope, "fault": fault, "errors": sorted(set(errors)), "safeStop": bool(fault), "motionCommandIssued": False, "traceHash": trace_hash, "deterministic": True}
 
 
+def simulate_digital_twin(state: dict[str, Any], fault: str | None = None) -> dict[str, Any]:
+    """Replay the minimum machine twin contract using deterministic component state."""
+    required = ("cylinder", "sensor", "axis", "vacuum", "product", "camera")
+    if not isinstance(state, dict) or any(key not in state for key in required):
+        missing = [key for key in required if not isinstance(state, dict) or key not in state]
+        return {"result": "BLOCKED", "reason": "twin_state_incomplete", "missing": missing, "deterministic": True, "safeStop": True, "realtimeSource": "SIMULATION"}
+    errors = []
+    cylinder = state["cylinder"] if isinstance(state["cylinder"], dict) else {}
+    sensor = state["sensor"] if isinstance(state["sensor"], dict) else {}
+    axis = state["axis"] if isinstance(state["axis"], dict) else {}
+    vacuum = state["vacuum"] if isinstance(state["vacuum"], dict) else {}
+    product = state["product"] if isinstance(state["product"], dict) else {}
+    camera = state["camera"] if isinstance(state["camera"], dict) else {}
+    if cylinder.get("extended") is not True:
+        errors.append("cylinder_not_extended")
+    if sensor.get("present") is not True:
+        errors.append("sensor_not_present")
+    if axis.get("position") != axis.get("target"):
+        errors.append("axis_not_at_target")
+    if not isinstance(vacuum.get("kpa"), (int, float)) or vacuum.get("kpa") < float(vacuum.get("minKpa", 0)):
+        errors.append("vacuum_below_threshold")
+    if not product.get("id"):
+        errors.append("product_missing")
+    if camera.get("ready") is not True or not isinstance(camera.get("score"), (int, float)) or camera.get("score") < float(camera.get("minScore", 0)):
+        errors.append("camera_acceptance_failed")
+    allowed_faults = {"sensor_missing", "servo_alarm", "ethercat_loss", "camera_timeout", "emergency_stop", "power_loss", "communication_loss"}
+    if fault and fault not in allowed_faults:
+        errors.append("unknown_fault")
+    if fault:
+        errors.append("fault_injected:" + fault)
+    import json
+    events = [{"component": key, "state": state[key]} for key in required]
+    trace = {"events": events, "fault": fault, "errors": sorted(set(errors))}
+    trace_hash = "sha256:" + hashlib.sha256(json.dumps(trace, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+    return {"result": "FAILED" if errors else "PASSED", "errors": sorted(set(errors)), "fault": fault, "safeStop": bool(errors), "events": events, "traceHash": trace_hash, "deterministic": True, "realtimeSource": "SIMULATION", "controllerWrite": False}
+
+
 def validate_toolchain_matrix(cases: list[dict[str, Any]]) -> dict[str, Any]:
     rows = []
     for case in cases:

@@ -12,7 +12,7 @@
 | MOT-001 | 轴仿真、限位、状态机检查和人工门禁 | VALIDATED-SW / CONTRACT_ONLY |
 | VIS-001 | 数据集 Hash、阈值、回归集检查接口 | VALIDATED-SW |
 | ROB-001 | 握手、权限范围、故障恢复检查接口 | VALIDATED-SW |
-| QUAL-001/002 | Test Run、Evidence、工具验证矩阵、Release Gate | VALIDATED-SW |
+| QUAL-001/002 | Logical Digital Twin、Test Run、Evidence、工具验证矩阵、Release Gate | VALIDATED-SW |
 | PM-001/002 | 项目、成员、实体、Review、追溯图、事件 Outbox、审计和租户隔离 | VALIDATED-SW |
 | REL-001 | Release 状态机、证据/审批门禁、备份 | VALIDATED-SW |
 | EDGE-001 | 离线同步队列、幂等、冲突状态和人工审批 | VALIDATED-SW |
