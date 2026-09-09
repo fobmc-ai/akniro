@@ -85,3 +85,11 @@ def build_plc_project(source: str, toolchain_version: str = "SIMULATED-PLC-0.1")
         errors.append("unsafe_force_requires_manual_review")
     build_hash = hashlib.sha256(f"{source_hash}:{toolchain_version}".encode("utf-8")).hexdigest()
     return {"result": "FAILED" if errors else "PASSED", "sourceHash": f"sha256:{source_hash}", "buildHash": f"sha256:{build_hash}", "toolchainVersion": toolchain_version, "errors": errors, "log": "PLC SIMULATED BUILD OK" if not errors else "PLC SIMULATED BUILD FAILED", "target": "SIMULATION"}
+
+
+def simulate_plc_runtime(cycles: int = 100, cycle_ms: int = 10, watchdog_ms: int = 50, injected_fault: str | None = None) -> dict[str, Any]:
+    if cycles < 1 or cycle_ms < 1 or watchdog_ms < cycle_ms:
+        return {"result": "BLOCKED", "reason": "invalid_runtime_limits", "safeStop": True}
+    fault = injected_fault in {"watchdog", "communication_loss", "safety_trip"}
+    max_cycle = watchdog_ms + 1 if injected_fault == "watchdog" else cycle_ms
+    return {"result": "FAILED" if fault else "PASSED", "cycles": cycles, "cycleMs": cycle_ms, "maxObservedCycleMs": max_cycle, "watchdogMs": watchdog_ms, "fault": injected_fault, "safeStop": fault, "deterministic": True, "target": "SIMULATION"}
