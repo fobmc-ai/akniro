@@ -11,7 +11,7 @@ from zhinen_pm.authorization import Actor, AuthorizationError, authorize
 from zhinen_pm.state_machine import InvalidTransition, assert_transition
 from zhinen_pm.store import ProjectStore
 from zhinen_pm.server import create_server
-from zhinen_pm.engineering import validate_capability, list_capabilities, simulation_evidence, build_plc_project, build_firmware_image, simulate_plc_runtime, simulate_motion_axis, simulate_vision_algorithm, simulate_edge_replay
+from zhinen_pm.engineering import validate_capability, list_capabilities, simulation_evidence, build_plc_project, build_firmware_image, simulate_plc_runtime, simulate_motion_axis, simulate_vision_algorithm, simulate_edge_replay, validate_toolchain_matrix
 from zhinen_pm.ai_context import build_context
 import threading
 
@@ -221,6 +221,8 @@ class PM0Tests(unittest.TestCase):
         edge = simulate_edge_replay(["E1", "E2", "E1"], True)
         self.assertEqual((edge["result"], edge["duplicates"], edge["applied"]), ("PASSED", 1, 2))
         self.assertEqual(simulate_edge_replay(["E1", "E1"], False)["result"], "FAILED")
+        matrix = validate_toolchain_matrix([{"id": "PLC-GOLDEN", "toolchain": "PLC-SIM-1", "compilePassed": True, "hmiSmoke": True, "expectedHash": "h1", "actualHash": "h1"}])
+        self.assertEqual((matrix["result"], matrix["passed"], matrix["total"]), ("PASSED", 1, 1))
 
     def test_release_gate_requires_evidence_and_human_approval(self):
         with tempfile.TemporaryDirectory() as directory:

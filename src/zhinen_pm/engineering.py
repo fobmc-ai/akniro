@@ -166,6 +166,19 @@ def simulate_edge_replay(event_ids: list[str], idempotent: bool) -> dict[str, An
     return {"result": "PASSED", "events": len(event_ids), "duplicates": duplicates, "applied": len(set(event_ids)), "skipped": duplicates, "deterministic": True, "reason": None}
 
 
+def validate_toolchain_matrix(cases: list[dict[str, Any]]) -> dict[str, Any]:
+    rows = []
+    for case in cases:
+        passed = bool(case.get("compilePassed")) and bool(case.get("hmiSmoke", True)) and case.get("expectedHash") == case.get("actualHash")
+        rows.append({"id": case.get("id", "UNKNOWN"), "toolchain": case.get("toolchain", "TBD"), "passed": passed, "reason": None if passed else "golden_project_mismatch"})
+    return {"result": "PASSED" if rows and all(row["passed"] for row in rows) else "FAILED", "cases": rows, "passed": sum(1 for row in rows if row["passed"]), "total": len(rows), "deterministic": True, "matrixHash": hashlib.sha256(jsonable_matrix(rows).encode("utf-8")).hexdigest()}
+
+
+def jsonable_matrix(rows: list[dict[str, Any]]) -> str:
+    import json
+    return json.dumps(rows, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+
 def build_plc_project(source: str, toolchain_version: str = "SIMULATED-PLC-0.1") -> dict[str, Any]:
     source_hash = hashlib.sha256(source.encode("utf-8")).hexdigest()
     errors = []
