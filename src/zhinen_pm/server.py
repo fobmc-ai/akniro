@@ -89,6 +89,8 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                     if path.endswith("/machine-objects"):
                         object_type = parse_qs(urlparse(self.path).query).get("type", [None])[0]
                         return self._send(200, {"objects": store.list_machine_objects(project_id, object_type)})
+                    if path.endswith("/artifacts"):
+                        return self._send(200, {"artifacts": store.list_artifact_manifests(project_id)})
                     if path.endswith("/readiness"):
                         return self._send(200, {"items": store.backlog_readiness(project_id)})
                     if path.endswith("/release-gate"):
@@ -159,6 +161,11 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                     project_id = path.split("/")[3]
                     self._authorize(body, "MODIFY", project_id)
                     result = store.create_machine_object(object_id=body["id"], project_id=project_id, tenant_id=body["tenantId"], object_type=body["objectType"], name=body["name"], owner_id=body["ownerId"], payload=body.get("payload"), parent_id=body.get("parentId"))
+                    return self._send(201, result)
+                if path.startswith("/api/projects/") and path.endswith("/artifacts"):
+                    project_id = path.split("/")[3]
+                    self._authorize(body, "MODIFY", project_id)
+                    result = store.create_artifact_manifest(artifact_id=body["id"], project_id=project_id, artifact_type=body["artifactType"], source_uri=body["sourceUri"], content_hash=body["contentHash"], artifact_revision=body["revision"], toolchain_version=body.get("toolchainVersion", "TBD"), target_environment=body.get("targetEnvironment", "LOCAL"), sensitivity=body.get("sensitivity", "INTERNAL"), owner_id=body["ownerId"])
                     return self._send(201, result)
                 if path == "/api/engineering/validate":
                     return self._send(200, validate_capability(body["capabilityId"], body.get("payload", {})))

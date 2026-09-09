@@ -97,6 +97,13 @@ class ProjectStore:
           revision INTEGER NOT NULL, payload TEXT NOT NULL, created_by TEXT NOT NULL,
           created_at TEXT NOT NULL, FOREIGN KEY(project_id) REFERENCES projects(id)
         );
+        CREATE TABLE IF NOT EXISTS artifact_manifests (
+          id TEXT PRIMARY KEY, project_id TEXT NOT NULL, artifact_type TEXT NOT NULL,
+          source_uri TEXT NOT NULL, content_hash TEXT NOT NULL, artifact_revision TEXT NOT NULL,
+          toolchain_version TEXT NOT NULL, target_environment TEXT NOT NULL, sensitivity TEXT NOT NULL,
+          owner_id TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'DRAFT', created_at TEXT NOT NULL,
+          FOREIGN KEY(project_id) REFERENCES projects(id)
+        );
         CREATE INDEX IF NOT EXISTS idx_entities_project ON entities(project_id, entity_type);
         CREATE INDEX IF NOT EXISTS idx_audit_project ON audit(project_id, occurred_at);
         CREATE INDEX IF NOT EXISTS idx_backlog_project ON backlog_items(project_id, status);
@@ -294,6 +301,27 @@ class ProjectStore:
         self.db.execute("INSERT INTO machine_objects VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, 'DRAFT', ?, ?)", (object_id, project_id, tenant_id, object_type, parent_id, name, owner_id, json.dumps(payload or {}, ensure_ascii=False), timestamp, timestamp))
         self.db.commit()
         return self.get_machine_object(object_id)
+
+    def create_artifact_manifest(self, *, artifact_id: str, project_id: str, artifact_type: str, source_uri: str, content_hash: str, artifact_revision: str, toolchain_version: str, target_environment: str, sensitivity: str, owner_id: str) -> dict[str, Any]:
+        if not content_hash or len(content_hash) < 8:
+            raise ValueError("content_hash must be a verifiable digest")
+        if sensitivity not in {"PUBLIC", "INTERNAL", "CONFIDENTIAL", "EDGE_ONLY"}:
+            raise ValueError("invalid artifact sensitivity")
+        if not self.db.execute("SELECT 1 FROM projects WHERE id = ?", (project_id,)).fetchone():
+            raise KeyError(f"unknown project: {project_id}")
+        timestamp = now()
+        self.db.execute("INSERT INTO artifact_manifests VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'DRAFT', ?)", (artifact_id, project_id, artifact_type, source_uri, content_hash, artifact_revision, toolchain_version, target_environment, sensitivity, owner_id, timestamp))
+        self.db.commit()
+        return self.get_artifact_manifest(artifact_id)
+
+    def get_artifact_manifest(self, artifact_id: str) -> dict[str, Any]:
+        row = self.db.execute("SELECT * FROM artifact_manifests WHERE id = ?", (artifact_id,)).fetchone()
+        if not row:
+            raise KeyError(f"unknown artifact: {artifact_id}")
+        return dict(row)
+
+    def list_artifact_manifests(self, project_id: str) -> list[dict[str, Any]]:
+        return [dict(row) for row in self.db.execute("SELECT * FROM artifact_manifests WHERE project_id = ? ORDER BY created_at", (project_id,))]
 
     def get_machine_object(self, object_id: str) -> dict[str, Any]:
         row = self.db.execute("SELECT * FROM machine_objects WHERE id = ?", (object_id,)).fetchone()

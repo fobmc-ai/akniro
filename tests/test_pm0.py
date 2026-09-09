@@ -177,6 +177,16 @@ class PM0Tests(unittest.TestCase):
                 build_context(store, project_id="P-001", object_ids=["REQ-001"] * 21, actor_id="AI-001")
             store.close()
 
+    def test_artifact_manifest_requires_hash_and_preserves_engineering_metadata(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = ProjectStore(Path(directory) / "pm.db")
+            store.create_project(project_id="P-001", tenant_id="T-001", name="Demo", kind="platform", owner_id="U-001")
+            with self.assertRaises(ValueError):
+                store.create_artifact_manifest(artifact_id="ART-001", project_id="P-001", artifact_type="FIRMWARE", source_uri="edge://fw", content_hash="x", artifact_revision="1", toolchain_version="TBD", target_environment="EDGE", sensitivity="EDGE_ONLY", owner_id="U-001")
+            item = store.create_artifact_manifest(artifact_id="ART-001", project_id="P-001", artifact_type="FIRMWARE", source_uri="edge://fw", content_hash="sha256:1234567890", artifact_revision="1", toolchain_version="GCC-TBD", target_environment="EDGE", sensitivity="EDGE_ONLY", owner_id="U-001")
+            self.assertEqual((item["artifact_type"], item["sensitivity"]), ("FIRMWARE", "EDGE_ONLY"))
+            store.close()
+
     def test_http_api_project_tree_flow(self):
         with tempfile.TemporaryDirectory() as directory:
             server = create_server(str(Path(directory) / "pm.db"), port=0)
