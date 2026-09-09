@@ -113,6 +113,17 @@ class PM0Tests(unittest.TestCase):
             self.assertEqual(restored.get_project("P-001")["name"], "Demo")
             restored.close()
 
+    def test_acceptance_report_summarizes_project_gates(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = ProjectStore(Path(directory) / "pm.db")
+            store.create_project(project_id="P-001", tenant_id="T-001", name="Demo", kind="platform", owner_id="U-001")
+            store.create_entity(entity_id="REL-001", entity_type="release", project_id="P-001", tenant_id="T-001", title="V0.1", owner_id="U-001")
+            report = store.acceptance_report("P-001")
+            self.assertEqual(report["summary"]["workPackages"], 0)
+            self.assertFalse(report["releaseGates"][0]["ready"])
+            self.assertGreaterEqual(report["auditCount"], 1)
+            store.close()
+
     def test_machine_model_revision_snapshot_and_diff(self):
         with tempfile.TemporaryDirectory() as directory:
             store = ProjectStore(Path(directory) / "pm.db")

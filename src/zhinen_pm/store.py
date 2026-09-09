@@ -266,6 +266,15 @@ class ProjectStore:
             by_type.setdefault(row["entity_type"], {})[row["status"]] = row["count"]
         return {"projectId": project_id, "entities": by_type, "backlog": len(self.list_backlog(project_id)), "syncQueue": len(self.list_sync_queue(project_id)), "links": len(self.list_links(project_id))}
 
+    def acceptance_report(self, project_id: str) -> dict[str, Any]:
+        stats = self.project_stats(project_id)
+        readiness = self.backlog_readiness(project_id)
+        entities = self.list_entities(project_id)
+        releases = [x for x in entities if x["entity_type"] == "release"]
+        evidence = [x for x in entities if x["entity_type"] == "evidence"]
+        gates = [self.release_gate(x["id"]) for x in releases]
+        return {"projectId": project_id, "generatedAt": now(), "summary": {"workPackages": stats["backlog"], "readyWorkPackages": sum(1 for x in readiness if x["ready"]), "blockedWorkPackages": sum(1 for x in readiness if not x["ready"]), "validatedEvidence": sum(1 for x in evidence if x["status"] == "VALIDATED"), "machineObjects": len(self.list_machine_objects(project_id)), "artifacts": len(self.list_artifact_manifests(project_id)), "syncConflicts": sum(1 for x in self.list_sync_queue(project_id) if x["status"] == "CONFLICT")}, "releaseGates": gates, "blockers": [x for x in readiness if x["blockedBy"]] + [{"releaseId": x["releaseId"], "missing": x["missing"]} for x in gates if not x["ready"]], "auditCount": len(self.list_audit(project_id))}
+
     def list_audit(self, project_id: str, limit: int = 200) -> list[dict[str, Any]]:
         return [dict(row) for row in self.db.execute("SELECT * FROM audit WHERE project_id = ? ORDER BY occurred_at DESC LIMIT ?", (project_id, limit))]
 
