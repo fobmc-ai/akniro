@@ -53,3 +53,4 @@
 - 管理中心新增 PLC / 固件构建台，调用确定性模拟构建接口并自动登记 Artifact、Test Run、Evidence；失败构建自动进入 Issue/CAPA 处理链路，断电恢复验证保留回滚引用。
 - Artifact 创建事件补齐稳定 `artifactId`、审计和 Event Outbox 同事务写入，失败构建的产物、问题、通知和事件可被下游一致追溯。
 - PLC Phase 1 最小闭环补齐下载清单和在线监视模拟：下载必须绑定 APPROVED Artifact、人工审批和回滚版本，监视输出稳定 Tag 快照与故障安全状态，二者均禁止直接写入真实控制器。
+- Machine Object 创建补齐同事务 Audit 与 `pm.machine_object.created` Event Outbox，Machine Model 的创建与 revision 现在拥有一致的跨模块追踪入口。

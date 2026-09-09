@@ -418,6 +418,8 @@ class ProjectStore:
             raise ValueError("alarm severity must be S0-S4")
         timestamp = now()
         self.db.execute("INSERT INTO machine_objects VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, 'DRAFT', ?, ?)", (object_id, project_id, tenant_id, object_type, parent_id, name, owner_id, json.dumps(payload or {}, ensure_ascii=False), timestamp, timestamp))
+        self._audit(tenant_id, project_id, owner_id, "machine_object.create", object_id, "success", {"objectType": object_type, "parentId": parent_id})
+        self._emit_event(tenant_id=tenant_id, project_id=project_id, message_type="pm.machine_object.created", actor_id=owner_id, payload={"objectId": object_id, "objectType": object_type, "parentId": parent_id, "status": "DRAFT", "revision": 1}, correlation_id=object_id, idempotency_key=f"machine_object.created:{object_id}:1")
         self.db.commit()
         return self.get_machine_object(object_id)
 

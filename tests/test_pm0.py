@@ -211,6 +211,8 @@ class PM0Tests(unittest.TestCase):
             first = store.snapshot_machine(snapshot_id="S-001", project_id="P-001", machine_id="M-001", created_by="U-001")
             updated = store.update_machine_object(object_id="M-001", name=None, payload={"model": "v2"}, expected_revision=machine["revision"])
             self.assertEqual(updated["revision"], 2)
+            events = store.list_events("P-001")
+            self.assertTrue(any(item["message_type"] == "pm.machine_object.created" and item["payload"]["objectId"] == "M-001" for item in events))
             second = store.snapshot_machine(snapshot_id="S-002", project_id="P-001", machine_id="M-001", created_by="U-001")
             self.assertEqual(store.diff_snapshots(first["id"], second["id"])["changed"], ["M-001"])
             store.close()
