@@ -23,6 +23,7 @@ samples = [
     ('KB-001', 'knowledge', '问题关闭必须有回归证据', {'verification': '待 QA 验证'}),
     ('REL-001', 'release', '织能控制中心 V0.1', {'rollback': '上一版本', 'evidenceRequired': True}),
     ('MNT-001', 'maintenance', '现场版本盘点（占位）', {'machineId': 'TBD', 'placeholder': True}),
+    ('EV-001', 'evidence', 'PM-0 API/UI 验收证据', {'source': 'unittest', 'result': 'PASSED', 'contentHash': 'sha256:demo-evidence-0001'}),
 ]
 for entity_id, entity_type, title, payload in samples:
     try:
@@ -30,5 +31,39 @@ for entity_id, entity_type, title, payload in samples:
     except Exception as exc:
         if 'UNIQUE' not in str(exc).upper():
             raise
+try:
+    store.create_artifact_manifest(artifact_id='ART-DEMO-PLC', project_id=args.project, artifact_type='PLC', source_uri='local://demo/plc-project', content_hash='sha256:demo-plc-0001', artifact_revision='r1', toolchain_version='SIMULATED-0.1', target_environment='SIMULATION', sensitivity='INTERNAL', owner_id='U-001')
+except Exception as exc:
+    if 'UNIQUE' not in str(exc).upper():
+        raise
+machine_objects = [
+    ('M-DEMO-001', 'machine', '演示自动化设备', None, {'model': 'DNA-v1'}),
+    ('MOD-DEMO-PLC', 'module', 'PLC 控制模块', 'M-DEMO-001', {'domain': 'PLC'}),
+    ('DEV-DEMO-PLC', 'device', 'PLC 控制器', 'MOD-DEMO-PLC', {'protocol': 'SIMULATED'}),
+    ('TAG-DEMO-START', 'tag', 'StartCommand', 'DEV-DEMO-PLC', {'dataType': 'BOOL', 'access': 'READ_ONLY'}),
+    ('ALM-DEMO-001', 'alarm', '安全门未闭合', 'M-DEMO-001', {'severity': 'S1'}),
+    ('REC-DEMO-001', 'recipe', '默认配方', 'M-DEMO-001', {'version': '1.0'}),
+]
+for object_id, object_type, name, parent_id, payload in machine_objects:
+    try:
+        store.create_machine_object(object_id=object_id, project_id=args.project, tenant_id=project['tenant_id'], object_type=object_type, name=name, owner_id='U-001', parent_id=parent_id, payload=payload)
+    except Exception as exc:
+        if 'UNIQUE' not in str(exc).upper():
+            raise
+try:
+    if not store.db.execute("SELECT 1 FROM machine_snapshots WHERE id = ?", ('SNAP-DEMO-001',)).fetchone():
+        store.snapshot_machine(snapshot_id='SNAP-DEMO-001', project_id=args.project, machine_id='M-DEMO-001', created_by='U-001')
+except Exception:
+    pass
+try:
+    store.link_entities(project_id=args.project, from_id='REL-001', to_id='EV-001', link_type='requires')
+except Exception:
+    pass
+try:
+    evidence = store.get_entity('EV-001')
+    if evidence['status'] == 'DRAFT':
+        store.transition(entity_id='EV-001', target='VALIDATED', actor_id='U-001', expected_revision=evidence['revision'])
+except Exception:
+    pass
 print({'inserted': inserted, 'total': len(store.list_backlog(args.project)), 'sampleEntities': len(samples)})
 store.close()

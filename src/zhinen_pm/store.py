@@ -355,6 +355,9 @@ class ProjectStore:
             raise KeyError(f"unknown snapshot: {snapshot_id}")
         result = dict(row); result["payload"] = json.loads(result["payload"]); return result
 
+    def list_snapshots(self, project_id: str) -> list[dict[str, Any]]:
+        return [dict(row) for row in self.db.execute("SELECT id, project_id, machine_id, revision, created_by, created_at FROM machine_snapshots WHERE project_id = ? ORDER BY created_at DESC", (project_id,))]
+
     def backlog_readiness(self, project_id: str) -> list[dict[str, Any]]:
         items = self.list_backlog(project_id)
         status = {item["id"]: item["status"] for item in items}
