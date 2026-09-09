@@ -859,7 +859,7 @@ class ProjectStore:
         applied = self.transition(entity_id=snapshot_id, target="APPLIED", actor_id=actor_id, expected_revision=snapshot["revision"], allow_parameter_apply=True)
         return {"snapshot": applied, "sync": sync}
 
-    def apply_ai_suggestion(self, *, suggestion_id: str, target_entity_id: str, target_expected_revision: int, patch: dict[str, Any], approval_id: str, actor_id: str) -> dict[str, Any]:
+    def apply_ai_suggestion(self, *, suggestion_id: str, target_entity_id: str, target_expected_revision: int, patch: dict[str, Any], approval_id: str, test_evidence_id: str, actor_id: str) -> dict[str, Any]:
         """Apply an AI-produced patch only after an authorized human approval."""
         suggestion = self.get_entity(suggestion_id)
         if suggestion["entity_type"] != "ai_suggestion":
@@ -868,6 +868,9 @@ class ProjectStore:
             raise ValueError("AI suggestion has already been applied")
         if not approval_id:
             raise PermissionError("PM-AI-APPLY-001: human approvalId is required")
+        evidence = self.get_entity(test_evidence_id)
+        if evidence["project_id"] != suggestion["project_id"] or evidence["entity_type"] != "evidence" or evidence["status"] != "VALIDATED":
+            raise ValueError("PM-AI-APPLY-007: Apply requires same-project VALIDATED test evidence")
         actor = self.get_actor(actor_id, suggestion["tenant_id"])
         if actor["role"] == "ai":
             raise PermissionError("PM-AI-APPLY-002: AI actor cannot apply suggestions")
@@ -890,7 +893,7 @@ class ProjectStore:
         if contains_forbidden(patch):
             raise PermissionError("PM-AI-APPLY-006: patch contains a forbidden control action")
         updated_target = self.update_entity_payload(entity_id=target_entity_id, payload={**target["payload"], **patch}, actor_id=actor_id, expected_revision=target_expected_revision)
-        suggestion_payload = {**suggestion["payload"], "applied": True, "appliedBy": actor_id, "approvalId": approval_id, "targetEntityId": target_entity_id, "targetRevision": target_expected_revision, "patch": patch}
+        suggestion_payload = {**suggestion["payload"], "applied": True, "appliedBy": actor_id, "approvalId": approval_id, "testEvidenceId": test_evidence_id, "targetEntityId": target_entity_id, "targetRevision": target_expected_revision, "patch": patch}
         updated_suggestion = self.update_entity_payload(entity_id=suggestion_id, payload=suggestion_payload, actor_id=actor_id, expected_revision=suggestion["revision"])
         self.link_entities(project_id=suggestion["project_id"], from_id=suggestion_id, to_id=target_entity_id, link_type="applied_to", actor_id=actor_id)
         return {"suggestion": updated_suggestion, "target": updated_target, "approvalId": approval_id, "applied": True}

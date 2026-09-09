@@ -477,7 +477,7 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                 if path.startswith("/api/projects/") and path.endswith("/ai/apply"):
                     project_id = path.split("/")[3]
                     self._authorize(body, "APPLY", project_id)
-                    result = store.apply_ai_suggestion(suggestion_id=body["suggestionId"], target_entity_id=body["targetEntityId"], target_expected_revision=int(body["targetExpectedRevision"]), patch=body.get("patch", {}), approval_id=body["approvalId"], actor_id=body["actorId"])
+                    result = store.apply_ai_suggestion(suggestion_id=body["suggestionId"], target_entity_id=body["targetEntityId"], target_expected_revision=int(body["targetExpectedRevision"]), patch=body.get("patch", {}), approval_id=body["approvalId"], test_evidence_id=body["testEvidenceId"], actor_id=body["actorId"])
                     return self._send(200, result)
                 if path.startswith("/api/projects/") and path.endswith("/machine-snapshots"):
                     project_id = path.split("/")[3]

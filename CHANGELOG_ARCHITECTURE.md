@@ -21,3 +21,4 @@
 - Added a project-scoped lifecycle simulation pipeline for OEE, SPC, health, and product trace evidence.
 - Updated the Web readiness view to expose contract completeness and missing delivery fields alongside dependency blockers.
 - Added a human-gated AI suggestion Apply path with expected-revision conflict detection, forbidden-action filtering, and applied-to traceability.
+- AI Apply now requires same-project VALIDATED test evidence before any non-controlled object patch can be applied.
