@@ -90,6 +90,11 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                         return self._send(200, {"objects": store.list_machine_objects(project_id, object_type)})
                     if path.endswith("/readiness"):
                         return self._send(200, {"items": store.backlog_readiness(project_id)})
+                    if path.endswith("/release-gate"):
+                        release_id = parse_qs(urlparse(self.path).query).get("releaseId", [None])[0]
+                        if not release_id:
+                            return self._send(400, {"code": "PM-REQUEST-001", "message": "releaseId is required"})
+                        return self._send(200, store.release_gate(release_id))
                     if path.endswith("/backlog"):
                         status = parse_qs(urlparse(self.path).query).get("status", [None])[0]
                         return self._send(200, {"items": store.list_backlog(project_id, status)})

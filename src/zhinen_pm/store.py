@@ -350,6 +350,17 @@ class ProjectStore:
         left_map = {x["id"]: x for x in left["payload"]["objects"]}; right_map = {x["id"]: x for x in right["payload"]["objects"]}
         return {"left": left_id, "right": right_id, "added": sorted(set(right_map) - set(left_map)), "removed": sorted(set(left_map) - set(right_map)), "changed": sorted(key for key in set(left_map) & set(right_map) if left_map[key] != right_map[key])}
 
+    def release_gate(self, release_id: str) -> dict[str, Any]:
+        release = self.get_entity(release_id)
+        if release["entity_type"] != "release":
+            raise ValueError("gate target must be release")
+        links = self.list_links(release["project_id"], release_id)
+        linked = {x["to_id"] if x["from_id"] == release_id else x["from_id"] for x in links}
+        evidence = [self.get_entity(x) for x in linked if self.db.execute("SELECT entity_type FROM entities WHERE id = ?", (x,)).fetchone() and self.db.execute("SELECT entity_type FROM entities WHERE id = ?", (x,)).fetchone()[0] == "evidence"]
+        passed = [x for x in evidence if x["status"] == "VALIDATED"]
+        approval = bool(release["payload"].get("approvalId"))
+        return {"releaseId": release_id, "ready": bool(passed and approval), "validatedEvidence": [x["id"] for x in passed], "approval": approval, "missing": (["validated evidence"] if not passed else []) + (["human approval"] if not approval else [])}
+
     def link_entities(self, *, project_id: str, from_id: str, to_id: str, link_type: str) -> dict[str, Any]:
         if not self.db.execute("SELECT 1 FROM entities WHERE id = ? AND project_id = ?", (from_id, project_id)).fetchone() or not self.db.execute("SELECT 1 FROM entities WHERE id = ? AND project_id = ?", (to_id, project_id)).fetchone():
             raise KeyError("entity link target not found in project")

@@ -93,6 +93,8 @@ Draft -> Review -> Validated -> Approved -> Expired/Deprecated
 
 ## 8. Release 与维护
 
+当前 PM 服务已提供 Release Gate：发布候选必须关联 `VALIDATED` Evidence 且带人工 `approvalId` 才能判定 ready；没有证据或审批时保持阻塞。
+
 Release 必须绑定源代码、Machine Project revision、Schema/API/Event 版本、依赖/SBOM、测试证据、已知问题、审批、目标环境和回滚版本。
 
 维护系统需要支持 LTS、Hotfix、Security Patch、Deprecation、Migration、End-of-Support、现场版本盘点、版本偏差检测和升级结果记录。任何现场修改必须回写为新的 revision，不能只存在设备本地。
