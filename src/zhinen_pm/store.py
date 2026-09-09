@@ -714,16 +714,23 @@ class ProjectStore:
             raise RuntimeError("PM-CONFLICT-001: revision conflict")
         if row["entity_type"] == "parameter_snapshot" and target == "APPLIED" and not allow_parameter_apply:
             raise ValueError("PM-PARAM-002: use approved parameter apply endpoint")
+        payload = json.loads(row["payload"])
+        if row["entity_type"] == "requirement" and target == "READY":
+            required = ("description", "priority", "acceptanceCriteria", "nonGoals", "source", "traceLinks")
+            if any(not payload.get(field) for field in required):
+                raise ValueError("PM-REQ-001: requirement ready needs description, priority, acceptance criteria, non-goals, source and trace links")
+        if row["entity_type"] == "design_goal" and target == "READY":
+            required = ("purpose", "inputs", "outputs", "constraints", "metrics", "failureBehavior", "risk", "testPlanId", "acceptanceThresholds")
+            if any(not payload.get(field) for field in required):
+                raise ValueError("PM-DESIGN-001: design goal ready needs purpose, IO, constraints, metrics, failure behavior, risk, test plan and thresholds")
         if row["entity_type"] == "release" and target == "RELEASED":
             gate = self.release_gate(entity_id)
             if not gate["ready"]:
                 raise ValueError("PM-RELEASE-001: release gate is not satisfied")
         if row["entity_type"] == "work_item" and target == "DONE":
-            payload = json.loads(row["payload"])
             if not payload.get("evidenceLinks"):
                 raise ValueError("PM-QUALITY-001: work item needs evidenceLinks before DONE")
         if row["entity_type"] == "issue" and target == "CLOSED":
-            payload = json.loads(row["payload"])
             required = ("rootCause", "fixVersion", "regressionTestIds", "closureCriteria")
             if any(not payload.get(field) for field in required):
                 raise ValueError("PM-QUALITY-002: issue closure needs root cause, fix version, regression test and criteria")
@@ -735,17 +742,14 @@ class ProjectStore:
                 if not evidence_row or evidence_row["project_id"] != row["project_id"] or evidence_row["entity_type"] != "evidence" or evidence_row["status"] != "VALIDATED":
                     raise ValueError("PM-QUALITY-003: issue closure needs validated project evidence")
         if row["entity_type"] == "knowledge" and target == "APPROVED":
-            payload = json.loads(row["payload"])
             required = ("source", "applicableVersion", "validationStatus", "testIds", "expiryCondition")
             if any(not payload.get(field) for field in required) or payload.get("validationStatus") != "VALIDATED":
                 raise ValueError("PM-KNOWLEDGE-001: knowledge approval needs source, version, validated status, tests and expiry condition")
         if row["entity_type"] == "maintenance" and target in {"COMPLETED", "CLOSED"}:
-            payload = json.loads(row["payload"])
             required = ("machineId", "executorId", "releaseId", "result", "exceptions", "rollback")
             if any(field not in payload or (payload[field] is None) for field in required):
                 raise ValueError("PM-MAINT-001: maintenance completion needs machine, executor, release, result, exceptions and rollback")
         if row["entity_type"] == "deployment":
-            payload = json.loads(row["payload"])
             if target == "AUTHORIZED":
                 required = ("releaseId", "targetMachineId", "environment", "approvalId", "rollbackRevision", "observationWindow")
                 if any(not payload.get(field) for field in required):

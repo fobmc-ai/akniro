@@ -31,13 +31,25 @@ class PM0Tests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             store = ProjectStore(Path(directory) / "pm.db")
             store.create_project(project_id="P-001", tenant_id="T-001", name="Demo", kind="platform", owner_id="U-001")
-            entity = store.create_entity(entity_id="REQ-001", entity_type="requirement", project_id="P-001", tenant_id="T-001", title="Define MVP", owner_id="U-001")
+            entity = store.create_entity(entity_id="REQ-001", entity_type="requirement", project_id="P-001", tenant_id="T-001", title="Define MVP", owner_id="U-001", payload={"description":"MVP contract", "priority":"P0", "acceptanceCriteria":["pass"], "nonGoals":["field control"], "source":"product", "traceLinks":["MASTER_PLAN.md"]})
             self.assertEqual(entity["status"], "DRAFT")
             updated = store.transition(entity_id="REQ-001", target="READY", actor_id="U-001", expected_revision=1)
             self.assertEqual(updated["revision"], 2)
             with self.assertRaisesRegex(RuntimeError, "revision conflict"):
                 store.transition(entity_id="REQ-001", target="IMPLEMENTING", actor_id="U-001", expected_revision=1)
             self.assertGreaterEqual(len(store.audit("P-001")), 2)
+            store.close()
+
+    def test_requirement_and_design_goal_ready_gates_require_contract_fields(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = ProjectStore(Path(directory) / "pm.db")
+            store.create_project(project_id="P-001", tenant_id="T-001", name="Demo", kind="platform", owner_id="U-001")
+            requirement = store.create_entity(entity_id="REQ-GATE", entity_type="requirement", project_id="P-001", tenant_id="T-001", title="Incomplete", owner_id="U-001")
+            with self.assertRaisesRegex(ValueError, "PM-REQ-001"):
+                store.transition(entity_id=requirement["id"], target="READY", actor_id="U-001", expected_revision=1)
+            goal = store.create_entity(entity_id="DG-GATE", entity_type="design_goal", project_id="P-001", tenant_id="T-001", title="Incomplete goal", owner_id="U-001", payload={"purpose":"test"})
+            with self.assertRaisesRegex(ValueError, "PM-DESIGN-001"):
+                store.transition(entity_id=goal["id"], target="READY", actor_id="U-001", expected_revision=1)
             store.close()
 
     def test_database_tree_and_roles(self):
@@ -472,7 +484,7 @@ class PM0Tests(unittest.TestCase):
                         return response.status, json.loads(response.read())
                 status, _ = request("/api/projects", {"projectId": "P-001", "tenantId": "T-001", "name": "Demo", "ownerId": "U-001"})
                 self.assertEqual(status, 201)
-                status, entity = request("/api/projects/P-001/entities", {"id": "REQ-001", "type": "requirement", "tenantId": "T-001", "title": "MVP", "ownerId": "U-001", "actorId": "U-001"})
+                status, entity = request("/api/projects/P-001/entities", {"id": "REQ-001", "type": "requirement", "tenantId": "T-001", "title": "MVP", "ownerId": "U-001", "actorId": "U-001", "payload": {"description": "MVP contract", "priority": "P0", "acceptanceCriteria": ["pass"], "nonGoals": ["field control"], "source": "product", "traceLinks": ["MASTER_PLAN.md"]}})
                 self.assertEqual(status, 201)
                 status, updated = request("/api/entities/REQ-001/transition", {"target": "READY", "actorId": "U-001", "tenantId": "T-001", "expectedRevision": entity["revision"]})
                 self.assertEqual((status, updated["status"]), (200, "READY"))
