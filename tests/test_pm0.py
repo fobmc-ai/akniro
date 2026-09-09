@@ -218,8 +218,12 @@ class PM0Tests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "release gate"):
                 store.transition(entity_id="REL-001", target="RELEASED", actor_id="U-001", expected_revision=4)
             store.transition(entity_id="EV-001", target="VALIDATED", actor_id="U-001", expected_revision=1)
-            updated = store.get_entity("REL-001"); updated["payload"]["approvalId"] = "APR-001"
+            artifact = store.create_artifact_manifest(artifact_id="ART-REL-001", project_id="P-001", artifact_type="PLC", source_uri="inline://plc", content_hash="sha256:1234567890", artifact_revision="r1", toolchain_version="SIM", target_environment="SIMULATION", sensitivity="INTERNAL", owner_id="U-001")
+            updated = store.get_entity("REL-001"); updated["payload"]["approvalId"] = "APR-001"; updated["payload"]["artifactIds"] = [artifact["id"]]
             store.db.execute("UPDATE entities SET payload = ? WHERE id = ?", (json.dumps(updated["payload"], ensure_ascii=False), "REL-001")); store.db.commit()
+            self.assertFalse(store.release_gate("REL-001")["ready"])
+            store.transition_artifact(artifact_id=artifact["id"], target="BUILT", actor_id="U-001")
+            store.transition_artifact(artifact_id=artifact["id"], target="TESTED", actor_id="U-001")
             self.assertTrue(store.release_gate("REL-001")["ready"])
             self.assertEqual(store.transition(entity_id="REL-001", target="RELEASED", actor_id="U-001", expected_revision=4)["status"], "RELEASED")
             store.close()
