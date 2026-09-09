@@ -25,3 +25,6 @@
 - Added a read-only Edge sync replay-safety summary for idempotency, push approvals, conflicts, and failures.
 - Added a reason-bearing human sync conflict resolution form in the Ops view.
 - Added a staged deployment preflight for authorization, staging signature, health observation, and rollback inputs.
+- Added DRV-001 driver certification matrix and SAFE-001 explicit software safety-boundary evidence.
+- Added persistent PM schema migration status, project completion audit, issue/CAPA closure preflight, and deterministic metadata-only export manifest.
+- CI now runs for architecture/documentation changes and checks patch whitespace.

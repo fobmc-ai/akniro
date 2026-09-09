@@ -26,17 +26,17 @@ This file is the low-cost navigation index for Codex. Read the smallest relevant
 
 | ID | Area | Primary documents | Status |
 |---|---|---|---|
-| CORE | canonical platform | `docs/01-core/CORE_PLATFORM.md`, `DOMAIN_MODEL.md` | A |
-| RT | deterministic execution | `docs/02-runtime/REALTIME_ARCHITECTURE.md` | B |
-| ENG | engineering tools | `docs/03-engineering/MACHINE_PROJECT.md` | B |
-| PLAT | extension platform | `docs/04-platform/PLUGIN_SDK.md` | B |
-| FACT | factory applications | `docs/05-factory/SCADA.md`, `MES.md` | B |
-| CLOUD | edge/cloud | `docs/06-cloud/CLOUD_ARCHITECTURE.md` | B |
-| AI | governed AI | `docs/07-ai/AI_CONTEXT_POLICY.md`, `AI_SAFETY.md` | A/B |
-| QUAL | quality attributes | `docs/08-quality/SECURITY.md`, `TESTING.md` | A |
-| GOV | decisions and change | `docs/09-governance/ADR/`, `DEFINITION_OF_DONE.md` | A |
-| BRAND | product identity | `docs/00-master/BRAND_NAMING.md` | A |
-| BUILD | implementation skeleton | `schemas/`, `examples/`, `src/`, `docs/09-governance/ADR/ADR-0003-foundation-skeleton.md` | A |
+| CORE | canonical platform | `CORE_PLATFORM.md`, `DOMAIN_MODEL.md` | A |
+| RT | deterministic execution | `REALTIME_ARCHITECTURE.md`, `PLC_RUNTIME.md` | B |
+| ENG | engineering tools | `MACHINE_PROJECT.md`, `ENGINEERING_CAPABILITIES.md` | A/B |
+| PLAT | extension platform | `PLUGIN_SDK.md`, `DRIVER_SDK.md` | B |
+| FACT | factory applications | `SCADA.md`, `MES.md`, `QMS.md` | B |
+| CLOUD | edge/cloud | `CLOUD_ARCHITECTURE.md`, `EDGE_CLOUD_SYNC.md` | B |
+| AI | governed AI | `AI_CONTEXT_POLICY.md`, `AI_SAFETY.md` | A/B |
+| QUAL | quality attributes | `SECURITY.md`, `TESTING.md`, `QUALITY_LIFECYCLE_SYSTEM.md` | A |
+| GOV | decisions and change | `ADR-*.md`, `DEFINITION_OF_DONE.md`, `CHANGE_CONTROL_RULES.md` | A |
+| BRAND | product identity | `BRAND_NAMING.md` | A |
+| BUILD | implementation skeleton | `examples/`, `src/`, `web/`, `tests/`, `tools/` | A |
 
 ## Retrieval rule
 
