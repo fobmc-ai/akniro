@@ -8,6 +8,8 @@ The Phase 0 gate is defined in [`FOUNDATION_CONTRACT.md`](FOUNDATION_CONTRACT.md
 
 The separate engineering project management plane is defined in [`PROJECT_MANAGEMENT_PLATFORM.md`](PROJECT_MANAGEMENT_PLATFORM.md). Its PM-0 contract work must precede UI and full collaboration features.
 
+PM-0 also includes organization isolation, state machines, environment promotion, backup/recovery, index freshness, notification escalation, platform observability, and data retention as defined in [`PLATFORM_OPERATIONS_GOVERNANCE.md`](PLATFORM_OPERATIONS_GOVERNANCE.md).
+
 ## Delivery phases
 
 | Phase | Focus | Classification |
