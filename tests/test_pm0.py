@@ -167,6 +167,24 @@ class PM0Tests(unittest.TestCase):
             self.assertEqual(store.transition(entity_id="REL-001", target="RELEASED", actor_id="U-001", expected_revision=4)["status"], "RELEASED")
             store.close()
 
+    def test_quality_closure_requires_evidence_and_regression_data(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = ProjectStore(Path(directory) / "pm.db")
+            store.create_project(project_id="P-001", tenant_id="T-001", name="Demo", kind="platform", owner_id="U-001")
+            task = store.create_entity(entity_id="TASK-001", entity_type="work_item", project_id="P-001", tenant_id="T-001", title="Task", owner_id="U-001", payload={})
+            for target, revision in (("IN_PROGRESS", 1), ("REVIEW", 2), ("TEST", 3)):
+                store.transition(entity_id="TASK-001", target=target, actor_id="U-001", expected_revision=revision)
+            with self.assertRaisesRegex(ValueError, "evidenceLinks"):
+                store.transition(entity_id="TASK-001", target="DONE", actor_id="U-001", expected_revision=4)
+            store.db.execute("UPDATE entities SET payload = ? WHERE id = ?", (json.dumps({"evidenceLinks": ["EV-001"]}), "TASK-001")); store.db.commit()
+            self.assertEqual(store.transition(entity_id="TASK-001", target="DONE", actor_id="U-001", expected_revision=4)["status"], "DONE")
+            issue = store.create_entity(entity_id="ISS-001", entity_type="issue", project_id="P-001", tenant_id="T-001", title="Issue", owner_id="U-001", payload={})
+            for target, revision in (("REPRODUCED", 1), ("ROOT_CAUSED", 2), ("FIXED", 3), ("REGRESSION", 4)):
+                store.transition(entity_id="ISS-001", target=target, actor_id="U-001", expected_revision=revision)
+            with self.assertRaisesRegex(ValueError, "root cause"):
+                store.transition(entity_id="ISS-001", target="CLOSED", actor_id="U-001", expected_revision=5)
+            store.close()
+
     def test_ai_context_is_minimal_and_denies_cross_project(self):
         with tempfile.TemporaryDirectory() as directory:
             store = ProjectStore(Path(directory) / "pm.db")

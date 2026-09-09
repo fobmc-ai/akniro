@@ -468,6 +468,15 @@ class ProjectStore:
             gate = self.release_gate(entity_id)
             if not gate["ready"]:
                 raise ValueError("PM-RELEASE-001: release gate is not satisfied")
+        if row["entity_type"] == "work_item" and target == "DONE":
+            payload = json.loads(row["payload"])
+            if not payload.get("evidenceLinks"):
+                raise ValueError("PM-QUALITY-001: work item needs evidenceLinks before DONE")
+        if row["entity_type"] == "issue" and target == "CLOSED":
+            payload = json.loads(row["payload"])
+            required = ("rootCause", "fixVersion", "regressionTestIds", "closureCriteria")
+            if any(not payload.get(field) for field in required):
+                raise ValueError("PM-QUALITY-002: issue closure needs root cause, fix version, regression test and criteria")
         assert_transition(row["entity_type"], row["status"], target)
         timestamp = now()
         self.db.execute("UPDATE entities SET status = ?, revision = revision + 1, updated_at = ? WHERE id = ? AND revision = ?", (target, timestamp, entity_id, expected_revision))
