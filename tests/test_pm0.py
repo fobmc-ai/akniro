@@ -12,7 +12,7 @@ from zhinen_pm.authorization import Actor, AuthorizationError, authorize
 from zhinen_pm.state_machine import InvalidTransition, assert_transition
 from zhinen_pm.store import ProjectStore
 from zhinen_pm.server import create_server
-from zhinen_pm.engineering import validate_capability, list_capabilities, simulation_evidence, build_plc_project, build_firmware_image, simulate_plc_runtime, simulate_motion_axis, simulate_vision_algorithm, simulate_edge_replay, validate_toolchain_matrix, simulate_eda_consistency, simulate_hmi_screens, simulate_oee_metrics, simulate_spc_metrics, simulate_health_check, simulate_product_trace, simulate_commissioning_checklist, simulate_plc_download, simulate_plc_monitor, simulate_ecosystem_contract, simulate_robot_handshake, simulate_digital_twin, simulate_dependency_diagnosis
+from zhinen_pm.engineering import validate_capability, list_capabilities, simulation_evidence, build_plc_project, build_firmware_image, build_engineering_package, simulate_plc_runtime, simulate_motion_axis, simulate_vision_algorithm, simulate_edge_replay, validate_toolchain_matrix, simulate_eda_consistency, simulate_hmi_screens, simulate_oee_metrics, simulate_spc_metrics, simulate_health_check, simulate_product_trace, simulate_commissioning_checklist, simulate_plc_download, simulate_plc_monitor, simulate_ecosystem_contract, simulate_robot_handshake, simulate_digital_twin, simulate_dependency_diagnosis
 from zhinen_pm.ai_context import build_context
 from zhinen_pm.ai_suggestions import build_suggestion
 import threading
@@ -638,6 +638,13 @@ class PM0Tests(unittest.TestCase):
         self.assertEqual((first["result"], first["blockers"], first["traceHash"]), ("FAILED", ["Auto Cycle", "Safety"], second["traceHash"]))
         self.assertEqual(simulate_dependency_diagnosis({"A": ["A"]}, {"A": True}, "A")["cycle"], ["A", "A"])
         self.assertEqual(simulate_dependency_diagnosis(graph, {"Auto Cycle": True, "Station": True, "Servo": True, "Safety": True}, "Auto Cycle")["result"], "PASSED")
+
+    def test_engineering_package_builds_are_deterministic_and_gated(self):
+        first = build_engineering_package("HMI-001", "screen Home -> Alarm", "HMI-SIM-1")
+        second = build_engineering_package("HMI-001", "screen Home -> Alarm", "HMI-SIM-1")
+        self.assertEqual((first["result"], first["artifactType"], first["buildHash"]), ("PASSED", "HMI", second["buildHash"]))
+        self.assertEqual(build_engineering_package("UNKNOWN", "x")["result"], "FAILED")
+        self.assertIn("unsafe_control_requires_manual_review", build_engineering_package("MOT-001", "UNSAFE_FORCE")["errors"])
 
     def test_commissioning_fat_sat_order_and_evidence_are_gated(self):
         sequence = ["24V", "Network", "EtherCAT", "IO", "Safety", "Servo", "Cylinder", "Vision", "Station", "Auto Cycle", "Burn-in"]

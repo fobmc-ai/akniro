@@ -448,6 +448,21 @@ def build_plc_project(source: str, toolchain_version: str = "SIMULATED-PLC-0.1")
     return {"result": "FAILED" if errors else "PASSED", "sourceHash": f"sha256:{source_hash}", "buildHash": f"sha256:{build_hash}", "toolchainVersion": toolchain_version, "errors": errors, "log": "PLC SIMULATED BUILD OK" if not errors else "PLC SIMULATED BUILD FAILED", "target": "SIMULATION"}
 
 
+def build_engineering_package(capability_id: str, source: str, toolchain_version: str = "SIMULATED-PACKAGE-0.1") -> dict[str, Any]:
+    """Build a deterministic non-PLC engineering package manifest."""
+    artifact_types = {"HMI-001": "HMI", "EDA-001": "EDA", "MOT-001": "MOTION", "VIS-001": "VISION", "ROB-001": "ROBOT", "EDGE-001": "EDGE"}
+    errors = []
+    if capability_id not in artifact_types:
+        errors.append("unsupported_package_capability")
+    if not isinstance(source, str) or not source.strip():
+        errors.append("empty_source")
+    if isinstance(source, str) and "UNSAFE_FORCE" in source:
+        errors.append("unsafe_control_requires_manual_review")
+    source_hash = hashlib.sha256((source if isinstance(source, str) else "").encode("utf-8")).hexdigest()
+    build_hash = hashlib.sha256(f"{capability_id}:{source_hash}:{toolchain_version}".encode("utf-8")).hexdigest()
+    return {"result": "FAILED" if errors else "PASSED", "capabilityId": capability_id, "artifactType": artifact_types.get(capability_id, "PACKAGE"), "sourceHash": f"sha256:{source_hash}", "buildHash": f"sha256:{build_hash}", "toolchainVersion": toolchain_version, "errors": errors, "deterministic": True, "target": "SIMULATION", "log": "ENGINEERING PACKAGE BUILD OK" if not errors else "ENGINEERING PACKAGE BUILD FAILED"}
+
+
 def simulate_plc_download(*, artifact_id: str, artifact_hash: str, artifact_status: str, target_machine_id: str, approval_id: str | None, rollback_revision: str | None) -> dict[str, Any]:
     """Create a deterministic download manifest without touching a controller."""
     errors = []

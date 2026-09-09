@@ -8,7 +8,7 @@ from urllib.parse import parse_qs, urlparse
 
 from .store import ProjectStore
 from .authorization import Actor, authorize
-from .engineering import list_capabilities, validate_capability, simulation_evidence, build_plc_project, build_firmware_image, simulate_plc_runtime, validate_toolchain_matrix, simulate_plc_download, simulate_plc_monitor, simulate_digital_twin, simulate_dependency_diagnosis
+from .engineering import list_capabilities, validate_capability, simulation_evidence, build_plc_project, build_firmware_image, build_engineering_package, simulate_plc_runtime, validate_toolchain_matrix, simulate_plc_download, simulate_plc_monitor, simulate_digital_twin, simulate_dependency_diagnosis
 from .ai_context import build_context
 from .ai_suggestions import build_suggestion
 
@@ -345,6 +345,29 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                         issue = store.create_entity(entity_id=body.get("issueId", f"ISSUE-{run_id}"), entity_type="issue", project_id=project_id, tenant_id=body["tenantId"], title="PLC build failed", owner_id=body["actorId"], payload={"sourceTestRunId": run_id, "evidenceId": evidence_id, "evidenceLinks": [evidence_id], "capabilityId": "PLC-001", "errors": build["errors"]})
                         store.link_entities(project_id=project_id, from_id=issue["id"], to_id=evidence_id, link_type="diagnosed_by", actor_id=body["actorId"])
                         store.notify_project_owner(project_id=project_id, kind="build_failed", message=f"PLC build failed: {issue['id']}", correlation_id=run_id)
+                    return self._send(201, {"build": build, "artifact": store.get_artifact_manifest(body["artifactId"]), "testRun": store.get_entity(run_id), "evidence": store.get_entity(evidence_id), "issue": issue})
+                if path.startswith("/api/projects/") and path.endswith("/builds/engineering"):
+                    project_id = path.split("/")[3]
+                    self._authorize(body, "MODIFY", project_id)
+                    build = build_engineering_package(body["capabilityId"], body.get("source", ""), body.get("toolchainVersion", "SIMULATED-PACKAGE-0.1"))
+                    artifact = store.create_artifact_manifest(artifact_id=body["artifactId"], project_id=project_id, artifact_type=build["artifactType"], source_uri=body.get("sourceUri", "inline://engineering-package"), content_hash=build["buildHash"], artifact_revision=body.get("artifactRevision", "r1"), toolchain_version=build["toolchainVersion"], target_environment="SIMULATION", sensitivity=body.get("sensitivity", "INTERNAL"), owner_id=body["actorId"])
+                    run_id = body.get("testRunId", f"{body['artifactId']}-BUILD-RUN")
+                    evidence_id = body.get("evidenceId", f"{body['artifactId']}-BUILD-EVIDENCE")
+                    run = store.create_entity(entity_id=run_id, entity_type="test_run", project_id=project_id, tenant_id=body["tenantId"], title=f"{body['capabilityId']} simulated package build", owner_id=body["actorId"], payload=build)
+                    evidence = store.create_entity(entity_id=evidence_id, entity_type="evidence", project_id=project_id, tenant_id=body["tenantId"], title=f"{body['capabilityId']} package build evidence", owner_id=body["actorId"], payload={**build, "evidenceType": "BUILD_RESULT"})
+                    store.transition(entity_id=run_id, target="RUNNING", actor_id=body["actorId"], expected_revision=1)
+                    if build["result"] == "PASSED":
+                        store.transition(entity_id=run_id, target="PASSED", actor_id=body["actorId"], expected_revision=2)
+                        store.transition(entity_id=evidence_id, target="VALIDATED", actor_id=body["actorId"], expected_revision=1)
+                        store.transition_artifact(artifact_id=artifact["id"], target="BUILT", actor_id=body["actorId"])
+                        store.transition_artifact(artifact_id=artifact["id"], target="TESTED", actor_id=body["actorId"])
+                    else:
+                        store.transition(entity_id=run_id, target="FAILED", actor_id=body["actorId"], expected_revision=2)
+                    issue = None
+                    if build["result"] != "PASSED":
+                        issue = store.create_entity(entity_id=body.get("issueId", f"ISSUE-{run_id}"), entity_type="issue", project_id=project_id, tenant_id=body["tenantId"], title=f"{body['capabilityId']} package build failed", owner_id=body["actorId"], payload={"sourceTestRunId": run_id, "evidenceId": evidence_id, "evidenceLinks": [evidence_id], "capabilityId": body["capabilityId"], "errors": build["errors"]})
+                        store.link_entities(project_id=project_id, from_id=issue["id"], to_id=evidence_id, link_type="diagnosed_by", actor_id=body["actorId"])
+                        store.notify_project_owner(project_id=project_id, kind="build_failed", message=f"{body['capabilityId']} package build failed: {issue['id']}", correlation_id=run_id)
                     return self._send(201, {"build": build, "artifact": store.get_artifact_manifest(body["artifactId"]), "testRun": store.get_entity(run_id), "evidence": store.get_entity(evidence_id), "issue": issue})
                 if path.startswith("/api/projects/") and path.endswith("/builds/firmware"):
                     project_id = path.split("/")[3]
