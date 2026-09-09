@@ -27,6 +27,7 @@
 - Deployment Request 已纳入管理中心，服务端强制 Release 角色授权、目标机器/环境、签名、健康检查、观察窗口和回滚路径；AI 无部署权限。
 - AI 上下文对 Deployment Request 仅允许 `CONFIRMED` 记录进入，待授权/执行/观察对象默认过滤。
 - Machine Commit 将 Machine Snapshot、已测试 Artifact、branch、parent 和 rollback commit 绑定，并生成确定性 commit hash。
+- Artifact Manifest 增加持久化 revision 与 expectedRevision 冲突保护，旧数据库自动补列。
 - 备份提供恢复校验：完整性、核心表、项目、审计/Outbox/权限相关计数和 revision 一致性必须全部通过。
 - Web 审计页支持创建备份后立即执行恢复校验并显示结果。
 - 验证/PLC/Firmware 构建失败会向项目 Owner 发送可去重的通知，通知关联 Test Run/构建 Run correlation ID。

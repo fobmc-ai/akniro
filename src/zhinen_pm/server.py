@@ -341,7 +341,7 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                     artifact = store.get_artifact_manifest(artifact_id)
                     action = "APPROVE" if body["target"] == "APPROVED" else "MODIFY"
                     self._authorize(body, action, artifact["project_id"])
-                    return self._send(200, store.transition_artifact(artifact_id=artifact_id, target=body["target"], actor_id=body["actorId"]))
+                    return self._send(200, store.transition_artifact(artifact_id=artifact_id, target=body["target"], actor_id=body["actorId"], expected_revision=body.get("expectedRevision")))
                 return self._send(404, {"code": "PM-NOT-FOUND", "message": "route not found"})
             except KeyError as exc:
                 return self._send(400, {"code": "PM-REQUEST-001", "message": f"missing field: {exc.args[0]}"})

@@ -30,6 +30,7 @@
 - 增加 Deployment Request 状态机与 Web 入口，隔离发布批准和现场部署授权。
 - AI 上下文过滤未确认部署请求，避免将待执行变更误作为现场事实。
 - 增加 Machine Commit，绑定机器快照、已测试资产、分支、父提交和回滚提交。
+- Artifact Manifest 增加 revision 迁移与并发状态迁移保护。
 - 增加备份恢复校验接口，验证完整性、核心表、项目、审计/Outbox 和 revision 一致性。
 - 审计页面接入“创建并校验备份”一键流程。
 - 验证和构建失败接入项目 Owner 通知链，并以 Run ID 做幂等去重。

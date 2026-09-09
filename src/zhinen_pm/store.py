@@ -111,6 +111,9 @@ class ProjectStore:
         CREATE INDEX IF NOT EXISTS idx_sync_project ON sync_queue(project_id, status);
         CREATE INDEX IF NOT EXISTS idx_machine_project ON machine_objects(project_id, object_type);
         """)
+        artifact_columns = {row[1] for row in self.db.execute("PRAGMA table_info(artifact_manifests)")}
+        if "revision" not in artifact_columns:
+            self.db.execute("ALTER TABLE artifact_manifests ADD COLUMN revision INTEGER NOT NULL DEFAULT 1")
         self.db.commit()
 
     def _audit(self, tenant_id: str, project_id: str | None, actor_id: str, action: str, target_id: str, outcome: str, details: dict[str, Any]) -> None:
@@ -375,7 +378,7 @@ class ProjectStore:
         if not self.db.execute("SELECT 1 FROM projects WHERE id = ?", (project_id,)).fetchone():
             raise KeyError(f"unknown project: {project_id}")
         timestamp = now()
-        self.db.execute("INSERT INTO artifact_manifests VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'DRAFT', ?)", (artifact_id, project_id, artifact_type, source_uri, content_hash, artifact_revision, toolchain_version, target_environment, sensitivity, owner_id, timestamp))
+        self.db.execute("INSERT INTO artifact_manifests (id, project_id, artifact_type, source_uri, content_hash, artifact_revision, toolchain_version, target_environment, sensitivity, owner_id, status, created_at, revision) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'DRAFT', ?, 1)", (artifact_id, project_id, artifact_type, source_uri, content_hash, artifact_revision, toolchain_version, target_environment, sensitivity, owner_id, timestamp))
         self.db.commit()
         return self.get_artifact_manifest(artifact_id)
 
@@ -385,12 +388,17 @@ class ProjectStore:
             raise KeyError(f"unknown artifact: {artifact_id}")
         return dict(row)
 
-    def transition_artifact(self, *, artifact_id: str, target: str, actor_id: str, expected_revision: int = 1) -> dict[str, Any]:
+    def transition_artifact(self, *, artifact_id: str, target: str, actor_id: str, expected_revision: int | None = None) -> dict[str, Any]:
         artifact = self.get_artifact_manifest(artifact_id)
         if artifact["status"] == target:
             return artifact
+        expected_revision = artifact["revision"] if expected_revision is None else expected_revision
+        if artifact["revision"] != expected_revision:
+            raise RuntimeError("PM-CONFLICT-001: artifact revision conflict")
         assert_transition("artifact", artifact["status"], target)
-        self.db.execute("UPDATE artifact_manifests SET status = ? WHERE id = ? AND status = ?", (target, artifact_id, artifact["status"]))
+        cursor = self.db.execute("UPDATE artifact_manifests SET status = ?, revision = revision + 1 WHERE id = ? AND status = ? AND revision = ?", (target, artifact_id, artifact["status"], expected_revision))
+        if cursor.rowcount != 1:
+            raise RuntimeError("PM-CONFLICT-001: artifact revision conflict")
         project = self.db.execute("SELECT tenant_id FROM projects WHERE id = ?", (artifact["project_id"],)).fetchone()
         self._audit(project["tenant_id"] if project else "", artifact["project_id"], actor_id, "artifact.transition", artifact_id, "success", {"from": artifact["status"], "to": target})
         self.db.commit()
