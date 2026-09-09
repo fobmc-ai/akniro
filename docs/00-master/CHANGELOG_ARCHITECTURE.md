@@ -75,3 +75,4 @@
 - PLC-002 在线监视快照支持可选 Test Run/Evidence 自动留存，正常和故障结果分别进入验证或问题追踪链。
 - HMI/EDA/Motion/Vision/Robot/Edge 新增统一确定性工程包构建接口，构建资产、测试证据、失败问题和通知进入同一闭环。
 - 验收报告新增 `softwareReady`/`releaseReady` 双状态，清晰区分软件范围完成与 Release 安全门禁完成。
+- 验收报告进一步拆分 `softwareReady`、`dataReady`、`releaseReady`，避免真实生态数据 Placeholder 影响软件契约完成度判断。

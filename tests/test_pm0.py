@@ -197,7 +197,7 @@ class PM0Tests(unittest.TestCase):
             report = store.acceptance_report("P-001")
             self.assertEqual(report["summary"]["workPackages"], 0)
             self.assertEqual((report["summary"]["openIssues"], report["summary"]["closedIssues"]), (0, 0))
-            self.assertEqual((report["summary"]["softwareReady"], report["summary"]["releaseReady"]), (False, False))
+            self.assertEqual((report["summary"]["softwareReady"], report["summary"]["dataReady"], report["summary"]["releaseReady"]), (False, False, False))
             self.assertFalse(report["releaseGates"][0]["ready"])
             self.assertGreaterEqual(report["auditCount"], 1)
             store.close()
