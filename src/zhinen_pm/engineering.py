@@ -160,6 +160,9 @@ def simulation_evidence(capability_id: str, payload: dict[str, Any]) -> dict[str
     result["evidenceType"] = "SIMULATION_RESULT"
     result["deterministic"] = True
     result["testPlan"] = f"{capability_id}:golden-validation"
+    import json
+    stable_result = {key: value for key, value in result.items() if key not in {"validatedAt", "validationHash"}}
+    result["validationHash"] = "sha256:" + hashlib.sha256(json.dumps(stable_result, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
     return result
 
 
