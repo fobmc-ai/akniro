@@ -169,6 +169,8 @@ PM-0 的对象、状态机、权限矩阵、API envelope 和事件目录见 [`PM
 
 当前已开始 PM-0 实现：`src/zhinen_pm/` 提供状态机、权限和 SQLite 项目/实体/审计存储；完整 Web API 和 UI 将在该契约之上逐步接入。
 
+当前 Web MVP 已接入总纲实施路线、质量对象、工具验证、工程资产、参数快照、知识库和发布维护对象；暂未接入真实 PLC/HMI/固件/现场设备的记录以显式 Placeholder 或模拟样例表示，不能作为发布或部署证据。
+
 PLC、HMI、固件、工程参数和现场同步不直接写入项目任务表，统一遵守 [`ENGINEERING_ASSET_SYNC.md`](ENGINEERING_ASSET_SYNC.md) 的 Artifact/Control Metadata/Runtime Fact 分层。
 
 总纲中的长期能力通过 [`IMPLEMENTATION_BACKLOG.md`](IMPLEMENTATION_BACKLOG.md) 映射为带 ID 的 Work Package，在管理软件中逐项实现和验证。没有真实数据的能力使用显式 Placeholder，后续以新 revision 回填。
