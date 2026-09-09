@@ -353,6 +353,17 @@ class ProjectStore:
             raise KeyError(f"unknown artifact: {artifact_id}")
         return dict(row)
 
+    def transition_artifact(self, *, artifact_id: str, target: str, actor_id: str, expected_revision: int = 1) -> dict[str, Any]:
+        artifact = self.get_artifact_manifest(artifact_id)
+        if artifact["status"] == target:
+            return artifact
+        assert_transition("artifact", artifact["status"], target)
+        self.db.execute("UPDATE artifact_manifests SET status = ? WHERE id = ? AND status = ?", (target, artifact_id, artifact["status"]))
+        project = self.db.execute("SELECT tenant_id FROM projects WHERE id = ?", (artifact["project_id"],)).fetchone()
+        self._audit(project["tenant_id"] if project else "", artifact["project_id"], actor_id, "artifact.transition", artifact_id, "success", {"from": artifact["status"], "to": target})
+        self.db.commit()
+        return self.get_artifact_manifest(artifact_id)
+
     def list_artifact_manifests(self, project_id: str) -> list[dict[str, Any]]:
         return [dict(row) for row in self.db.execute("SELECT * FROM artifact_manifests WHERE project_id = ? ORDER BY created_at", (project_id,))]
 

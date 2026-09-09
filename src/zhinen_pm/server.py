@@ -209,8 +209,8 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                     if build["result"] == "PASSED":
                         store.transition(entity_id=run_id, target="PASSED", actor_id=body["actorId"], expected_revision=2)
                         store.transition(entity_id=evidence_id, target="VALIDATED", actor_id=body["actorId"], expected_revision=1)
-                        store.transition(entity_id=artifact["id"], target="BUILT", actor_id=body["actorId"], expected_revision=1)
-                        store.transition(entity_id=artifact["id"], target="TESTED", actor_id=body["actorId"], expected_revision=2)
+                        store.transition_artifact(artifact_id=artifact["id"], target="BUILT", actor_id=body["actorId"])
+                        store.transition_artifact(artifact_id=artifact["id"], target="TESTED", actor_id=body["actorId"])
                         if body.get("releaseId"):
                             store.link_entities(project_id=project_id, from_id=body["releaseId"], to_id=evidence_id, link_type="requires")
                     else:
