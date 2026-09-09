@@ -12,6 +12,8 @@ PM-0 also includes organization isolation, state machines, environment promotion
 
 PM-0 domain objects, state machines, permissions, APIs and events are frozen in [`PM0_CONTRACTS.md`](PM0_CONTRACTS.md) before database, service or UI implementation.
 
+Engineering artifact, progress, parameter and Edge synchronization follows [`ENGINEERING_ASSET_SYNC.md`](ENGINEERING_ASSET_SYNC.md); live control data remains outside the management plane.
+
 ## Delivery phases
 
 | Phase | Focus | Classification |

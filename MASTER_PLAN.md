@@ -39,6 +39,8 @@ AI 负责理解、生成、检查、解释、诊断、优化和提出变更；PL
 
 管理软件的 PM-0 领域对象、状态机、权限、API 和事件契约已单独冻结，见 [`PM0_CONTRACTS.md`](PM0_CONTRACTS.md)。
 
+PLC、HMI、Firmware、设备包、开发进度和现场参数通过 Artifact/Control Metadata/Runtime Fact 三层同步，管理软件不直接写实时控制数据，详见 [`ENGINEERING_ASSET_SYNC.md`](ENGINEERING_ASSET_SYNC.md)。
+
 ## 4. 统一 Machine Model / Machine DNA
 
 对象结构为 `Machine → Station → Module → Cylinder/Vacuum/Sensor/Axis/Vision`。每个工业对象可携带 Tag、IO、PLC 逻辑、HMI、参数、报警、Recipe、运动能力、电气连接、仿真、测试、诊断、维护、历史、文档和 AI 语义。

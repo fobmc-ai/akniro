@@ -168,3 +168,5 @@ PM-0 必须先完成，PM-1 才能开始；PM-3 之前不接现场部署；PM-5 
 PM-0 的对象、状态机、权限矩阵、API envelope 和事件目录见 [`PM0_CONTRACTS.md`](PM0_CONTRACTS.md)。数据库、后端和前端实现必须先通过这些契约测试。
 
 当前已开始 PM-0 实现：`src/zhinen_pm/` 提供状态机、权限和 SQLite 项目/实体/审计存储；完整 Web API 和 UI 将在该契约之上逐步接入。
+
+PLC、HMI、固件、工程参数和现场同步不直接写入项目任务表，统一遵守 [`ENGINEERING_ASSET_SYNC.md`](ENGINEERING_ASSET_SYNC.md) 的 Artifact/Control Metadata/Runtime Fact 分层。
