@@ -244,5 +244,15 @@
       }
     })();
   </script>
+  <script>
+    (() => {
+      const priorShowView = window.showView;
+      window.showView = async function(view, project) { if (view === 'readiness') return showContractReadiness(project); return priorShowView(view, project); };
+      async function showContractReadiness(project) {
+        const data = await (await fetch('/api/projects/' + project.id + '/readiness')).json();
+        el.innerHTML = `<h2>实施就绪状态</h2><p class="muted">同时检查依赖和工作包交付契约；Placeholder 可用于规划，但不能替代真实验收证据。</p><div class="panel"><table><thead><tr><th>工作包</th><th>状态</th><th>整体</th><th>契约</th><th>缺失项</th><th>依赖阻塞</th></tr></thead><tbody>${(data.items || []).map(item => `<tr><td>${item.id}</td><td>${item.status}</td><td class="${item.ready ? 'status' : 'warning'}">${item.ready ? '可就绪' : '阻塞'}</td><td class="${item.contractReady ? 'status' : 'warning'}">${item.contractReady ? '完整' : '不完整'}</td><td>${(item.contractMissing || []).join('、') || '—'}</td><td>${(item.blockedBy || []).filter(value => !value.startsWith('contract:')).join('、') || '—'}</td></tr>`).join('') || '<tr><td colspan="6">暂无工作包</td></tr>'}</tbody></table></div>`;
+      }
+    })();
+  </script>
 </body>
 </html>
