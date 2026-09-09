@@ -72,6 +72,7 @@
 - `POST /api/projects/{projectId}/backlog/reconcile-source`：由服务端读取受控的 `examples/implementation-backlog.json` 并执行同一回填闭环，避免客户端传入未经审计的规划数据；
 - `GET /api/projects/{projectId}/capability-readiness`：按能力 ID 汇总 VALIDATED Evidence 覆盖情况；验收报告同时返回该矩阵；
 - 验收报告 summary 同时提供 `openIssues` / `closedIssues`，用于确认失败验证是否已经完成 CAPA 收敛；
+- 验收报告 summary 同时提供 `softwareReady` 与 `releaseReady`：前者只表示总纲工作包和软件门禁完成，后者还必须满足 Release 人工审批、签名、SBOM、回滚和版本元数据等条件，避免把软件完成误报为可发布。
 - 工程资产、参数和现场写入仍必须经 Artifact/Edge owner API、审批、回读和审计。
 
 真实工具插件接入时，只替换 capability adapter，不改变项目对象、测试证据、Release 和安全边界。

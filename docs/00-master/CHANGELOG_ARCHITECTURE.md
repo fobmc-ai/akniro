@@ -74,3 +74,4 @@
 - Runtime/Alarm 诊断新增有界依赖图回放，输出阻塞链、循环依赖、启动许可和稳定 hash，支持管理中心解释“为什么不能启动”。
 - PLC-002 在线监视快照支持可选 Test Run/Evidence 自动留存，正常和故障结果分别进入验证或问题追踪链。
 - HMI/EDA/Motion/Vision/Robot/Edge 新增统一确定性工程包构建接口，构建资产、测试证据、失败问题和通知进入同一闭环。
+- 验收报告新增 `softwareReady`/`releaseReady` 双状态，清晰区分软件范围完成与 Release 安全门禁完成。
