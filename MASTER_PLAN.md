@@ -27,7 +27,13 @@ AI 负责理解、生成、检查、解释、诊断、优化和提出变更；PL
 9. **Edge First / Cloud Optional**：核心工业能力离线可用，云端不能成为机器运行的硬依赖。
 10. **最小上下文**：Codex/AI 只读取完成任务所需的最小上下文，禁止无目的扫描整个项目。
 
-## 3. 统一 Machine Model / Machine DNA
+## 3. 工程项目管理软件
+
+织能配套建设独立的 Engineering Project Management Plane（暂定名 Zhinen Engineering Control Center），用于管理平台研发项目和客户机器工程项目的需求、任务、ADR、问题、测试证据、版本、审批、发布和交付。它属于上层 Control Plane，不直接执行 PLC、Motion、Safety、EtherCAT 或 IO 控制，也不复制 Machine Project、Tag、Device、Alarm、Recipe 和 Runtime Data 的 canonical 数据。
+
+管理软件与机器平台通过 Query、Command、Event 和不可变 revision 引用协同；第一版先做对象、状态机、权限、审计、追溯和离线同步契约，再做 UI、发布和 AI 上下文。详细范围、对象 owner、MVP 和验收标准见 [`PROJECT_MANAGEMENT_PLATFORM.md`](PROJECT_MANAGEMENT_PLATFORM.md)。
+
+## 4. 统一 Machine Model / Machine DNA
 
 对象结构为 `Machine → Station → Module → Cylinder/Vacuum/Sensor/Axis/Vision`。每个工业对象可携带 Tag、IO、PLC 逻辑、HMI、参数、报警、Recipe、运动能力、电气连接、仿真、测试、诊断、维护、历史、文档和 AI 语义。
 
@@ -35,7 +41,7 @@ Machine DNA 记录某台真实设备在某个时间点的 Hardware、Firmware、
 
 长期目标是让 `PLC FB = HMI Widget = Alarm Template = Parameter Template = Diagnostic Template`。例如 `Motor01:ServoAxis` 可自动派生运行、停止、JOG、位置、速度、报警、复位、参数、趋势和诊断能力。
 
-## 4. 工程能力路线
+## 5. 工程能力路线
 
 ### PLC IDE 与编译链
 
@@ -71,7 +77,7 @@ EDA 与 Machine Model 共享数据，逐步覆盖 PLC/IO/电源/断路器/端子
 
 建立品牌无关的 `Pick / Place / Move / Inspect / Dispense` Capability，长期支持轨迹、避障、视觉抓取、自动握手、PLC/Robot 统一流程和数字孪生验证。
 
-## 5. AI 原生工程与安全治理
+## 6. AI 原生工程与安全治理
 
 输入需求文档、电气图、IO 表、动作流程和设备清单后，AI 可辅助生成变量、设备对象、PLC 框架、HMI、报警、参数、Recipe 和调试清单。自然语言或手动示教可生成 Sequence/State Machine，并自动补充 Timeout、Alarm、Pause、Recovery、Manual 和 Reset，再进入审核和确定性控制逻辑。
 
@@ -79,7 +85,7 @@ EDA 与 Machine Model 共享数据，逐步覆盖 PLC/IO/电源/断路器/端子
 
 权限至少包含 `READ / SUGGEST / MODIFY / SIMULATE / DEPLOY / FORCE`。所有 AI 动作写入 Audit Log；涉及 PLC、Motion、EtherCAT、Safety 或 IO 的部署必须有人批准。AI 永远不能直接 Force IO 或部署危险控制逻辑。
 
-## 6. 仿真、测试与质量门禁
+## 7. 仿真、测试与质量门禁
 
 第一阶段优先建设 Logical Digital Twin，不急于复杂 3D。模拟气缸、传感器、轴、真空、产品和相机。标准对象/FB 必须有 Unit Test，机器必须有 Integration Test；故障注入覆盖传感器不到位、伺服报警、EtherCAT 掉线、相机超时、急停、断电和通讯异常。
 
@@ -87,7 +93,7 @@ EDA 与 Machine Model 共享数据，逐步覆盖 PLC/IO/电源/断路器/端子
 
 `Commit → Compile → Static Analysis → Unit Test → Simulation → Safety Rules → Regression → Review → Release`
 
-## 7. 调试、运行与生命周期
+## 8. 调试、运行与生命周期
 
 Commissioning 自动通电流程为：`24V → Network → EtherCAT → IO → Safety → Servo → Cylinder → Vision → Station → Auto Cycle → Burn-in`。支持自动 IO 点检、错线检测和调试报告。
 
@@ -97,7 +103,7 @@ Runtime 保存故障前后的 Tag、IO、轴、报警和状态机信息，后续
 
 Product ID 关联 Recipe、Machine、PLC State、Vision、Measurement、Image、Process Parameters 和 Timestamp，支持 SPC、漂移分析和 NG 关联。一个 Product Recipe 统一 PLC、HMI、Motion、Vision、Feeder 和 Robot，实现一次换型。
 
-## 8. Machine Git、Edge 与企业知识
+## 9. Machine Git、Edge 与企业知识
 
 一次 Machine Commit 包含 PLC、HMI、Vision、Servo、EtherCAT、Recipe、EDA、BOM 和 Firmware，支持 Diff、Rollback、Branch 和 Release。Golden Machine 用于比较同型设备，Machine Diff 用于解释“同样两台机器为什么表现不同”。
 
@@ -107,7 +113,7 @@ Product ID 关联 Recipe、Machine、PLC State、Vision、Measurement、Image、
 
 正常状态低频或摘要保存，异常时提高采样率并保存故障前后的高频窗口。实时数据留在本地，历史数据保存在 Edge，需要的摘要再上 Cloud；敏感程序可以永不离开现场。通过 Machine Graph/Dependency Graph（如 `Y20 → KM3 → Servo Enable → Axis → Station`）为 AI 提供问题相关对象，降低 Token、延迟和误判。
 
-## 9. 方案、报价、验收与优化
+## 10. 方案、报价、验收与优化
 
 方案链覆盖需求 → 选型 → BOM → 成本 → 毛利 → 报价 → 技术方案 → 交期，并纳入新工艺、超高良率和短交期等风险价格。Requirement ID 关联设计、PLC 逻辑、IO、Test Case 和 FAT Result。
 
@@ -117,7 +123,7 @@ Product ID 关联 Recipe、Machine、PLC State、Vision、Measurement、Image、
 
 旧设备方向包括老程序分析、IO 还原、逻辑重构和旧 PLC/HMI 工程迁移。长期支持跨品牌迁移：能等价转换的自动转换，不能等价的生成 Migration Report；更换 PLC、驱动器或相机后可恢复最后稳定的程序、参数、ROI、模板和 Calibration。
 
-## 10. 商业与生态路线
+## 11. 商业与生态路线
 
 短期可销售：AI 工业工程工具箱、自动选型报价、程序分析、IO 调试、黑匣子、Machine Diff、自动备份、设备体检、Edge 盒子和远程维护。
 
@@ -125,7 +131,7 @@ Product ID 关联 Recipe、Machine、PLC State、Vision、Measurement、Image、
 
 未来生态包括 Device Package、Servo Module、Vision 算法、Machine Template 和行业模板市场，以及在客户明确授权和隐私隔离前提下的 Fleet Learning。不得默认上传客户敏感程序。
 
-## 11. 分阶段交付路线
+## 12. 分阶段交付路线
 
 | 阶段 | 目标 | 主要交付 |
 |---|---|---|
@@ -140,7 +146,7 @@ Product ID 关联 Recipe、Machine、PLC State、Vision、Measurement、Image、
 
 与 V0.1 Roadmap 的对应关系：当前处于 Phase 0；Phase 1–2 属于后续 A 类实现；Phase 3–7 先定义契约并作为 B/C 类路线，不得无 ADR 直接实现。
 
-## 12. 当前阶段禁止事项
+## 13. 当前阶段禁止事项
 
 - 不要一开始做完整 3D 数字孪生或同时支持大量 PLC 品牌。
 - 不要先做漂亮 UI 再补数据模型。
@@ -153,7 +159,7 @@ Product ID 关联 Recipe、Machine、PLC State、Vision、Measurement、Image、
 - 不要把云端作为机器运行的硬依赖。
 - 不要把客户程序云、远程维护、视觉等发展成互不相干的孤岛。
 
-## 13. Codex 与团队工作规则
+## 14. Codex 与团队工作规则
 
 1. 开始任务前先读本总纲及当前模块 README、ADR、API 契约。
 2. 明确任务边界、影响模块和验收条件后再修改。
@@ -168,7 +174,7 @@ Product ID 关联 Recipe、Machine、PLC State、Vision、Measurement、Image、
 11. 临时代码必须标注 TECH_DEBT 和移除条件。
 12. 每个里程碑保持项目可编译、可测试、可回滚。
 
-## 14. 与现有架构决策的关系
+## 15. 与现有架构决策的关系
 
 - [ADR-0001](ADR-0001-platform-foundation.md) 固化分层、Edge Autonomous、Contract First、Machine Project 和 Control/Data Plane。
 - [ADR-0002](ADR-0002-ai-change-gates.md) 固化 AI 的 Read → Suggest → Patch → Test → Apply → Deploy 门禁。

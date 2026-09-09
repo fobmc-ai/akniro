@@ -6,9 +6,10 @@
 2. **Realtime Runtime:** PLC scan, motion, robot coordination, safety boundary, deterministic IO and time.
 3. **Core Platform:** object model, tags, device registry, alarms, recipes, event bus, historian, workflow, rules, resources, capabilities.
 4. **Engineering Plane:** project editor, PLC IDE, HMI designer, vision/motion studios, simulation, validation, deployment.
-5. **Operations Plane:** HMI, SCADA, reports, dashboards, MES/QMS/WMS/EAM/EMS/APS applications.
-6. **AI Plane:** indexing, machine context, assistants, policy enforcement, model gateway, evaluation, audit.
-7. **Cloud/Enterprise:** fleet, identity federation, sync, remote access, OTA, analytics, tenant administration.
+5. **Engineering Project Management Plane:** requirements, work items, ADRs, issues, test evidence, release, approval, collaboration, and AI context scope.
+6. **Operations Plane:** HMI, SCADA, reports, dashboards, MES/QMS/WMS/EAM/EMS/APS applications.
+7. **AI Plane:** indexing, machine context, assistants, policy enforcement, model gateway, evaluation, audit.
+8. **Cloud/Enterprise:** fleet, identity federation, sync, remote access, OTA, analytics, tenant administration.
 
 ## Control Plane and Data Plane
 
@@ -26,4 +27,5 @@ The Control Plane owns desired configuration, identity, policy, lifecycle, deplo
 - Domain Core MUST NOT own UI state or vendor-specific transport details.
 - Apps MUST consume capabilities and contracts, not inspect files or assume installed modules.
 - Drivers MUST be replaceable and must not own canonical domain records.
+- Project Management MUST manage references, approvals, and evidence; it MUST NOT own runtime facts or duplicate domain records.
 

@@ -6,6 +6,8 @@ The repository is currently at **Phase 0 — Foundation**. The complete long-ter
 
 The Phase 0 gate is defined in [`FOUNDATION_CONTRACT.md`](FOUNDATION_CONTRACT.md), with cross-module coordination in [`DATA_INTERACTION_CONTRACT.md`](DATA_INTERACTION_CONTRACT.md) and problem/change handling in [`CHANGE_CONTROL_RULES.md`](CHANGE_CONTROL_RULES.md).
 
+The separate engineering project management plane is defined in [`PROJECT_MANAGEMENT_PLATFORM.md`](PROJECT_MANAGEMENT_PLATFORM.md). Its PM-0 contract work must precede UI and full collaboration features.
+
 ## Delivery phases
 
 | Phase | Focus | Classification |

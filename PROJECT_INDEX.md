@@ -6,6 +6,8 @@
 
 Phase 0 implementation gate: `FOUNDATION_CONTRACT.md`、`DATA_INTERACTION_CONTRACT.md`、`CHANGE_CONTROL_RULES.md`。
 
+工程项目管理软件规划：`PROJECT_MANAGEMENT_PLATFORM.md`、`ADR-0007-project-management-plane.md`。
+
 当前代码骨架：`src/zhinen_foundation/`；契约测试：`tests/`；示例和校验入口：`examples/`、`tools/`。
 
 This file is the low-cost navigation index for Codex. Read the smallest relevant entries before opening full documents.
