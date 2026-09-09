@@ -12,7 +12,7 @@ from zhinen_pm.authorization import Actor, AuthorizationError, authorize
 from zhinen_pm.state_machine import InvalidTransition, assert_transition
 from zhinen_pm.store import ProjectStore
 from zhinen_pm.server import create_server
-from zhinen_pm.engineering import validate_capability, list_capabilities, simulation_evidence, build_plc_project, build_firmware_image, simulate_plc_runtime, simulate_motion_axis, simulate_vision_algorithm, simulate_edge_replay, validate_toolchain_matrix, simulate_eda_consistency, simulate_hmi_screens, simulate_oee_metrics, simulate_spc_metrics, simulate_health_check, simulate_product_trace, simulate_commissioning_checklist, simulate_plc_download, simulate_plc_monitor, simulate_ecosystem_contract, simulate_robot_handshake, simulate_digital_twin
+from zhinen_pm.engineering import validate_capability, list_capabilities, simulation_evidence, build_plc_project, build_firmware_image, simulate_plc_runtime, simulate_motion_axis, simulate_vision_algorithm, simulate_edge_replay, validate_toolchain_matrix, simulate_eda_consistency, simulate_hmi_screens, simulate_oee_metrics, simulate_spc_metrics, simulate_health_check, simulate_product_trace, simulate_commissioning_checklist, simulate_plc_download, simulate_plc_monitor, simulate_ecosystem_contract, simulate_robot_handshake, simulate_digital_twin, simulate_dependency_diagnosis
 from zhinen_pm.ai_context import build_context
 from zhinen_pm.ai_suggestions import build_suggestion
 import threading
@@ -629,6 +629,15 @@ class PM0Tests(unittest.TestCase):
         self.assertFalse(first["controllerWrite"])
         self.assertEqual(simulate_digital_twin(state, "servo_alarm")["result"], "FAILED")
         self.assertEqual(simulate_digital_twin({})["reason"], "twin_state_incomplete")
+
+    def test_dependency_diagnosis_explains_blocking_chain_deterministically(self):
+        graph = {"Auto Cycle": ["Station", "Safety"], "Station": ["Servo"], "Servo": []}
+        states = {"Auto Cycle": False, "Station": True, "Servo": True, "Safety": False}
+        first = simulate_dependency_diagnosis(graph, states, "Auto Cycle")
+        second = simulate_dependency_diagnosis(graph, states, "Auto Cycle")
+        self.assertEqual((first["result"], first["blockers"], first["traceHash"]), ("FAILED", ["Auto Cycle", "Safety"], second["traceHash"]))
+        self.assertEqual(simulate_dependency_diagnosis({"A": ["A"]}, {"A": True}, "A")["cycle"], ["A", "A"])
+        self.assertEqual(simulate_dependency_diagnosis(graph, {"Auto Cycle": True, "Station": True, "Servo": True, "Safety": True}, "Auto Cycle")["result"], "PASSED")
 
     def test_commissioning_fat_sat_order_and_evidence_are_gated(self):
         sequence = ["24V", "Network", "EtherCAT", "IO", "Safety", "Servo", "Cylinder", "Vision", "Station", "Auto Cycle", "Burn-in"]

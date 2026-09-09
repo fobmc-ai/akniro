@@ -8,7 +8,7 @@ from urllib.parse import parse_qs, urlparse
 
 from .store import ProjectStore
 from .authorization import Actor, authorize
-from .engineering import list_capabilities, validate_capability, simulation_evidence, build_plc_project, build_firmware_image, simulate_plc_runtime, validate_toolchain_matrix, simulate_plc_download, simulate_plc_monitor, simulate_digital_twin
+from .engineering import list_capabilities, validate_capability, simulation_evidence, build_plc_project, build_firmware_image, simulate_plc_runtime, validate_toolchain_matrix, simulate_plc_download, simulate_plc_monitor, simulate_digital_twin, simulate_dependency_diagnosis
 from .ai_context import build_context
 from .ai_suggestions import build_suggestion
 
@@ -274,6 +274,10 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                     else:
                         store.transition(entity_id=run_id, target="FAILED", actor_id=body["actorId"], expected_revision=2)
                     return self._send(201, {"twin": twin, "testRun": store.get_entity(run_id), "evidence": store.get_entity(evidence_id)})
+                if path.startswith("/api/projects/") and path.endswith("/diagnostics/dependency"):
+                    project_id = path.split("/")[3]
+                    self._authorize(body, "READ", project_id)
+                    return self._send(200, simulate_dependency_diagnosis(body.get("graph", {}), body.get("states", {}), body.get("target", "")))
                 if path == "/api/engineering/toolchain-matrix":
                     return self._send(200, validate_toolchain_matrix(body.get("cases", [])))
                 if path.startswith("/api/projects/") and path.endswith("/toolchain-matrix"):

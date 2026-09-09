@@ -59,6 +59,7 @@
 - `LIFE-001`：生产指标、质量指标和维护流程统一进入生命周期验证，缺项会阻止软件验收证据通过；
 - ROB-001 提供确定性握手状态序列 `INIT → READY → START → DONE`、启动权限范围和通信/安全故障恢复检查；验证过程明确 `motionCommandIssued=false`，故障时安全停机。
 - `POST /api/projects/{projectId}/digital-twin/simulate`：重放 Logical Digital Twin 的气缸、传感器、轴、真空、产品和相机状态，支持传感器不到位、伺服报警、EtherCAT 掉线、相机超时、急停、断电和通讯异常注入；成功自动生成 QUAL-001 Test Run/Evidence，明确 `controllerWrite=false`。
+- `POST /api/projects/{projectId}/diagnostics/dependency`：按有界 Machine/Alarm Dependency Graph 确定性解析“为什么不能启动”，返回阻塞节点、循环依赖、启动许可和稳定 `traceHash`，不读取或写入实时控制器。
 - `COMM-001` 支持固定 FAT/SAT 调试顺序 `24V → Network → EtherCAT → IO → Safety → Servo → Cylinder → Vision → Station → Auto Cycle → Burn-in`，缺阶段、乱序或未通过证据均阻塞验收；
 - 生命周期模拟证据可选包含 `spc_values/spc_lower/spc_upper` 与 `health_signals/health_limits`，越界样本和健康信号会产生结构化失败原因并自动进入问题流程；
 - LIFE-001 支持 `product_trace` 记录 Product、Machine、Recipe、PLC State、Measurement、Parameters 和 Timestamp，并生成稳定 genealogy `traceHash`；字段不完整时阻塞验收。

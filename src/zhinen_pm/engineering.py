@@ -273,6 +273,43 @@ def simulate_digital_twin(state: dict[str, Any], fault: str | None = None) -> di
     return {"result": "FAILED" if errors else "PASSED", "errors": sorted(set(errors)), "fault": fault, "safeStop": bool(errors), "events": events, "traceHash": trace_hash, "deterministic": True, "realtimeSource": "SIMULATION", "controllerWrite": False}
 
 
+def simulate_dependency_diagnosis(graph: dict[str, list[str]], states: dict[str, bool], target: str) -> dict[str, Any]:
+    """Explain a start blocker from a bounded dependency graph without live IO access."""
+    if not isinstance(graph, dict) or not target or target not in graph or not isinstance(states, dict):
+        return {"result": "BLOCKED", "reason": "dependency_graph_invalid", "target": target, "blockers": [], "cycle": [], "deterministic": True}
+    visiting: list[str] = []
+    visited: set[str] = set()
+    blockers: set[str] = set()
+    cycle: list[str] = []
+
+    def visit(node: str) -> None:
+        nonlocal cycle
+        if node in visiting:
+            cycle = visiting[visiting.index(node):] + [node]
+            return
+        if node in visited:
+            return
+        visiting.append(node)
+        if states.get(node) is not True:
+            blockers.add(node)
+        for dependency in sorted(graph.get(node, [])):
+            if dependency not in graph:
+                if states.get(dependency) is not True:
+                    blockers.add(dependency)
+            else:
+                visit(dependency)
+        visiting.pop()
+        visited.add(node)
+
+    visit(target)
+    if cycle:
+        blockers.update(cycle)
+    import json
+    trace = {"graph": {key: sorted(value) for key, value in sorted(graph.items())}, "states": {key: states[key] for key in sorted(states)}, "target": target, "blockers": sorted(blockers), "cycle": cycle}
+    trace_hash = "sha256:" + hashlib.sha256(json.dumps(trace, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+    return {"result": "FAILED" if blockers else "PASSED", "target": target, "blockers": sorted(blockers), "cycle": cycle, "startAllowed": not blockers, "diagnosis": ";".join(sorted(blockers)) if blockers else "all_dependencies_ready", "traceHash": trace_hash, "deterministic": True}
+
+
 def validate_toolchain_matrix(cases: list[dict[str, Any]]) -> dict[str, Any]:
     rows = []
     for case in cases:
