@@ -362,6 +362,20 @@ class PM0Tests(unittest.TestCase):
                 build_context(store, project_id="P-001", object_ids=["REQ-001"] * 21, actor_id="AI-001")
             store.close()
 
+    def test_ai_context_excludes_unvalidated_operational_records(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = ProjectStore(Path(directory) / "pm.db")
+            store.create_project(project_id="P-001", tenant_id="T-001", name="Demo", kind="platform", owner_id="U-001")
+            draft_evidence = store.create_entity(entity_id="EV-DRAFT-AI", entity_type="evidence", project_id="P-001", tenant_id="T-001", title="Draft evidence", owner_id="U-001")
+            approved_knowledge = store.create_entity(entity_id="KB-APPROVED-AI", entity_type="knowledge", project_id="P-001", tenant_id="T-001", title="Approved knowledge", owner_id="U-001", payload={"source": "QA", "applicableVersion": "V0.1", "validationStatus": "VALIDATED", "testIds": ["TC-1"], "expiryCondition": "new release"})
+            store.transition(entity_id=approved_knowledge["id"], target="REVIEW", actor_id="U-001", expected_revision=1)
+            store.transition(entity_id=approved_knowledge["id"], target="VALIDATED", actor_id="U-001", expected_revision=2)
+            store.transition(entity_id=approved_knowledge["id"], target="APPROVED", actor_id="U-001", expected_revision=3)
+            context = build_context(store, project_id="P-001", object_ids=[draft_evidence["id"], approved_knowledge["id"]], actor_id="AI-001")
+            self.assertEqual([item["id"] for item in context["objects"]], ["KB-APPROVED-AI"])
+            self.assertEqual(context["omitted"][0]["id"], "EV-DRAFT-AI")
+            store.close()
+
     def test_artifact_manifest_requires_hash_and_preserves_engineering_metadata(self):
         with tempfile.TemporaryDirectory() as directory:
             store = ProjectStore(Path(directory) / "pm.db")
