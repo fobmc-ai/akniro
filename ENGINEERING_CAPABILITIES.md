@@ -13,6 +13,8 @@
 
 - `GET /api/engineering/capabilities`：列出能力、检查项和门禁；
 - `POST /api/engineering/validate`：提交 `{capabilityId, payload}`，返回 `PASSED`、`CONTRACT_PASSED` 或 `BLOCKED`；
+- `POST /api/engineering/runtime-simulate`：运行确定性的 PLC 周期/看门狗/安全停机模拟，支持 `watchdog`、`communication_loss`、`safety_trip` 故障注入；
+- `POST /api/projects/{projectId}/simulate`：生成测试运行和验证证据；除通用检查外，EDA IO/BOM、Motion 软限位、Vision 阈值、Firmware 哈希、Edge 幂等性也会输出结构化失败原因；
 - `GET /api/projects/{projectId}/readiness`：按工作包依赖计算可开始项；
 - 工程资产、参数和现场写入仍必须经 Artifact/Edge owner API、审批、回读和审计。
 

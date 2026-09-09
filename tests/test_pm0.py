@@ -198,6 +198,8 @@ class PM0Tests(unittest.TestCase):
         self.assertEqual(simulate_plc_runtime()["result"], "PASSED")
         self.assertTrue(simulate_plc_runtime(injected_fault="watchdog")["safeStop"])
         self.assertEqual(simulate_plc_runtime(cycle_ms=60, watchdog_ms=50)["result"], "BLOCKED")
+        self.assertIn("invalid_soft_limits", simulation_evidence("MOT-001", {"axis_simulation": True, "limit_check": True, "state_machine": True, "soft_limit_min": 10, "soft_limit_max": 1})["missing"])
+        self.assertEqual(simulation_evidence("VIS-001", {"dataset_hash": True, "thresholds": True, "regression_set": True, "threshold_values": [0.5, 1.2]})["result"], "FAILED")
 
     def test_release_gate_requires_evidence_and_human_approval(self):
         with tempfile.TemporaryDirectory() as directory:

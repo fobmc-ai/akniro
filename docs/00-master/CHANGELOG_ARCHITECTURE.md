@@ -8,3 +8,9 @@
 - Established platform layers, Control/Data Plane split, realtime isolation, offline edge requirement.
 - Added A/B/C classification and stable ID rules.
 - Added canonical object ownership, project index, architecture map, AI context governance, deployment and recovery contracts.
+
+## 2026-09-10 — Engineering validation loop
+
+- Added deterministic PLC runtime simulation with watchdog, communication-loss, safety-trip, and safe-stop outcomes.
+- Added domain-specific simulation diagnostics for EDA, Motion, Vision, Firmware, and Edge validation.
+- Exposed runtime simulation and evidence-oriented validation through the PM control-center API.

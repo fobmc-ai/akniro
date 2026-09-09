@@ -68,6 +68,23 @@ def simulation_evidence(capability_id: str, payload: dict[str, Any]) -> dict[str
         result["result"] = "FAILED"; result["missing"] = ["syntax_error"]
     if capability_id == "HMI-001" and payload.get("duplicate_tag"):
         result["result"] = "FAILED"; result["missing"] = ["duplicate_tag_resolution"]
+    domain_errors: list[str] = []
+    if capability_id == "EDA-001" and payload.get("io_expected") is not None and payload.get("io_actual") is not None and payload["io_expected"] != payload["io_actual"]:
+        domain_errors.append("io_bom_mismatch")
+    if capability_id == "MOT-001" and payload.get("soft_limit_min") is not None and payload.get("soft_limit_max") is not None and payload["soft_limit_min"] >= payload["soft_limit_max"]:
+        domain_errors.append("invalid_soft_limits")
+    if capability_id == "VIS-001":
+        thresholds = payload.get("threshold_values", [])
+        if thresholds and any(not isinstance(x, (int, float)) or x < 0 or x > 1 for x in thresholds):
+            domain_errors.append("threshold_out_of_range")
+    if capability_id == "FW-001" and payload.get("binary_hash") and not str(payload["binary_hash"]).startswith("sha256:"):
+        domain_errors.append("binary_hash_not_sha256")
+    if capability_id == "EDGE-001" and payload.get("duplicate_event_ids"):
+        domain_errors.append("replay_not_idempotent")
+    if domain_errors:
+        result["result"] = "FAILED"
+        result["missing"] = sorted(set(result.get("missing", []) + domain_errors))
+    result["domainErrors"] = domain_errors
     result["evidenceType"] = "SIMULATION_RESULT"
     result["deterministic"] = True
     result["testPlan"] = f"{capability_id}:golden-validation"
