@@ -536,7 +536,7 @@ class ProjectStore:
         if snapshot["entity_type"] != "parameter_snapshot" or snapshot["status"] != "APPROVED":
             raise ValueError("parameter snapshot must be APPROVED before apply")
         sync = self.enqueue_sync(sync_id=sync_id, project_id=snapshot["project_id"], tenant_id=snapshot["tenant_id"], direction="PUSH_APPROVED", object_type="parameter_snapshot", object_id=snapshot_id, idempotency_key=f"apply:{snapshot_id}:{approval_id}", payload={"snapshotId": snapshot_id, "approvalId": approval_id, "parameters": snapshot["payload"]})
-        applied = self.transition(entity_id=snapshot_id, target="APPLIED", actor_id=actor_id, expected_revision=snapshot["revision"])
+        applied = self.transition(entity_id=snapshot_id, target="APPLIED", actor_id=actor_id, expected_revision=snapshot["revision"], allow_parameter_apply=True)
         return {"snapshot": applied, "sync": sync}
 
     def list_entities(self, project_id: str, entity_type: str | None = None) -> list[dict[str, Any]]:
@@ -549,12 +549,14 @@ class ProjectStore:
             item = dict(row); item["payload"] = json.loads(item["payload"]); result.append(item)
         return result
 
-    def transition(self, *, entity_id: str, target: str, actor_id: str, expected_revision: int) -> dict[str, Any]:
+    def transition(self, *, entity_id: str, target: str, actor_id: str, expected_revision: int, allow_parameter_apply: bool = False) -> dict[str, Any]:
         row = self.db.execute("SELECT * FROM entities WHERE id = ?", (entity_id,)).fetchone()
         if not row:
             raise KeyError(f"unknown entity: {entity_id}")
         if row["revision"] != expected_revision:
             raise RuntimeError("PM-CONFLICT-001: revision conflict")
+        if row["entity_type"] == "parameter_snapshot" and target == "APPLIED" and not allow_parameter_apply:
+            raise ValueError("PM-PARAM-002: use approved parameter apply endpoint")
         if row["entity_type"] == "release" and target == "RELEASED":
             gate = self.release_gate(entity_id)
             if not gate["ready"]:

@@ -274,6 +274,8 @@ class PM0Tests(unittest.TestCase):
             snapshot = store.create_entity(entity_id="PAR-001", entity_type="parameter_snapshot", project_id="P-001", tenant_id="T-001", title="Speed", owner_id="U-001", payload={"speed": 100})
             approved = store.transition(entity_id=snapshot["id"], target="VALIDATED", actor_id="U-001", expected_revision=1)
             approved = store.transition(entity_id=approved["id"], target="APPROVED", actor_id="U-001", expected_revision=2)
+            with self.assertRaisesRegex(ValueError, "apply endpoint"):
+                store.transition(entity_id=approved["id"], target="APPLIED", actor_id="U-001", expected_revision=3)
             applied = store.apply_parameter_snapshot(snapshot_id=approved["id"], sync_id="SYNC-PAR-001", approval_id="APR-PAR-001", actor_id="U-001")
             self.assertEqual((applied["snapshot"]["status"], applied["sync"]["direction"], applied["sync"]["payload"]["approvalId"]), ("APPLIED", "PUSH_APPROVED", "APR-PAR-001"))
             store.close()
