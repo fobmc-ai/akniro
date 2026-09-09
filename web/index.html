@@ -231,5 +231,18 @@
       }
     })();
   </script>
+  <script>
+    (() => {
+      const nav = document.getElementById('nav');
+      nav.insertAdjacentHTML('beforeend', '<button data-view="lifecycle">生产质量生命周期</button>');
+      const priorShowView = window.showView;
+      window.showView = async function(view, project) { if (view === 'lifecycle') return showLifecycle(project); return priorShowView(view, project); };
+      nav.querySelector('button[data-view="lifecycle"]').onclick = () => window.showView('lifecycle', window.currentProject);
+      async function showLifecycle(project) {
+        el.innerHTML = `<h2>生产质量生命周期</h2><p class="muted">输入 OEE、SPC、健康信号和 Product Trace 数据，统一生成确定性验证结果与 Evidence；真实 Edge 数据到位后可直接替换输入。</p><div class="panel"><form id="lifecycle-form"><textarea name="payload" rows="14" style="width:100%;font-family:monospace">{"production_metrics":true,"quality_metrics":true,"maintenance_workflow":true,"planned_minutes":480,"downtime_minutes":60,"total_count":1000,"good_count":950,"ideal_cycle_seconds":20,"spc_values":[10,11,10],"spc_lower":9,"spc_upper":12,"health_signals":{"temperature":50},"health_limits":{"temperature":{"min":0,"max":80}},"product_trace":{"productId":"PRODUCT-DEMO","machineId":"M-DEMO-001","recipeId":"REC-DEMO-001","plcState":"RUN","measurement":{"length":10},"parameters":{"speed":20},"timestamp":"2026-01-01T00:00:00Z"}}</textarea><button>运行并留证</button></form><p id="lifecycle-message" class="muted"></p></div><div id="lifecycle-result"></div>`;
+        document.getElementById('lifecycle-form').onsubmit = async event => { event.preventDefault(); const values = Object.fromEntries(new FormData(event.target)); let payload; try { payload = JSON.parse(values.payload); } catch (_) { document.getElementById('lifecycle-message').textContent = 'JSON 格式错误'; return; } const stamp = Date.now(); const response = await fetch('/api/projects/' + project.id + '/lifecycle/simulate', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({actorId:'U-001',tenantId:project.tenant_id,testRunId:'LIFE-RUN-' + stamp,evidenceId:'LIFE-EVIDENCE-' + stamp,payload})}); const result = await response.json(); document.getElementById('lifecycle-message').textContent = response.ok ? `结果：${result.validation.result}；Evidence：${result.evidence.status}` : '执行失败：' + (result.message || result.error || '请求错误'); if (response.ok) document.getElementById('lifecycle-result').innerHTML = `<div class="panel"><h3 class="${result.validation.result === 'PASSED' || result.validation.result === 'CONTRACT_PASSED' ? 'status' : 'warning'}">${result.validation.result}</h3><p>OEE：${result.validation.lifecycle?.oee ?? '—'} · SPC：${result.validation.spc?.result || '—'} · Health：${result.validation.health?.result || '—'} · Product Trace：${result.validation.productTrace?.traceHash || '—'}</p><p class="muted">Test Run：${result.testRun.status} · Evidence：${result.evidence.status}${result.issue ? ' · Issue：' + result.issue.id : ''}</p></div>`; };
+      }
+    })();
+  </script>
 </body>
 </html>

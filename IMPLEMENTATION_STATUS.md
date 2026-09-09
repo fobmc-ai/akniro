@@ -16,7 +16,7 @@
 | PM-001/002 | 项目、成员、实体、Review、追溯图、工作包契约就绪审计、数据完整性审计、事件 Outbox、审计和租户隔离 | VALIDATED-SW |
 | REL-001 | Release 状态机、证据/审批门禁、备份 | VALIDATED-SW |
 | EDGE-001 | 离线同步队列、幂等、冲突状态、确定性工程包构建和人工审批 | VALIDATED-SW |
-| COMM-001/LIFE-001 | FAT/SAT、维护、生命周期对象和模拟验证入口；生产/质量/维护三类指标检查 | VALIDATED-SW |
+| COMM-001/LIFE-001 | FAT/SAT、维护、生命周期对象和专用生产/质量/维护验证流水线 | VALIDATED-SW |
 | AI-001 | 最小上下文、跨项目隔离、受控建议持久化、禁止批准/部署/Force | VALIDATED-SW |
 | ECO-001 | Device Package/Fleet Learning 隐私、授权、保留期、签名和越权权限确定性验证；真实生态数据仍延后 | VALIDATED-SW / DEFERRED-DATA |
 

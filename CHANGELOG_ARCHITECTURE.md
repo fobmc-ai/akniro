@@ -18,3 +18,4 @@
 - Extended the repository contract workflow to cover all Web Management Center scripts through a dependency-free Node syntax gate.
 - Backlog readiness now validates non-empty design and delivery contract fields instead of treating field presence alone as completion.
 - Added a deterministic firmware OTA upgrade rehearsal with approval, signature, health-observation, power-loss, rollback, and evidence boundaries.
+- Added a project-scoped lifecycle simulation pipeline for OEE, SPC, health, and product trace evidence.

@@ -301,6 +301,25 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                     project_id = path.split("/")[3]
                     self._authorize(body, "READ", project_id)
                     return self._send(200, simulate_dependency_diagnosis(body.get("graph", {}), body.get("states", {}), body.get("target", "")))
+                if path.startswith("/api/projects/") and path.endswith("/lifecycle/simulate"):
+                    project_id = path.split("/")[3]
+                    self._authorize(body, "MODIFY", project_id)
+                    validation = simulation_evidence("LIFE-001", body.get("payload", {}))
+                    run_id = body["testRunId"]
+                    evidence_id = body["evidenceId"]
+                    run = store.create_entity(entity_id=run_id, entity_type="test_run", project_id=project_id, tenant_id=body["tenantId"], title="Lifecycle production-quality simulation", owner_id=body["actorId"], payload=validation)
+                    evidence = store.create_entity(entity_id=evidence_id, entity_type="evidence", project_id=project_id, tenant_id=body["tenantId"], title="Lifecycle production-quality evidence", owner_id=body["actorId"], payload={**validation, "evidenceType": "LIFECYCLE_RESULT"})
+                    store.transition(entity_id=run_id, target="RUNNING", actor_id=body["actorId"], expected_revision=1)
+                    passed = validation["result"] in {"PASSED", "CONTRACT_PASSED"}
+                    store.transition(entity_id=run_id, target="PASSED" if passed else "FAILED", actor_id=body["actorId"], expected_revision=2)
+                    if passed:
+                        store.transition(entity_id=evidence_id, target="VALIDATED", actor_id=body["actorId"], expected_revision=1)
+                    issue = None
+                    if not passed:
+                        issue = store.create_entity(entity_id=body.get("issueId", f"ISSUE-{run_id}"), entity_type="issue", project_id=project_id, tenant_id=body["tenantId"], title="Lifecycle simulation failed", owner_id=body["actorId"], payload={"sourceTestRunId": run_id, "evidenceId": evidence_id, "evidenceLinks": [evidence_id], "capabilityId": "LIFE-001", "errors": validation.get("missing", [])})
+                        store.link_entities(project_id=project_id, from_id=issue["id"], to_id=evidence_id, link_type="diagnosed_by", actor_id=body["actorId"])
+                        store.notify_project_owner(project_id=project_id, kind="test_failed", message=f"LIFE-001 validation failed: {issue['id']}", correlation_id=run_id)
+                    return self._send(201, {"validation": validation, "testRun": store.get_entity(run_id), "evidence": store.get_entity(evidence_id), "issue": issue})
                 if path == "/api/engineering/toolchain-matrix":
                     return self._send(200, validate_toolchain_matrix(body.get("cases", [])))
                 if path.startswith("/api/projects/") and path.endswith("/toolchain-matrix"):
