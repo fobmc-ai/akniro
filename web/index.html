@@ -159,5 +159,14 @@
       };
     })();
   </script>
+  <script>
+    (() => {
+      window.showAcceptance = async function(project) {
+        const report = await (await fetch('/api/projects/' + project.id + '/acceptance-report')).json(); const s = report.summary;
+        const state = (value) => `<strong class="${value ? 'status' : 'warning'}">${value ? '是' : '否'}</strong>`;
+        el.innerHTML = `<h2>一键验收报告</h2><p class="muted">生成时间：${report.generatedAt} · 项目：${project.name}</p><div class="cards"><div class="card"><label>软件范围已就绪</label>${state(s.softwareReady)}<span class="muted">契约、模拟器、测试证据</span></div><div class="card"><label>真实数据已齐备</label>${state(s.dataReady)}<span class="muted">Placeholder 回填状态</span></div><div class="card"><label>Release 已就绪</label>${state(s.releaseReady)}<span class="muted">审批、签名、SBOM、回滚</span></div><div class="card"><label>工作包 / Evidence</label><strong>${s.workPackages} / ${s.validatedEvidence}</strong><span class="muted">阻塞 ${s.blockedWorkPackages}</span></div></div><div class="panel"><h3>验收结论</h3><p class="${s.releaseReady ? 'status' : s.softwareReady ? 'warning' : 'error'}">${s.releaseReady ? '软件和发布门禁均已满足。' : s.softwareReady ? '软件范围已完成，但真实数据或 Release 门禁仍待处理。' : '软件范围仍有待处理项。'}</p><table><thead><tr><th>对象</th><th>阻塞原因</th></tr></thead><tbody>${report.blockers.map(x => `<tr><td>${x.id || x.releaseId}</td><td>${(x.blockedBy || x.missing || []).join('、')}</td></tr>`).join('') || '<tr><td colspan="2">无阻塞项</td></tr>'}</tbody></table></div>`;
+      };
+    })();
+  </script>
 </body>
 </html>
