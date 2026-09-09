@@ -319,5 +319,17 @@
       };
     })();
   </script>
+  <script>
+    (() => {
+      const priorShowView = window.showView;
+      window.showView = async function(view, project) {
+        if (view !== 'acceptance') return priorShowView(view, project);
+        await priorShowView(view, project);
+        const audit = await (await fetch('/api/projects/' + project.id + '/completion-audit')).json();
+        const checks = Object.entries(audit.checks || {}).map(([name, passed]) => `<tr><td>${name}</td><td class="${passed ? 'status' : 'warning'}">${passed ? 'PASS' : 'BLOCKED'}</td></tr>`).join('');
+        el.insertAdjacentHTML('beforeend', `<div class="panel"><h3>总纲完成度审计</h3><p class="${audit.ready ? 'status' : 'warning'}">${audit.ready ? '软件范围门禁全部满足' : '仍有明确阻塞项，不能宣称完成'}</p><p>能力证据：${audit.softwareScope.validated}/${audit.softwareScope.total} · 硬件/正式认证延后：${audit.hardwareDeferred.join('、') || '无'}</p><table><thead><tr><th>门禁</th><th>结果</th></tr></thead><tbody>${checks}</tbody></table><p class="muted">阻塞项：${audit.blockers.length ? audit.blockers.map(item => item.id + '：' + item.reason).join('；') : '无'}</p></div>`);
+      };
+    })();
+  </script>
 </body>
 </html>

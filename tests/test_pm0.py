@@ -207,6 +207,18 @@ class PM0Tests(unittest.TestCase):
             self.assertGreaterEqual(report["auditCount"], 1)
             store.close()
 
+    def test_completion_audit_is_evidence_backed_and_explicit_about_blockers(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = ProjectStore(Path(directory) / "pm.db")
+            store.create_project(project_id="P-001", tenant_id="T-001", name="Demo", kind="platform", owner_id="U-001")
+            audit = store.completion_audit("P-001")
+            self.assertFalse(audit["ready"])
+            self.assertEqual((audit["softwareScope"]["validated"], audit["softwareScope"]["total"]), (0, 14))
+            self.assertIn("capabilities", audit["checks"])
+            self.assertIn("FW-001", audit["hardwareDeferred"])
+            self.assertTrue(audit["deterministic"])
+            store.close()
+
     def test_notifications_can_be_read(self):
         with tempfile.TemporaryDirectory() as directory:
             store = ProjectStore(Path(directory) / "pm.db")

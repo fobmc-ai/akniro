@@ -97,3 +97,4 @@
 - 新增 Release Preflight，一致性核对 Artifact、证据、SBOM、版本元数据及可选 Machine Commit/参数快照绑定后，才把结果交给人工 Release 门禁。
 - 新增 DRV-001 驱动认证矩阵与 SAFE-001 软件安全边界证据模拟；二者均输出稳定 Hash、自动化证据和明确的硬件/正式认证边界。
 - PM 持久化存储新增 schema migration ledger、SQLite user_version、Ops schema 状态接口，并把 schema 表纳入备份恢复校验。
+- 管理中心新增项目级 `completion-audit` 总纲完成度审计，将能力证据、工作包契约、完整性、同步、问题和发布预检汇总为可追溯结论。

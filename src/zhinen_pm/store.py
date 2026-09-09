@@ -381,6 +381,34 @@ class ProjectStore:
         release_ready = bool(gates) and all(gate["ready"] for gate in gates)
         return {"projectId": project_id, "generatedAt": now(), "summary": {"workPackages": stats["backlog"], "readyWorkPackages": sum(1 for x in readiness if x["ready"]), "blockedWorkPackages": sum(1 for x in readiness if not x["ready"]), "validatedEvidence": sum(1 for x in evidence if x["status"] == "VALIDATED"), "machineObjects": len(self.list_machine_objects(project_id)), "artifacts": len(self.list_artifact_manifests(project_id)), "syncConflicts": sum(1 for x in self.list_sync_queue(project_id) if x["status"] == "CONFLICT"), "capabilitiesWithEvidence": sum(1 for x in self.capability_evidence(project_id) if x["ready"]), "openIssues": sum(1 for x in issues if x["status"] != "CLOSED"), "closedIssues": sum(1 for x in issues if x["status"] == "CLOSED"), "softwareReady": software_ready, "dataReady": data_ready, "releaseReady": release_ready}, "capabilityEvidence": self.capability_evidence(project_id), "releaseGates": gates, "blockers": blockers, "auditCount": len(self.list_audit(project_id))}
 
+    def completion_audit(self, project_id: str) -> dict[str, Any]:
+        """Produce one evidence-backed completion matrix for the management center."""
+        from .engineering import list_capabilities
+        capabilities = self.capability_evidence(project_id, [item["id"] for item in list_capabilities()])
+        readiness = self.backlog_readiness(project_id)
+        integrity = self.integrity_audit(project_id)
+        sync = self.sync_summary(project_id)
+        releases = [item for item in self.list_entities(project_id, "release")]
+        release_preflights = [self.release_preflight(item["id"]) for item in releases]
+        issues = [item for item in self.list_entities(project_id, "issue") if item["status"] != "CLOSED"]
+        hardware_deferred = [item["id"] for item in list_capabilities() if item["mode"] == "CONTRACT_ONLY"]
+        checks = {
+            "capabilities": bool(capabilities) and all(item["ready"] for item in capabilities),
+            "backlogContracts": all(item["contractReady"] for item in readiness),
+            "integrity": integrity["ready"],
+            "syncReplay": sync["readyForReplay"],
+            "openIssues": not issues,
+            "releasePreflight": bool(release_preflights) and all(item["ready"] for item in release_preflights),
+        }
+        blockers = []
+        for item in capabilities:
+            if not item["ready"]:
+                blockers.append({"kind": "capability", "id": item["capabilityId"], "reason": "validated_evidence_missing"})
+        blockers.extend({"kind": "backlog", "id": item["id"], "reason": item["blockedBy"] or item["contractMissing"]} for item in readiness if not item["contractReady"] or item["blockedBy"])
+        blockers.extend({"kind": "issue", "id": item["id"], "reason": "issue_not_closed"} for item in issues)
+        blockers.extend({"kind": "release", "id": item["releaseId"], "reason": item["missing"]} for item in release_preflights if not item["ready"])
+        return {"projectId": project_id, "generatedAt": now(), "softwareScope": {"capabilities": capabilities, "validated": sum(1 for item in capabilities if item["ready"]), "total": len(capabilities)}, "checks": checks, "ready": all(checks.values()), "blockers": blockers, "hardwareDeferred": hardware_deferred, "integrity": integrity, "sync": sync, "releasePreflights": release_preflights, "deterministic": True}
+
     def capability_evidence(self, project_id: str, capability_ids: list[str] | None = None) -> list[dict[str, Any]]:
         evidence = [x for x in self.list_entities(project_id, "evidence") if x["status"] == "VALIDATED"]
         by_capability: dict[str, list[str]] = {}
