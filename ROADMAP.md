@@ -10,6 +10,8 @@ The separate engineering project management plane is defined in [`PROJECT_MANAGE
 
 PM-0 also includes organization isolation, state machines, environment promotion, backup/recovery, index freshness, notification escalation, platform observability, and data retention as defined in [`PLATFORM_OPERATIONS_GOVERNANCE.md`](PLATFORM_OPERATIONS_GOVERNANCE.md).
 
+PM-0 domain objects, state machines, permissions, APIs and events are frozen in [`PM0_CONTRACTS.md`](PM0_CONTRACTS.md) before database, service or UI implementation.
+
 ## Delivery phases
 
 | Phase | Focus | Classification |

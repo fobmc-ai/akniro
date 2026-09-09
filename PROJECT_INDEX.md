@@ -12,6 +12,8 @@ Phase 0 implementation gate: `FOUNDATION_CONTRACT.md`、`DATA_INTERACTION_CONTRA
 
 平台运营治理规划：`PLATFORM_OPERATIONS_GOVERNANCE.md`、`ADR-0009-platform-operations-governance.md`。
 
+PM-0 领域契约：`PM0_CONTRACTS.md`、`ADR-0010-pm0-domain-contracts.md`。
+
 当前代码骨架：`src/zhinen_foundation/`；契约测试：`tests/`；示例和校验入口：`examples/`、`tools/`。
 
 This file is the low-cost navigation index for Codex. Read the smallest relevant entries before opening full documents.

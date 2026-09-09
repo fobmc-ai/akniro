@@ -164,3 +164,5 @@ PM-0 必须先完成，PM-1 才能开始；PM-3 之前不接现场部署；PM-5 
 管理软件是上层协作和治理产品，Machine Project 是其管理的工业工程资产之一。两者共享 ID、权限、版本、审计和事件规范，但保持独立服务边界。任何新功能都必须先回答：它管理的是项目事实、机器工程事实，还是实时运行事实；只有确定 owner 后才能落库。
 
 组织隔离、状态机、环境晋级、备份恢复、搜索 freshness、通知升级、平台可观测性和数据保留规则见 [`PLATFORM_OPERATIONS_GOVERNANCE.md`](PLATFORM_OPERATIONS_GOVERNANCE.md)。这些规则属于 PM-0 门禁，不得等 UI 完成后补充。
+
+PM-0 的对象、状态机、权限矩阵、API envelope 和事件目录见 [`PM0_CONTRACTS.md`](PM0_CONTRACTS.md)。数据库、后端和前端实现必须先通过这些契约测试。
