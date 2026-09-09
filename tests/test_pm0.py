@@ -1,6 +1,8 @@
 import sys
 import tempfile
 import unittest
+import urllib.request
+import json
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
@@ -8,6 +10,8 @@ sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 from zhinen_pm.authorization import Actor, AuthorizationError, authorize
 from zhinen_pm.state_machine import InvalidTransition, assert_transition
 from zhinen_pm.store import ProjectStore
+from zhinen_pm.server import create_server
+import threading
 
 
 class PM0Tests(unittest.TestCase):
@@ -31,6 +35,26 @@ class PM0Tests(unittest.TestCase):
                 store.transition(entity_id="REQ-001", target="IMPLEMENTING", actor_id="U-001", expected_revision=1)
             self.assertGreaterEqual(len(store.audit("P-001")), 2)
             store.close()
+
+    def test_http_api_project_tree_flow(self):
+        with tempfile.TemporaryDirectory() as directory:
+            server = create_server(str(Path(directory) / "pm.db"))
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                def request(path, payload=None):
+                    data = json.dumps(payload).encode() if payload is not None else None
+                    req = urllib.request.Request(f"http://127.0.0.1:8765{path}", data=data, headers={"Content-Type": "application/json"}, method="POST" if payload is not None else "GET")
+                    with urllib.request.urlopen(req) as response:
+                        return response.status, json.loads(response.read())
+                status, _ = request("/api/projects", {"projectId": "P-001", "tenantId": "T-001", "name": "Demo", "ownerId": "U-001"})
+                self.assertEqual(status, 201)
+                status, entity = request("/api/projects/P-001/entities", {"id": "REQ-001", "type": "requirement", "tenantId": "T-001", "title": "MVP", "ownerId": "U-001"})
+                self.assertEqual(status, 201)
+                status, updated = request("/api/entities/REQ-001/transition", {"target": "READY", "actorId": "U-001", "expectedRevision": entity["revision"]})
+                self.assertEqual((status, updated["status"]), (200, "READY"))
+            finally:
+                server.shutdown(); server.server_close(); thread.join(timeout=2)
 
 
 if __name__ == "__main__":

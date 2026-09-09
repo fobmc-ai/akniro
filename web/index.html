@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>织能工程控制中心</title>
+  <style>
+    :root { color-scheme: dark; font-family: Inter, system-ui, sans-serif; background:#10151b; color:#e7edf4; }
+    body { margin:0; } header { height:62px; display:flex; align-items:center; padding:0 28px; border-bottom:1px solid #2a3440; }
+    header h1 { font-size:18px; margin:0; } header span { color:#8fa2b5; margin-left:14px; font-size:13px; }
+    main { display:grid; grid-template-columns:280px 1fr; min-height:calc(100vh - 63px); } aside { border-right:1px solid #2a3440; padding:20px; }
+    section { padding:28px 34px; max-width:1100px; } .tree { color:#b9c8d6; line-height:2; font-size:14px; }
+    .tree .root { color:#fff; font-weight:700; } .tree .folder { margin-left:18px; } .tree .folder::before { content:'▸ '; color:#5fa8d3; }
+    .cards { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin:24px 0; }
+    .card { background:#19222c; border:1px solid #2b3946; border-radius:10px; padding:16px; } .card label { color:#8fa2b5; font-size:12px; }
+    .card strong { display:block; font-size:26px; margin-top:8px; } .panel { background:#151d25; border:1px solid #2b3946; border-radius:10px; padding:18px; margin-top:18px; }
+    table { width:100%; border-collapse:collapse; font-size:13px; } th,td { text-align:left; padding:11px 8px; border-bottom:1px solid #293540; } th { color:#8fa2b5; }
+    .status { color:#71d7a4; } .muted { color:#8fa2b5; } .error { color:#ff8d8d; }
+  </style>
+</head>
+<body>
+  <header><h1>织能工程控制中心</h1><span>Project Control Center · PM-0</span></header>
+  <main><aside><div class="tree"><div class="root">📁 当前项目</div><div class="folder">00-项目总览</div><div class="folder">01-需求</div><div class="folder">02-技术方案</div><div class="folder">03-架构与 ADR</div><div class="folder">04-开发任务</div><div class="folder">05-测试与证据</div><div class="folder">06-问题与 CAPA</div><div class="folder">07-发布与维护</div><div class="folder">08-知识库</div></div></aside>
+    <section><div id="content"><p class="muted">正在加载项目…</p></div></section></main>
+  <script>
+    const el = document.getElementById('content');
+    async function load() {
+      try {
+        const response = await fetch('/api/projects'); const data = await response.json();
+        if (!data.projects.length) { el.innerHTML = '<h2>项目总览</h2><p class="muted">还没有项目。请先通过 API 创建一个 PM 项目。</p>'; return; }
+        const project = await (await fetch('/api/projects/' + encodeURIComponent(data.projects[0].id))).json();
+        const entities = project.entities || []; const count = type => entities.filter(x => x.entity_type === type).length;
+        el.innerHTML = `<h2>${project.name}</h2><p class="muted">${project.id} · ${project.kind} · revision ${project.revision}</p>
+          <div class="cards"><div class="card"><label>需求</label><strong>${count('requirement')}</strong></div><div class="card"><label>任务</label><strong>${count('work_item')}</strong></div><div class="card"><label>问题</label><strong>${count('issue')}</strong></div><div class="card"><label>状态</label><strong class="status">${project.status}</strong></div></div>
+          <div class="panel"><h3>项目对象</h3><table><thead><tr><th>ID</th><th>类型</th><th>标题</th><th>状态</th><th>Revision</th></tr></thead><tbody>${entities.map(x => `<tr><td>${x.id}</td><td>${x.entity_type}</td><td>${x.title}</td><td class="status">${x.status}</td><td>${x.revision}</td></tr>`).join('')}</tbody></table></div>`;
+      } catch (e) { el.innerHTML = `<p class="error">无法连接 PM 服务：${e.message}</p>`; }
+    }
+    load();
+  </script>
+</body>
+</html>

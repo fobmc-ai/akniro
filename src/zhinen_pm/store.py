@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import threading
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -16,7 +17,8 @@ def now() -> str:
 
 class ProjectStore:
     def __init__(self, database: str | Path = "control-center.db") -> None:
-        self.db = sqlite3.connect(database)
+        self.db = sqlite3.connect(database, check_same_thread=False)
+        self._lock = threading.RLock()
         self.db.row_factory = sqlite3.Row
         self.db.execute("PRAGMA foreign_keys=ON")
         self._init_schema()
@@ -65,6 +67,9 @@ class ProjectStore:
         for item in result["entities"]:
             item["payload"] = json.loads(item["payload"])
         return result
+
+    def list_projects(self) -> list[dict[str, Any]]:
+        return [dict(row) for row in self.db.execute("SELECT * FROM projects ORDER BY updated_at DESC")]
 
     def create_entity(self, *, entity_id: str, entity_type: str, project_id: str, tenant_id: str, title: str, owner_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
         if not self.db.execute("SELECT 1 FROM projects WHERE id = ? AND tenant_id = ?", (project_id, tenant_id)).fetchone():
