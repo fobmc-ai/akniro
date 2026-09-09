@@ -123,5 +123,18 @@
       }
     })();
   </script>
+  <script>
+    (() => {
+      const nav = document.getElementById('nav');
+      nav.insertAdjacentHTML('beforeend', '<button data-view="dependency_diagnosis">启动诊断</button>');
+      const priorShowView = window.showView;
+      window.showView = async function(view, project) { if (view === 'dependency_diagnosis') return showDependencyDiagnosis(project); return priorShowView(view, project); };
+      nav.querySelector('button[data-view="dependency_diagnosis"]').onclick = () => window.showView('dependency_diagnosis', window.currentProject);
+      async function showDependencyDiagnosis(project) {
+        el.innerHTML = '<h2>启动依赖诊断</h2><p class="muted">按 Machine/Alarm Dependency Graph 确定性解释为什么不能启动；只读诊断，不写入实时控制器。</p><div class="panel"><label>依赖图</label><textarea id="diag-graph" rows="7" style="width:100%;font-family:monospace">{"Auto Cycle":["Station","Safety"],"Station":["Servo"],"Servo":[]}</textarea><label>节点状态</label><textarea id="diag-states" rows="5" style="width:100%;font-family:monospace">{"Auto Cycle":false,"Station":true,"Servo":true,"Safety":false}</textarea><input id="diag-target" value="Auto Cycle" placeholder="目标节点"><button id="diag-run">诊断</button><p id="diag-message" class="muted"></p></div><div id="diag-result"></div>';
+        document.getElementById('diag-run').onclick = async () => { let graph, states; try { graph = JSON.parse(document.getElementById('diag-graph').value); states = JSON.parse(document.getElementById('diag-states').value); } catch (_) { document.getElementById('diag-message').textContent = 'JSON 格式错误'; return; } const response = await fetch('/api/projects/' + project.id + '/diagnostics/dependency', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({actorId:'U-001',tenantId:project.tenant_id,graph,states,target:document.getElementById('diag-target').value})}); const result = await response.json(); document.getElementById('diag-message').textContent = response.ok ? `诊断完成：${result.result}` : '诊断失败：' + (result.message || result.error || '请求错误'); if (response.ok) document.getElementById('diag-result').innerHTML = `<div class="panel"><h3 class="${result.startAllowed ? 'status' : 'warning'}">${result.startAllowed ? '允许启动' : '禁止启动'}</h3><p>阻塞节点：${result.blockers.join('、') || '无'}；循环：${result.cycle.join(' → ') || '无'}</p><p class="muted">${result.diagnosis} · ${result.traceHash}</p></div>`; };
+      }
+    })();
+  </script>
 </body>
 </html>
