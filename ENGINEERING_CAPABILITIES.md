@@ -24,7 +24,7 @@
 - `POST /api/projects/{projectId}/ai/apply`：在人工 `APPLY` 权限、同项目 `VALIDATED` Test Evidence、审批 ID 和目标 Revision 一致的条件下应用非受控对象 Patch，并把建议与目标对象建立 `applied_to` 追溯关系；禁止发布/部署/Force 类动作。
 - `POST /api/projects/{projectId}/builds/engineering`：为 HMI、EDA、Motion、Vision、Robot、Edge 工程包生成确定性 Artifact，并自动登记 Test Run/Evidence；失败包生成 Issue，所有包仍需人工审批才能进入发布或现场流程。
 - `POST /api/projects/{projectId}/simulate`：生成测试运行和验证证据；除通用检查外，HMI 标签集合、EDA IO/BOM、Motion 软限位、Vision 阈值、Firmware 哈希、Edge 幂等性也会输出结构化失败原因；
-- `POST /api/projects/{projectId}/acceptance-suite`：由服务端统一运行 14 项默认确定性能力验收，批量生成 Test Run/Evidence 并返回汇总；重复执行需使用新的 `suiteId`，不会覆盖既有证据。
+- `POST /api/projects/{projectId}/acceptance-suite`：由服务端统一运行 14 项默认确定性能力验收，批量生成 Test Run/Evidence 并返回汇总；可按能力传入 `payloads` 覆盖真实/回归输入；失败会自动生成 OPEN Issue 并通知 Owner；重复执行需使用新的 `suiteId`，不会覆盖既有证据。
 - 测试用例执行无论通过或失败都会留存 Evidence；通过结果转为 `VALIDATED`，失败结果保留 `DRAFT` 并关联测试用例，供问题定位与复测审计。
 - PLC 与 Firmware 构建失败会自动创建 OPEN Issue，并以 `diagnosed_by` 关联失败 Evidence；构建能力 ID 与问题标题保持准确对应。
 - `POST /api/projects/{projectId}/test-plans/execute` 批量执行计划内用例，汇总 Test Run/Evidence，并按全通过推进 `COMPLETED`，否则推进 `FAILED`。

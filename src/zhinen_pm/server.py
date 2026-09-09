@@ -398,7 +398,11 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                     self._authorize(body, "MODIFY", project_id)
                     suite_id = body.get("suiteId", f"SUITE-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')}")
                     results = []
-                    for capability_id, payload in default_acceptance_payloads().items():
+                    payloads = default_acceptance_payloads()
+                    for capability_id, override in (body.get("payloads", {}) or {}).items():
+                        if capability_id in payloads and isinstance(override, dict):
+                            payloads[capability_id] = {**payloads[capability_id], **override}
+                    for capability_id, payload in payloads.items():
                         result = simulation_evidence(capability_id, payload)
                         run_id = f"{suite_id}-{capability_id}-RUN"
                         evidence_id = f"{suite_id}-{capability_id}-EVIDENCE"
@@ -407,9 +411,15 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                         store.transition(entity_id=run["id"], target="RUNNING", actor_id=body["actorId"], expected_revision=1)
                         passed = result["result"] in {"PASSED", "CONTRACT_PASSED"}
                         store.transition(entity_id=run["id"], target="PASSED" if passed else "FAILED", actor_id=body["actorId"], expected_revision=2)
+                        issue_id = None
                         if passed:
                             store.transition(entity_id=evidence["id"], target="VALIDATED", actor_id=body["actorId"], expected_revision=1)
-                        results.append({"capabilityId": capability_id, "result": result["result"], "testRunId": run_id, "evidenceId": evidence_id, "evidenceStatus": "VALIDATED" if passed else "DRAFT", "traceHash": result["traceHash"]})
+                        else:
+                            issue_id = f"ISSUE-{run_id}"
+                            issue = store.create_entity(entity_id=issue_id, entity_type="issue", project_id=project_id, tenant_id=body["tenantId"], title=f"{capability_id} acceptance suite failed", owner_id=body["actorId"], payload={"sourceTestRunId": run_id, "evidenceId": evidence_id, "evidenceLinks": [evidence_id], "capabilityId": capability_id, "errors": result.get("missing", [])})
+                            store.link_entities(project_id=project_id, from_id=issue["id"], to_id=evidence_id, link_type="diagnosed_by", actor_id=body["actorId"])
+                            store.notify_project_owner(project_id=project_id, kind="test_failed", message=f"{capability_id} acceptance suite failed: {issue_id}", correlation_id=run_id)
+                        results.append({"capabilityId": capability_id, "result": result["result"], "testRunId": run_id, "evidenceId": evidence_id, "evidenceStatus": "VALIDATED" if passed else "DRAFT", "issueId": issue_id, "traceHash": result["traceHash"]})
                     return self._send(201, {"suiteId": suite_id, "total": len(results), "passed": sum(item["result"] in {"PASSED", "CONTRACT_PASSED"} for item in results), "results": results, "deterministic": True})
                 if path.startswith("/api/projects/") and path.endswith("/builds/plc"):
                     project_id = path.split("/")[3]

@@ -29,3 +29,4 @@
 - Added persistent PM schema migration status, project completion audit, issue/CAPA closure preflight, and deterministic metadata-only export manifest.
 - CI now runs for architecture/documentation changes and checks patch whitespace.
 - Added a server-owned 14-capability acceptance-suite endpoint so one-click validation uses one authoritative payload set and persists every Test Run/Evidence.
+- Acceptance-suite failures now create an OPEN Issue linked to DRAFT Evidence and notify the project owner; per-capability payload overrides support regression and real-data backfill.
