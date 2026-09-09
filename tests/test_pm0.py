@@ -309,6 +309,18 @@ class PM0Tests(unittest.TestCase):
             self.assertEqual(store.list_links("P-001", "TC-FAIL")[0]["to_id"], "EV-FAIL")
             store.close()
 
+    def test_test_plan_batch_execution_aggregates_results(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = ProjectStore(Path(directory) / "pm.db")
+            store.create_project(project_id="P-001", tenant_id="T-001", name="Demo", kind="platform", owner_id="U-001")
+            first = store.create_entity(entity_id="TC-PLAN-1", entity_type="test_case", project_id="P-001", tenant_id="T-001", title="First", owner_id="U-001")
+            second = store.create_entity(entity_id="TC-PLAN-2", entity_type="test_case", project_id="P-001", tenant_id="T-001", title="Second", owner_id="U-001")
+            plan = store.create_entity(entity_id="TP-001", entity_type="test_plan", project_id="P-001", tenant_id="T-001", title="Acceptance", owner_id="U-001", payload={"testCaseIds": [first["id"], second["id"]]})
+            result = store.execute_test_plan(project_id="P-001", tenant_id="T-001", test_plan_id=plan["id"], actor_id="U-001", run_prefix="TP-RUN", evidence_prefix="TP-EV", passed_by_case={second["id"]: False})
+            self.assertEqual((result["testPlan"]["status"], result["summary"]), ("FAILED", {"total": 2, "passed": 1, "failed": 1}))
+            self.assertEqual(result["results"][1]["evidence"]["status"], "DRAFT")
+            store.close()
+
     def test_ai_context_is_minimal_and_denies_cross_project(self):
         with tempfile.TemporaryDirectory() as directory:
             store = ProjectStore(Path(directory) / "pm.db")

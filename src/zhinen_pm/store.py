@@ -465,6 +465,28 @@ class ProjectStore:
                 self.link_entities(project_id=project_id, from_id=release_id, to_id=evidence_id, link_type="requires")
         return {"testRun": final, "evidence": evidence}
 
+    def execute_test_plan(self, *, project_id: str, tenant_id: str, test_plan_id: str, actor_id: str, run_prefix: str, evidence_prefix: str, passed_by_case: dict[str, bool] | None = None, release_id: str | None = None) -> dict[str, Any]:
+        plan = self.get_entity(test_plan_id)
+        if plan["project_id"] != project_id or plan["entity_type"] != "test_plan":
+            raise KeyError("test plan not found in project")
+        test_case_ids = plan["payload"].get("testCaseIds", [])
+        if not test_case_ids:
+            raise ValueError("test plan requires testCaseIds")
+        if plan["status"] == "DRAFT":
+            plan = self.transition(entity_id=test_plan_id, target="READY", actor_id=actor_id, expected_revision=plan["revision"])
+        if plan["status"] == "READY":
+            plan = self.transition(entity_id=test_plan_id, target="RUNNING", actor_id=actor_id, expected_revision=plan["revision"])
+        if plan["status"] != "RUNNING":
+            raise ValueError(f"test plan is not executable: {plan['status']}")
+        results = []
+        passed_by_case = passed_by_case or {}
+        for index, test_case_id in enumerate(test_case_ids, start=1):
+            result = self.execute_test_case(project_id=project_id, tenant_id=tenant_id, test_case_id=test_case_id, run_id=f"{run_prefix}-{index}", evidence_id=f"{evidence_prefix}-{index}", actor_id=actor_id, passed=bool(passed_by_case.get(test_case_id, True)), release_id=release_id)
+            results.append(result)
+        all_passed = all(item["testRun"]["status"] == "PASSED" for item in results)
+        plan = self.transition(entity_id=test_plan_id, target="COMPLETED" if all_passed else "FAILED", actor_id=actor_id, expected_revision=plan["revision"])
+        return {"testPlan": plan, "results": results, "summary": {"total": len(results), "passed": sum(item["testRun"]["status"] == "PASSED" for item in results), "failed": sum(item["testRun"]["status"] == "FAILED" for item in results)}}
+
     def link_entities(self, *, project_id: str, from_id: str, to_id: str, link_type: str) -> dict[str, Any]:
         if not self.db.execute("SELECT 1 FROM entities WHERE id = ? AND project_id = ?", (from_id, project_id)).fetchone() or not self.db.execute("SELECT 1 FROM entities WHERE id = ? AND project_id = ?", (to_id, project_id)).fetchone():
             raise KeyError("entity link target not found in project")

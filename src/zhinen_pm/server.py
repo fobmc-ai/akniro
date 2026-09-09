@@ -265,6 +265,11 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                     self._authorize(body, "MODIFY", project_id)
                     result = store.execute_test_case(project_id=project_id, tenant_id=body["tenantId"], test_case_id=body["testCaseId"], run_id=body["runId"], evidence_id=body["evidenceId"], actor_id=body["actorId"], passed=bool(body.get("passed", False)), release_id=body.get("releaseId"))
                     return self._send(201, result)
+                if path.startswith("/api/projects/") and path.endswith("/test-plans/execute"):
+                    project_id = path.split("/")[3]
+                    self._authorize(body, "MODIFY", project_id)
+                    result = store.execute_test_plan(project_id=project_id, tenant_id=body["tenantId"], test_plan_id=body["testPlanId"], actor_id=body["actorId"], run_prefix=body.get("runPrefix", f"{body['testPlanId']}-RUN"), evidence_prefix=body.get("evidencePrefix", f"{body['testPlanId']}-EVIDENCE"), passed_by_case=body.get("passedByCase"), release_id=body.get("releaseId"))
+                    return self._send(201, result)
                 if path == "/api/ai/context":
                     return self._send(200, build_context(store, project_id=body["projectId"], object_ids=body.get("objectIds", []), actor_id=body["actorId"]))
                 if path.startswith("/api/projects/") and path.endswith("/machine-snapshots"):
