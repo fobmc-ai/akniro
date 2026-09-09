@@ -170,7 +170,7 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                 if path.startswith("/api/projects/") and path.endswith("/sync-queue"):
                     project_id = path.split("/")[3]
                     self._authorize(body, "MODIFY", project_id)
-                    result = store.enqueue_sync(sync_id=body["id"], project_id=project_id, tenant_id=body["tenantId"], direction=body["direction"], object_type=body["objectType"], object_id=body["objectId"], idempotency_key=body["idempotencyKey"], payload=body.get("payload", {}))
+                    result = store.enqueue_sync(sync_id=body["id"], project_id=project_id, tenant_id=body["tenantId"], direction=body["direction"], object_type=body["objectType"], object_id=body["objectId"], idempotency_key=body["idempotencyKey"], payload=body.get("payload", {}), actor_id=body["actorId"])
                     return self._send(201, result)
                 if path.startswith("/api/projects/") and path.endswith("/links"):
                     project_id = path.split("/")[3]
@@ -179,7 +179,7 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                 if path.startswith("/api/sync/") and path.endswith("/transition"):
                     sync = store.get_sync(path.split("/")[3])
                     self._authorize(body, "MODIFY", sync["project_id"])
-                    result = store.transition_sync(path.split("/")[3], body["target"], body.get("reason", ""))
+                    result = store.transition_sync(path.split("/")[3], body["target"], body.get("reason", ""), body.get("actorId", "system"))
                     return self._send(200, result)
                 if path.startswith("/api/events/") and path.endswith("/transition"):
                     event = next((item for project in store.list_projects() for item in store.list_events(project["id"]) if item["id"] == path.split("/")[3]), None)

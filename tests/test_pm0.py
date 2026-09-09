@@ -122,8 +122,11 @@ class PM0Tests(unittest.TestCase):
             again = store.enqueue_sync(sync_id="SYNC-002", project_id="P-001", tenant_id="T-001", direction="PUSH_APPROVED", object_type="parameter", object_id="PAR-001", idempotency_key="idem-1", payload={"approvalId": "APR-001"})
             self.assertEqual(item["id"], again["id"])
             self.assertEqual(len(store.list_sync_queue("P-001")), 1)
-            store.transition_sync("SYNC-001", "CONFLICT", "revision mismatch")
+            store.transition_sync("SYNC-001", "CONFLICT", "revision mismatch", actor_id="U-001")
             self.assertTrue(any(item["kind"] == "sync_conflict" for item in store.list_notifications("U-001", "P-001")))
+            events = store.list_events("P-001")
+            self.assertTrue(any(item["message_type"] == "pm.sync.queued" and item["payload"]["syncId"] == "SYNC-001" for item in events))
+            self.assertTrue(any(item["message_type"] == "pm.sync.transitioned" and item["payload"]["to"] == "CONFLICT" for item in events))
             store.close()
 
     def test_traceability_search_and_sync_conflict_flow(self):

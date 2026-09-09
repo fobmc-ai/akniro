@@ -288,13 +288,16 @@ class ProjectStore:
             result.append(item)
         return result
 
-    def enqueue_sync(self, *, sync_id: str, project_id: str, tenant_id: str, direction: str, object_type: str, object_id: str, idempotency_key: str, payload: dict[str, Any]) -> dict[str, Any]:
+    def enqueue_sync(self, *, sync_id: str, project_id: str, tenant_id: str, direction: str, object_type: str, object_id: str, idempotency_key: str, payload: dict[str, Any], actor_id: str = "system") -> dict[str, Any]:
         if direction not in {"PULL_SNAPSHOT", "PUSH_APPROVED"}:
             raise ValueError("invalid sync direction")
         if direction == "PUSH_APPROVED" and not payload.get("approvalId"):
             raise PermissionError("PM-SYNC-001: push requires human approvalId")
         timestamp = now()
-        self.db.execute("INSERT OR IGNORE INTO sync_queue VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'QUEUED', '', ?, ?)", (sync_id, project_id, tenant_id, direction, object_type, object_id, idempotency_key, json.dumps(payload, ensure_ascii=False), timestamp, timestamp))
+        cursor = self.db.execute("INSERT OR IGNORE INTO sync_queue VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'QUEUED', '', ?, ?)", (sync_id, project_id, tenant_id, direction, object_type, object_id, idempotency_key, json.dumps(payload, ensure_ascii=False), timestamp, timestamp))
+        if cursor.rowcount == 1:
+            self._audit(tenant_id, project_id, actor_id, "sync.enqueue", sync_id, "success", {"direction": direction, "objectId": object_id})
+            self._emit_event(tenant_id=tenant_id, project_id=project_id, message_type="pm.sync.queued", actor_id=actor_id, payload={"syncId": sync_id, "direction": direction, "objectType": object_type, "objectId": object_id, "status": "QUEUED"}, correlation_id=sync_id, idempotency_key=f"sync.queued:{sync_id}")
         self.db.commit()
         row = self.db.execute("SELECT * FROM sync_queue WHERE idempotency_key = ?", (idempotency_key,)).fetchone()
         result = dict(row); result["payload"] = json.loads(result["payload"]); return result
@@ -675,7 +678,7 @@ class ProjectStore:
         rows = self.db.execute("SELECT id, entity_type, title, status, owner_id, updated_at FROM entities WHERE project_id = ? AND (id LIKE ? OR title LIKE ?) ORDER BY updated_at DESC", (project_id, needle, needle)).fetchall()
         return [dict(row) for row in rows]
 
-    def transition_sync(self, sync_id: str, target: str, reason: str = "") -> dict[str, Any]:
+    def transition_sync(self, sync_id: str, target: str, reason: str = "", actor_id: str = "system") -> dict[str, Any]:
         allowed = {"QUEUED": {"APPLIED", "CONFLICT", "FAILED"}, "CONFLICT": {"QUEUED", "FAILED"}, "FAILED": {"QUEUED"}, "APPLIED": set()}
         row = self.db.execute("SELECT * FROM sync_queue WHERE id = ?", (sync_id,)).fetchone()
         if not row:
@@ -683,6 +686,8 @@ class ProjectStore:
         if target not in allowed.get(row["status"], set()):
             raise ValueError(f"PM-SYNC-002: invalid transition {row['status']}->{target}")
         self.db.execute("UPDATE sync_queue SET status = ?, reason = ?, updated_at = ? WHERE id = ?", (target, reason, now(), sync_id))
+        self._audit(row["tenant_id"], row["project_id"], actor_id, "sync.transition", sync_id, "success", {"from": row["status"], "to": target, "reason": reason})
+        self._emit_event(tenant_id=row["tenant_id"], project_id=row["project_id"], message_type="pm.sync.transitioned", actor_id=actor_id, payload={"syncId": sync_id, "from": row["status"], "to": target, "reason": reason}, correlation_id=sync_id, idempotency_key=f"sync.transitioned:{sync_id}:{target}:{row['updated_at']}")
         self.db.commit()
         if target in {"CONFLICT", "FAILED"}:
             self.notify_project_owner(project_id=row["project_id"], kind="sync_conflict" if target == "CONFLICT" else "sync_failed", message=f"Sync {sync_id} entered {target}: {reason or 'no reason'}", correlation_id=sync_id)
@@ -737,7 +742,7 @@ class ProjectStore:
         snapshot = self.get_entity(snapshot_id)
         if snapshot["entity_type"] != "parameter_snapshot" or snapshot["status"] != "APPROVED":
             raise ValueError("parameter snapshot must be APPROVED before apply")
-        sync = self.enqueue_sync(sync_id=sync_id, project_id=snapshot["project_id"], tenant_id=snapshot["tenant_id"], direction="PUSH_APPROVED", object_type="parameter_snapshot", object_id=snapshot_id, idempotency_key=f"apply:{snapshot_id}:{approval_id}", payload={"snapshotId": snapshot_id, "approvalId": approval_id, "parameters": snapshot["payload"]})
+        sync = self.enqueue_sync(sync_id=sync_id, project_id=snapshot["project_id"], tenant_id=snapshot["tenant_id"], direction="PUSH_APPROVED", object_type="parameter_snapshot", object_id=snapshot_id, idempotency_key=f"apply:{snapshot_id}:{approval_id}", payload={"snapshotId": snapshot_id, "approvalId": approval_id, "parameters": snapshot["payload"]}, actor_id=actor_id)
         applied = self.transition(entity_id=snapshot_id, target="APPLIED", actor_id=actor_id, expected_revision=snapshot["revision"], allow_parameter_apply=True)
         return {"snapshot": applied, "sync": sync}
 

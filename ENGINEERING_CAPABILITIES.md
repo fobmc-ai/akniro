@@ -35,6 +35,7 @@
 - Web 审计页支持创建备份后立即执行恢复校验并显示结果。
 - 验证/PLC/Firmware 构建失败会向项目 Owner 发送可去重的通知，通知关联 Test Run/构建 Run correlation ID。
 - Edge 同步队列进入 CONFLICT/FAILED 会自动通知项目 Owner，并以 Sync ID 幂等去重。
+- Edge Sync 创建和每次状态迁移都会记录 `pm.sync.queued` / `pm.sync.transitioned` 事件及 Audit；重复幂等请求不会重复产生队列事件。
 - Issue 支持 S0-S4 严重度；S0/S1 创建时自动向项目 Owner 升级通知，并以 Issue ID 幂等去重。
 - 普通测试用例失败与工程验证失败统一：自动创建 OPEN Issue、关联 DRAFT Evidence，并通知项目 Owner。
 - Test Case 执行前强制校验 steps、inputs、expected 和 thresholds 四项验收定义。
