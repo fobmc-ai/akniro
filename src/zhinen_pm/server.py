@@ -66,6 +66,12 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                         return self._send(200, {"tree": store.get_tree(project_id)})
                     if path.endswith("/members"):
                         return self._send(200, {"members": store.list_members(project_id)})
+                    if path.endswith("/backlog"):
+                        status = parse_qs(urlparse(self.path).query).get("status", [None])[0]
+                        return self._send(200, {"items": store.list_backlog(project_id, status)})
+                    if path.endswith("/backlog"):
+                        status = parse_qs(urlparse(self.path).query).get("status", [None])[0]
+                        return self._send(200, {"items": store.list_backlog(project_id, status)})
                     if path.endswith("/entities"):
                         entity_type = parse_qs(urlparse(self.path).query).get("type", [None])[0]
                         return self._send(200, {"entities": store.list_entities(project_id, entity_type)})
@@ -93,6 +99,16 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                     project_id = path.split("/")[3]
                     self._authorize(body, "MODIFY", project_id)
                     return self._send(201, store.add_member(project_id=project_id, user_id=body["userId"], role=body["role"]))
+                if path.startswith("/api/projects/") and path.endswith("/backlog/import"):
+                    project_id = path.split("/")[3]
+                    self._authorize(body, "MODIFY", project_id)
+                    count = store.import_backlog(project_id=project_id, items=body["items"], actor_id=body["actorId"])
+                    return self._send(201, {"inserted": count, "items": len(store.list_backlog(project_id))})
+                if path.startswith("/api/projects/") and path.endswith("/backlog/import"):
+                    project_id = path.split("/")[3]
+                    self._authorize(body, "MODIFY", project_id)
+                    count = store.import_backlog(project_id=project_id, items=body["items"], actor_id=body["actorId"])
+                    return self._send(201, {"inserted": count, "items": len(store.list_backlog(project_id))})
                 if path.startswith("/api/projects/") and path.endswith("/entities"):
                     project_id = path.split("/")[3]
                     self._authorize(body, "MODIFY", project_id)

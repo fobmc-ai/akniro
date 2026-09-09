@@ -13,9 +13,10 @@ from zhinen_pm.server import create_server
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--database", default="control-center.db")
+    parser.add_argument("--port", type=int, default=8765)
     args = parser.parse_args()
-    server = create_server(args.database)
-    print(f"Zhinen PM running at http://127.0.0.1:8765 (database: {args.database})")
+    server = create_server(args.database, args.port)
+    print(f"Zhinen PM running at http://127.0.0.1:{server.server_port} (database: {args.database})")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

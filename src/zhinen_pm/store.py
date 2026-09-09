@@ -58,8 +58,20 @@ class ProjectStore:
           actor_id TEXT NOT NULL, action TEXT NOT NULL, target_id TEXT NOT NULL,
           outcome TEXT NOT NULL, details TEXT NOT NULL, occurred_at TEXT NOT NULL
         );
+        CREATE TABLE IF NOT EXISTS backlog_items (
+          project_id TEXT NOT NULL, id TEXT NOT NULL, master_refs TEXT NOT NULL,
+          title TEXT NOT NULL, area TEXT NOT NULL, status TEXT NOT NULL,
+          owner_id TEXT NOT NULL, placeholder INTEGER NOT NULL DEFAULT 0,
+          target_release TEXT NOT NULL, dependencies TEXT NOT NULL,
+          design_goal TEXT NOT NULL, acceptance_criteria TEXT NOT NULL,
+          test_plan TEXT NOT NULL, evidence_links TEXT NOT NULL,
+          risks TEXT NOT NULL, rollback_plan TEXT NOT NULL,
+          revision INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+          PRIMARY KEY(project_id, id), FOREIGN KEY(project_id) REFERENCES projects(id)
+        );
         CREATE INDEX IF NOT EXISTS idx_entities_project ON entities(project_id, entity_type);
         CREATE INDEX IF NOT EXISTS idx_audit_project ON audit(project_id, occurred_at);
+        CREATE INDEX IF NOT EXISTS idx_backlog_project ON backlog_items(project_id, status);
         """)
         self.db.commit()
 
@@ -83,6 +95,7 @@ class ProjectStore:
             ("work", "04-开发任务", "section"), ("quality", "05-测试与证据", "section"),
             ("problems", "06-问题与 CAPA", "section"), ("release", "07-发布与维护", "section"),
             ("knowledge", "08-知识库", "section"),
+            ("implementation", "09-总纲实施路线", "section"),
         ]
         self.db.executemany("INSERT INTO project_nodes(id, project_id, name, node_type, sort_order) VALUES (?, ?, ?, ?, ?)", [(f"{project_id}:{node_id}", project_id, name, node_type, index) for index, (node_id, name, node_type) in enumerate(nodes)])
 
@@ -153,6 +166,44 @@ class ProjectStore:
 
     def list_projects(self) -> list[dict[str, Any]]:
         return [dict(row) for row in self.db.execute("SELECT * FROM projects ORDER BY updated_at DESC")]
+
+    def import_backlog(self, *, project_id: str, items: list[dict[str, Any]], actor_id: str) -> int:
+        project = self.db.execute("SELECT tenant_id FROM projects WHERE id = ?", (project_id,)).fetchone()
+        if not project:
+            raise KeyError(f"unknown project: {project_id}")
+        implementation_node = f"{project_id}:implementation"
+        if not self.db.execute("SELECT 1 FROM project_nodes WHERE id = ?", (implementation_node,)).fetchone():
+            next_order = self.db.execute("SELECT COALESCE(MAX(sort_order), -1) + 1 FROM project_nodes WHERE project_id = ?", (project_id,)).fetchone()[0]
+            self.db.execute("INSERT INTO project_nodes(id, project_id, name, node_type, sort_order) VALUES (?, ?, ?, ?, ?)", (implementation_node, project_id, "09-总纲实施路线", "section", next_order))
+        timestamp = now()
+        inserted = 0
+        for item in items:
+            required = ["id", "title", "area", "status", "owner", "targetRelease", "designGoal", "acceptanceCriteria", "testPlan", "rollbackPlan"]
+            missing = [key for key in required if key not in item]
+            if missing:
+                raise ValueError(f"backlog item missing fields: {', '.join(missing)}")
+            values = (project_id, item["id"], json.dumps(item.get("masterPlanRefs", []), ensure_ascii=False), item["title"], item["area"], item["status"], item["owner"], int(bool(item.get("placeholder", False))), item["targetRelease"], json.dumps(item.get("dependencies", []), ensure_ascii=False), item["designGoal"], json.dumps(item["acceptanceCriteria"], ensure_ascii=False), item["testPlan"], json.dumps(item.get("evidenceLinks", []), ensure_ascii=False), json.dumps(item.get("risks", []), ensure_ascii=False), item["rollbackPlan"], timestamp, timestamp)
+            cursor = self.db.execute("INSERT OR IGNORE INTO backlog_items(project_id, id, master_refs, title, area, status, owner_id, placeholder, target_release, dependencies, design_goal, acceptance_criteria, test_plan, evidence_links, risks, rollback_plan, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", values)
+            inserted += cursor.rowcount
+        self._audit(project["tenant_id"], project_id, actor_id, "backlog.import", project_id, "success", {"items": len(items), "inserted": inserted})
+        self.db.commit()
+        return inserted
+
+    def list_backlog(self, project_id: str, status: str | None = None) -> list[dict[str, Any]]:
+        query = "SELECT * FROM backlog_items WHERE project_id = ?"
+        args: list[Any] = [project_id]
+        if status:
+            query += " AND status = ?"; args.append(status)
+        query += " ORDER BY id"
+        rows = self.db.execute(query, args).fetchall()
+        result = []
+        for row in rows:
+            item = dict(row)
+            for field in ("master_refs", "dependencies", "acceptance_criteria", "evidence_links", "risks"):
+                item[field] = json.loads(item[field])
+            item["placeholder"] = bool(item["placeholder"])
+            result.append(item)
+        return result
 
     def create_entity(self, *, entity_id: str, entity_type: str, project_id: str, tenant_id: str, title: str, owner_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
         if not self.db.execute("SELECT 1 FROM projects WHERE id = ? AND tenant_id = ?", (project_id, tenant_id)).fetchone():

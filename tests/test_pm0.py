@@ -41,7 +41,7 @@ class PM0Tests(unittest.TestCase):
             store = ProjectStore(Path(directory) / "pm.db")
             store.create_project(project_id="P-001", tenant_id="T-001", name="Demo", kind="platform", owner_id="U-001")
             tree = store.get_tree("P-001")
-            self.assertEqual(len(tree), 9)
+            self.assertEqual(len(tree), 10)
             node = store.add_node(project_id="P-001", node_id="NODE-001", name="Custom", parent_id=tree[0]["id"])
             self.assertEqual(node["parent_id"], tree[0]["id"])
             self.assertEqual(store.get_actor("U-001", "T-001")["role"], "owner")
@@ -57,6 +57,18 @@ class PM0Tests(unittest.TestCase):
             with self.assertRaises(PermissionError):
                 store.add_member(project_id="P-001", user_id="U-003", role="engineer")
             self.assertEqual(len(store.list_members("P-001")), 2)
+            store.close()
+
+    def test_backlog_import_is_idempotent_and_preserves_placeholder(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = ProjectStore(Path(directory) / "pm.db")
+            store.create_project(project_id="P-001", tenant_id="T-001", name="Demo", kind="platform", owner_id="U-001")
+            items = json.loads((Path(__file__).parents[1] / "examples" / "implementation-backlog.json").read_text(encoding="utf-8"))
+            self.assertEqual(store.import_backlog(project_id="P-001", items=items, actor_id="U-001"), 19)
+            self.assertEqual(store.import_backlog(project_id="P-001", items=items, actor_id="U-001"), 0)
+            backlog = store.list_backlog("P-001")
+            self.assertEqual(len(backlog), 19)
+            self.assertTrue(next(item for item in backlog if item["id"] == "PLC-001")["placeholder"])
             store.close()
 
     def test_http_api_project_tree_flow(self):
@@ -78,7 +90,12 @@ class PM0Tests(unittest.TestCase):
                 status, updated = request("/api/entities/REQ-001/transition", {"target": "READY", "actorId": "U-001", "tenantId": "T-001", "expectedRevision": entity["revision"]})
                 self.assertEqual((status, updated["status"]), (200, "READY"))
                 status, tree = request("/api/projects/P-001/tree")
-                self.assertEqual((status, len(tree["tree"])), (200, 9))
+                self.assertEqual((status, len(tree["tree"])), (200, 10))
+                items = [{"id": "PM-001", "title": "Control Center", "area": "PM", "status": "IMPLEMENTING", "owner": "U-001", "targetRelease": "V0.1", "designGoal": "可追踪", "acceptanceCriteria": ["可查询"], "testPlan": "API smoke", "rollbackPlan": "保留旧版本", "placeholder": False}]
+                status, result = request("/api/projects/P-001/backlog/import", {"actorId": "U-001", "tenantId": "T-001", "items": items})
+                self.assertEqual((status, result["inserted"]), (201, 1))
+                status, backlog = request("/api/projects/P-001/backlog")
+                self.assertEqual((status, backlog["items"][0]["id"]), (200, "PM-001"))
             finally:
                 server.shutdown(); server.server_close(); thread.join(timeout=2)
 

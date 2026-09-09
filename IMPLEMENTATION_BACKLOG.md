@@ -4,6 +4,8 @@
 
 将 [`MASTER_PLAN.md`](MASTER_PLAN.md) 的长期规划逐项落入管理软件，形成可执行、可验证、可回填的实施目录。总纲是方向；本目录是工程任务入口；代码、测试和现场数据是证据。
 
+当前实现：结构化源数据位于 [`examples/implementation-backlog.json`](examples/implementation-backlog.json)，由 PM 服务导入 `backlog_items`，通过 `GET /api/projects/{projectId}/backlog` 查询，Web 端“实施路线”页面展示。导入采用稳定 ID 幂等策略；真实实现、测试证据和现场数据到位后，以 revision/关联记录回填，不把 Placeholder 当作完成。
+
 ## 2. 工作包状态
 
 ```text
