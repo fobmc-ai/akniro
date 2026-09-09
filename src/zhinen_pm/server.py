@@ -186,6 +186,14 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                     return self._send(200, simulate_plc_runtime(int(body.get("cycles", 100)), int(body.get("cycleMs", 10)), int(body.get("watchdogMs", 50)), body.get("fault")))
                 if path == "/api/engineering/toolchain-matrix":
                     return self._send(200, validate_toolchain_matrix(body.get("cases", [])))
+                if path.startswith("/api/projects/") and path.endswith("/toolchain-matrix"):
+                    project_id = path.split("/")[3]
+                    self._authorize(body, "MODIFY", project_id)
+                    validation = validate_toolchain_matrix(body.get("cases", []))
+                    item = store.create_entity(entity_id=body["validationId"], entity_type="tool_validation", project_id=project_id, tenant_id=body["tenantId"], title="PLC/HMI toolchain matrix", owner_id=body["actorId"], payload=validation)
+                    store.transition(entity_id=item["id"], target="RUNNING", actor_id=body["actorId"], expected_revision=1)
+                    final = store.transition(entity_id=item["id"], target="VALIDATED" if validation["result"] == "PASSED" else "FAILED", actor_id=body["actorId"], expected_revision=2)
+                    return self._send(201, {"validation": final, "matrix": validation})
                 if path.startswith("/api/projects/") and path.endswith("/simulate"):
                     project_id = path.split("/")[3]
                     self._authorize(body, "MODIFY", project_id)

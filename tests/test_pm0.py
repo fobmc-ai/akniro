@@ -327,6 +327,8 @@ class PM0Tests(unittest.TestCase):
                 self.assertEqual((build["artifact"]["status"], build["testRun"]["status"], build["evidence"]["status"], build["evidence"]["payload"]["capabilityId"]), ("TESTED", "PASSED", "VALIDATED", "PLC-001"))
                 status, approved = request("/api/artifacts/ART-PLC-001/transition", {"target": "APPROVED", "actorId": "U-001", "tenantId": "T-001"})
                 self.assertEqual((status, approved["status"]), (200, "APPROVED"))
+                status, matrix = request("/api/projects/P-001/toolchain-matrix", {"actorId": "U-001", "tenantId": "T-001", "validationId": "TV-PLC-001", "cases": [{"id": "PLC-GOLDEN", "toolchain": "PLC-SIM-1", "compilePassed": True, "hmiSmoke": True, "expectedHash": "h1", "actualHash": "h1"}]})
+                self.assertEqual((status, matrix["validation"]["status"], matrix["matrix"]["result"]), (201, "VALIDATED", "PASSED"))
                 status, simulation = request("/api/projects/P-001/simulate", {"actorId": "U-001", "tenantId": "T-001", "capabilityId": "HMI-001", "testRunId": "RUN-HMI-001", "evidenceId": "EV-HMI-001", "payload": {"tag_binding": True, "alarm_binding": True, "screen_smoke": True, "duplicate_tag": True}})
                 self.assertEqual((status, simulation["validation"]["result"], simulation["testRun"]["status"], simulation["evidence"]["status"], simulation["issue"]["status"]), (201, "FAILED", "FAILED", "DRAFT", "OPEN"))
                 status, tree = request("/api/projects/P-001/tree")

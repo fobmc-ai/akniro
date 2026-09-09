@@ -20,6 +20,7 @@
 - `POST /api/entities/{entityId}/payload`：以 Revision 乐观并发保护更新 CAPA 根因、修复版本、回归测试和关闭标准；Issue 页面提供对应录入入口；
 - `POST /api/artifacts/{artifactId}/transition`：资产 TESTED→APPROVED 需要 Owner 人工批准，资产清单提供操作入口；
 - `POST /api/engineering/toolchain-matrix`：执行 PLC/HMI Golden Project 矩阵，比较工具链、编译、HMI Smoke 和期望/实际 Hash；
+- `POST /api/projects/{projectId}/toolchain-matrix`：将矩阵结果持久化为 `tool_validation`，通过为 VALIDATED，失败为 FAILED，并保留审计记录；
 - 模拟证据包含稳定 `traceHash`；Robot 握手顺序、FAT/SAT 清单、Edge 重放幂等性和生命周期指标均按确定性规则重放，便于回归比较；
 - MOT-001 提供离散步进轴模拟，验证起点、目标、速度、软限位、轨迹和越界安全停机；
 - VIS-001 支持样本期望/预测标签回放，输出 TP/TN/FP/FN 混淆矩阵、准确率和确定性回归结果；
