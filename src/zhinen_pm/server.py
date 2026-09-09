@@ -205,8 +205,9 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                     artifact = store.create_artifact_manifest(artifact_id=body["artifactId"], project_id=project_id, artifact_type="PLC", source_uri=body.get("sourceUri", "inline://plc"), content_hash=build["buildHash"], artifact_revision=body.get("artifactRevision", "r1"), toolchain_version=build["toolchainVersion"], target_environment="SIMULATION", sensitivity=body.get("sensitivity", "INTERNAL"), owner_id=body["actorId"])
                     run_id = body.get("testRunId", f"{body['artifactId']}-BUILD-RUN")
                     evidence_id = body.get("evidenceId", f"{body['artifactId']}-BUILD-EVIDENCE")
-                    run = store.create_entity(entity_id=run_id, entity_type="test_run", project_id=project_id, tenant_id=body["tenantId"], title="PLC simulated build", owner_id=body["actorId"], payload=build)
-                    evidence = store.create_entity(entity_id=evidence_id, entity_type="evidence", project_id=project_id, tenant_id=body["tenantId"], title="PLC build evidence", owner_id=body["actorId"], payload=build)
+                    build_evidence = {**build, "capabilityId": "PLC-001", "evidenceType": "BUILD_RESULT"}
+                    run = store.create_entity(entity_id=run_id, entity_type="test_run", project_id=project_id, tenant_id=body["tenantId"], title="PLC simulated build", owner_id=body["actorId"], payload=build_evidence)
+                    evidence = store.create_entity(entity_id=evidence_id, entity_type="evidence", project_id=project_id, tenant_id=body["tenantId"], title="PLC build evidence", owner_id=body["actorId"], payload=build_evidence)
                     store.transition(entity_id=run_id, target="RUNNING", actor_id=body["actorId"], expected_revision=1)
                     if build["result"] == "PASSED":
                         store.transition(entity_id=run_id, target="PASSED", actor_id=body["actorId"], expected_revision=2)
@@ -225,8 +226,9 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                     artifact = store.create_artifact_manifest(artifact_id=body["artifactId"], project_id=project_id, artifact_type="FIRMWARE", source_uri=body.get("sourceUri", "inline://firmware"), content_hash=build["imageHash"], artifact_revision=body.get("artifactRevision", "r1"), toolchain_version=build["toolchainVersion"], target_environment=build["target"], sensitivity=body.get("sensitivity", "EDGE_ONLY"), owner_id=body["actorId"])
                     run_id = body.get("testRunId", f"{body['artifactId']}-BUILD-RUN")
                     evidence_id = body.get("evidenceId", f"{body['artifactId']}-BUILD-EVIDENCE")
-                    run = store.create_entity(entity_id=run_id, entity_type="test_run", project_id=project_id, tenant_id=body["tenantId"], title="Firmware simulated build", owner_id=body["actorId"], payload=build)
-                    evidence = store.create_entity(entity_id=evidence_id, entity_type="evidence", project_id=project_id, tenant_id=body["tenantId"], title="Firmware build evidence", owner_id=body["actorId"], payload=build)
+                    build_evidence = {**build, "capabilityId": "FW-001", "evidenceType": "BUILD_RESULT"}
+                    run = store.create_entity(entity_id=run_id, entity_type="test_run", project_id=project_id, tenant_id=body["tenantId"], title="Firmware simulated build", owner_id=body["actorId"], payload=build_evidence)
+                    evidence = store.create_entity(entity_id=evidence_id, entity_type="evidence", project_id=project_id, tenant_id=body["tenantId"], title="Firmware build evidence", owner_id=body["actorId"], payload=build_evidence)
                     store.transition(entity_id=run_id, target="RUNNING", actor_id=body["actorId"], expected_revision=1)
                     if build["result"] == "PASSED":
                         store.transition(entity_id=run_id, target="PASSED", actor_id=body["actorId"], expected_revision=2)
