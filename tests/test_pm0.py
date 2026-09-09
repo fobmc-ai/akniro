@@ -11,7 +11,7 @@ from zhinen_pm.authorization import Actor, AuthorizationError, authorize
 from zhinen_pm.state_machine import InvalidTransition, assert_transition
 from zhinen_pm.store import ProjectStore
 from zhinen_pm.server import create_server
-from zhinen_pm.engineering import validate_capability, list_capabilities, simulation_evidence, build_plc_project, simulate_plc_runtime
+from zhinen_pm.engineering import validate_capability, list_capabilities, simulation_evidence, build_plc_project, build_firmware_image, simulate_plc_runtime
 from zhinen_pm.ai_context import build_context
 import threading
 
@@ -198,6 +198,9 @@ class PM0Tests(unittest.TestCase):
         self.assertEqual(simulate_plc_runtime()["result"], "PASSED")
         self.assertTrue(simulate_plc_runtime(injected_fault="watchdog")["safeStop"])
         self.assertEqual(simulate_plc_runtime(cycle_ms=60, watchdog_ms=50)["result"], "BLOCKED")
+        firmware = build_firmware_image("bootloader\napplication", "FW-SIM-1", "EDGE", "sha256:previous", True)
+        self.assertEqual((firmware["result"], firmware["powerRecovery"], firmware["deterministic"]), ("PASSED", "ROLLBACK_TO_PREVIOUS", True))
+        self.assertIn("power_loss_without_previous_image", build_firmware_image("application", inject_power_loss=True)["errors"])
         self.assertIn("invalid_soft_limits", simulation_evidence("MOT-001", {"axis_simulation": True, "limit_check": True, "state_machine": True, "soft_limit_min": 10, "soft_limit_max": 1})["missing"])
         self.assertEqual(simulation_evidence("VIS-001", {"dataset_hash": True, "thresholds": True, "regression_set": True, "threshold_values": [0.5, 1.2]})["result"], "FAILED")
         self.assertEqual(simulation_evidence("LIFE-001", {"production_metrics": True, "quality_metrics": True, "maintenance_workflow": True})["result"], "PASSED")

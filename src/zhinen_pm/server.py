@@ -8,7 +8,7 @@ from urllib.parse import parse_qs, urlparse
 
 from .store import ProjectStore
 from .authorization import Actor, authorize
-from .engineering import list_capabilities, validate_capability, simulation_evidence, build_plc_project, simulate_plc_runtime
+from .engineering import list_capabilities, validate_capability, simulation_evidence, build_plc_project, build_firmware_image, simulate_plc_runtime
 from .ai_context import build_context
 
 
@@ -213,6 +213,24 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                         store.transition_artifact(artifact_id=artifact["id"], target="TESTED", actor_id=body["actorId"])
                         if body.get("releaseId"):
                             store.link_entities(project_id=project_id, from_id=body["releaseId"], to_id=evidence_id, link_type="requires")
+                    else:
+                        store.transition(entity_id=run_id, target="FAILED", actor_id=body["actorId"], expected_revision=2)
+                    return self._send(201, {"build": build, "artifact": store.get_artifact_manifest(body["artifactId"]), "testRun": store.get_entity(run_id), "evidence": store.get_entity(evidence_id)})
+                if path.startswith("/api/projects/") and path.endswith("/builds/firmware"):
+                    project_id = path.split("/")[3]
+                    self._authorize(body, "MODIFY", project_id)
+                    build = build_firmware_image(body.get("source", ""), body.get("toolchainVersion", "SIMULATED-FW-0.1"), body.get("target", "EDGE"), body.get("previousHash"), bool(body.get("injectPowerLoss", False)))
+                    artifact = store.create_artifact_manifest(artifact_id=body["artifactId"], project_id=project_id, artifact_type="FIRMWARE", source_uri=body.get("sourceUri", "inline://firmware"), content_hash=build["imageHash"], artifact_revision=body.get("artifactRevision", "r1"), toolchain_version=build["toolchainVersion"], target_environment=build["target"], sensitivity=body.get("sensitivity", "EDGE_ONLY"), owner_id=body["actorId"])
+                    run_id = body.get("testRunId", f"{body['artifactId']}-BUILD-RUN")
+                    evidence_id = body.get("evidenceId", f"{body['artifactId']}-BUILD-EVIDENCE")
+                    run = store.create_entity(entity_id=run_id, entity_type="test_run", project_id=project_id, tenant_id=body["tenantId"], title="Firmware simulated build", owner_id=body["actorId"], payload=build)
+                    evidence = store.create_entity(entity_id=evidence_id, entity_type="evidence", project_id=project_id, tenant_id=body["tenantId"], title="Firmware build evidence", owner_id=body["actorId"], payload=build)
+                    store.transition(entity_id=run_id, target="RUNNING", actor_id=body["actorId"], expected_revision=1)
+                    if build["result"] == "PASSED":
+                        store.transition(entity_id=run_id, target="PASSED", actor_id=body["actorId"], expected_revision=2)
+                        store.transition(entity_id=evidence_id, target="VALIDATED", actor_id=body["actorId"], expected_revision=1)
+                        store.transition_artifact(artifact_id=artifact["id"], target="BUILT", actor_id=body["actorId"])
+                        store.transition_artifact(artifact_id=artifact["id"], target="TESTED", actor_id=body["actorId"])
                     else:
                         store.transition(entity_id=run_id, target="FAILED", actor_id=body["actorId"], expected_revision=2)
                     return self._send(201, {"build": build, "artifact": store.get_artifact_manifest(body["artifactId"]), "testRun": store.get_entity(run_id), "evidence": store.get_entity(evidence_id)})

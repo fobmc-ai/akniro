@@ -112,6 +112,20 @@ def build_plc_project(source: str, toolchain_version: str = "SIMULATED-PLC-0.1")
     return {"result": "FAILED" if errors else "PASSED", "sourceHash": f"sha256:{source_hash}", "buildHash": f"sha256:{build_hash}", "toolchainVersion": toolchain_version, "errors": errors, "log": "PLC SIMULATED BUILD OK" if not errors else "PLC SIMULATED BUILD FAILED", "target": "SIMULATION"}
 
 
+def build_firmware_image(source: str, toolchain_version: str = "SIMULATED-FW-0.1", target: str = "EDGE", previous_hash: str | None = None, inject_power_loss: bool = False) -> dict[str, Any]:
+    source_hash = hashlib.sha256(source.encode("utf-8")).hexdigest()
+    errors: list[str] = []
+    if not source.strip():
+        errors.append("empty_source")
+    if "UNSAFE_BOOT" in source:
+        errors.append("unsafe_boot_requires_manual_review")
+    image_hash = hashlib.sha256(f"{source_hash}:{toolchain_version}:{target}".encode("utf-8")).hexdigest()
+    recovery = "ROLLBACK_TO_PREVIOUS" if inject_power_loss and previous_hash else ("RECOVERY_UNAVAILABLE" if inject_power_loss else "NOT_INJECTED")
+    if inject_power_loss and not previous_hash:
+        errors.append("power_loss_without_previous_image")
+    return {"result": "FAILED" if errors else "PASSED", "sourceHash": f"sha256:{source_hash}", "imageHash": f"sha256:{image_hash}", "toolchainVersion": toolchain_version, "target": target, "errors": errors, "powerRecovery": recovery, "rollbackHash": previous_hash, "deterministic": True, "log": "FIRMWARE SIMULATED BUILD OK" if not errors else "FIRMWARE SIMULATED BUILD FAILED"}
+
+
 def simulate_plc_runtime(cycles: int = 100, cycle_ms: int = 10, watchdog_ms: int = 50, injected_fault: str | None = None) -> dict[str, Any]:
     if cycles < 1 or cycle_ms < 1 or watchdog_ms < cycle_ms:
         return {"result": "BLOCKED", "reason": "invalid_runtime_limits", "safeStop": True}

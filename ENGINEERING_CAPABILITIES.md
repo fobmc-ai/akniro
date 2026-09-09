@@ -14,6 +14,7 @@
 - `GET /api/engineering/capabilities`：列出能力、检查项和门禁；
 - `POST /api/engineering/validate`：提交 `{capabilityId, payload}`，返回 `PASSED`、`CONTRACT_PASSED` 或 `BLOCKED`；
 - `POST /api/engineering/runtime-simulate`：运行确定性的 PLC 周期/看门狗/安全停机模拟，支持 `watchdog`、`communication_loss`、`safety_trip` 故障注入；
+- `POST /api/projects/{projectId}/builds/firmware`：确定性固件镜像构建，记录 source/image hash，并验证断电恢复和回滚路径；
 - `POST /api/projects/{projectId}/simulate`：生成测试运行和验证证据；除通用检查外，EDA IO/BOM、Motion 软限位、Vision 阈值、Firmware 哈希、Edge 幂等性也会输出结构化失败原因；
 - `LIFE-001`：生产指标、质量指标和维护流程统一进入生命周期验证，缺项会阻止软件验收证据通过；
 - `GET /api/projects/{projectId}/readiness`：按工作包依赖计算可开始项；
