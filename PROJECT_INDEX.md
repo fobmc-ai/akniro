@@ -4,6 +4,8 @@
 
 `MASTER_PLAN.md` 是长期产品/技术总纲；它定义 Machine Model、工程能力、AI 安全边界、分阶段路线和 Codex 工作规则。具体实现仍以 ADR、Schema 和模块契约为准。
 
+Phase 0 implementation gate: `FOUNDATION_CONTRACT.md`、`DATA_INTERACTION_CONTRACT.md`、`CHANGE_CONTROL_RULES.md`。
+
 This file is the low-cost navigation index for Codex. Read the smallest relevant entries before opening full documents.
 
 | ID | Area | Primary documents | Status |

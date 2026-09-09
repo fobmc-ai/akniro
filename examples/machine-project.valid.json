@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "0.1",
+  "projectId": "ZN-MACHINE-DEMO",
+  "name": "Zhinen Foundation Demo Machine",
+  "revision": "v0.1.0",
+  "machineId": "ZN-MACHINE-001",
+  "capabilities": [
+    {
+      "capabilityId": "plc.runtime",
+      "version": "0.1.0",
+      "status": "experimental",
+      "provider": "zhinen.core",
+      "resourceProfile": "realtime-control"
+    }
+  ],
+  "components": [
+    {
+      "componentId": "PLC-CORE",
+      "kind": "plc",
+      "version": "v0.1.0",
+      "criticality": "critical"
+    }
+  ]
+}

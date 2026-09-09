@@ -4,6 +4,8 @@
 
 The repository is currently at **Phase 0 — Foundation**. The complete long-term product and technology route is maintained in [`MASTER_PLAN.md`](MASTER_PLAN.md).
 
+The Phase 0 gate is defined in [`FOUNDATION_CONTRACT.md`](FOUNDATION_CONTRACT.md), with cross-module coordination in [`DATA_INTERACTION_CONTRACT.md`](DATA_INTERACTION_CONTRACT.md) and problem/change handling in [`CHANGE_CONTROL_RULES.md`](CHANGE_CONTROL_RULES.md).
+
 ## Delivery phases
 
 | Phase | Focus | Classification |
