@@ -174,6 +174,16 @@ class ProjectStore:
         result["payload"] = json.loads(result["payload"])
         return result
 
+    def list_entities(self, project_id: str, entity_type: str | None = None) -> list[dict[str, Any]]:
+        if entity_type:
+            rows = self.db.execute("SELECT * FROM entities WHERE project_id = ? AND entity_type = ? ORDER BY updated_at DESC", (project_id, entity_type)).fetchall()
+        else:
+            rows = self.db.execute("SELECT * FROM entities WHERE project_id = ? ORDER BY updated_at DESC", (project_id,)).fetchall()
+        result = []
+        for row in rows:
+            item = dict(row); item["payload"] = json.loads(item["payload"]); result.append(item)
+        return result
+
     def transition(self, *, entity_id: str, target: str, actor_id: str, expected_revision: int) -> dict[str, Any]:
         row = self.db.execute("SELECT * FROM entities WHERE id = ?", (entity_id,)).fetchone()
         if not row:

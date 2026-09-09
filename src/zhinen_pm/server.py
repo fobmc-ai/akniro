@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 from .store import ProjectStore
 from .authorization import Actor, authorize
@@ -66,6 +66,9 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                         return self._send(200, {"tree": store.get_tree(project_id)})
                     if path.endswith("/members"):
                         return self._send(200, {"members": store.list_members(project_id)})
+                    if path.endswith("/entities"):
+                        entity_type = parse_qs(urlparse(self.path).query).get("type", [None])[0]
+                        return self._send(200, {"entities": store.list_entities(project_id, entity_type)})
                     return self._send(200, store.get_project(project_id))
                 if path.startswith("/api/entities/"):
                     entity_id = path.split("/")[3]
