@@ -6,6 +6,8 @@
 
 Phase 0 implementation gate: `FOUNDATION_CONTRACT.md`、`DATA_INTERACTION_CONTRACT.md`、`CHANGE_CONTROL_RULES.md`。
 
+当前代码骨架：`src/zhinen_foundation/`；契约测试：`tests/`；示例和校验入口：`examples/`、`tools/`。
+
 This file is the low-cost navigation index for Codex. Read the smallest relevant entries before opening full documents.
 
 | ID | Area | Primary documents | Status |

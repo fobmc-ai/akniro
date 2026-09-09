@@ -6,3 +6,10 @@
 
 当前重点是 Machine Project、稳定 ID、能力/资源注册、版本化 API/事件、权限审计和 Schema 验证；实时 Runtime、完整 IDE、设备驱动和工业应用按路线逐步实现。
 
+Phase 0 契约测试：
+
+```bash
+python -m unittest discover -s tests -v
+python tools/validate_machine_project.py examples/machine-project.valid.json
+```
+

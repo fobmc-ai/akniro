@@ -1,0 +1,30 @@
+name: Foundation Contracts
+
+on:
+  push:
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "tools/**"
+      - "examples/**"
+      - ".github/workflows/foundation-contracts.yml"
+  pull_request:
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "tools/**"
+      - "examples/**"
+      - ".github/workflows/foundation-contracts.yml"
+
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run foundation contract tests
+        run: python -m unittest discover -s tests -v
+      - name: Validate example project
+        run: python tools/validate_machine_project.py examples/machine-project.valid.json

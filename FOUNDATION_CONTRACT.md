@@ -64,6 +64,8 @@ Machine Project
 
 完成该闭环前，不开始 Phase 1 的 PLC 编译、下载和在线控制功能。
 
+当前代码只实现了该闭环的契约骨架：项目校验、消息信封、Capability Registry、Resource Lease 和 Audit Log。持久化 revision、迁移、outbox 和正式 API 将在下一步按对应契约实现。
+
 ## Required evidence
 
 每个实现任务必须提交：Requirement/Capability ID、变更前后契约、测试结果、失败案例、迁移/回滚影响、未解决风险和成本说明。没有证据的“应该可以”不视为完成。
