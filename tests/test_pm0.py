@@ -706,9 +706,9 @@ class PM0Tests(unittest.TestCase):
         second = simulate_driver_certification_matrix(cases)
         self.assertEqual((first["result"], first["matrixHash"]), ("PASSED", second["matrixHash"]))
         self.assertEqual(simulate_driver_certification_matrix([{**cases[0], "actual_hash": "h2"}])["result"], "FAILED")
-        safety = simulate_safety_boundary_evidence({"realtime_isolation": True, "controller_write_false": True, "human_approval": True, "fault_safe": True})
+        safety = simulate_safety_boundary_evidence({"realtime_isolation": True, "controller_write_false": True, "human_approval": True, "fault_safe": True, "ai_direct_deploy_false": True})
         self.assertEqual((safety["result"], safety["controllerWrite"], safety["certification"]), ("PASSED", False, "SOFTWARE_BOUNDARY_ONLY"))
-        self.assertEqual(simulation_evidence("SAFE-001", {"realtime_isolation": True, "controller_write_false": True, "human_approval": True, "fault_safe": True})["safetyBoundary"]["result"], "PASSED")
+        self.assertEqual(simulation_evidence("SAFE-001", {"realtime_isolation": True, "controller_write_false": True, "human_approval": True, "fault_safe": True, "ai_direct_deploy_false": True})["safetyBoundary"]["result"], "PASSED")
 
     def test_robot_handshake_is_scoped_and_fault_safe(self):
         sequence = ["INIT", "READY", "START", "DONE"]

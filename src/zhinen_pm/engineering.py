@@ -30,7 +30,7 @@ CAPABILITIES = (
     EngineeringCapability("LIFE-001", "生产质量与维护生命周期", "LIFECYCLE", "SIMULATED", "HUMAN_APPROVAL_REQUIRED", ("production_metrics", "quality_metrics", "maintenance_workflow")),
     EngineeringCapability("ECO-001", "Marketplace / fleet learning", "ECOSYSTEM", "CONTRACT_ONLY", "HUMAN_APPROVAL_REQUIRED", ("consent", "scope", "retention")),
     EngineeringCapability("DRV-001", "Driver certification matrix", "DRIVER", "SIMULATED", "HUMAN_APPROVAL_REQUIRED", ("protocol", "connect_passed", "readback_passed", "fault_recovery")),
-    EngineeringCapability("SAFE-001", "Safety boundary evidence", "SAFETY", "CONTRACT_ONLY", "HUMAN_APPROVAL_REQUIRED", ("realtime_isolation", "controller_write_false", "human_approval", "fault_safe")),
+    EngineeringCapability("SAFE-001", "Safety boundary evidence", "SAFETY", "CONTRACT_ONLY", "HUMAN_APPROVAL_REQUIRED", ("realtime_isolation", "controller_write_false", "human_approval", "fault_safe", "ai_direct_deploy_false")),
 )
 
 
@@ -69,7 +69,7 @@ def simulation_evidence(capability_id: str, payload: dict[str, Any]) -> dict[str
         "LIFE-001": ("lifecycle", "production_metrics", "quality_metrics", "maintenance_workflow"),
         "ECO-001": ("consent", "consent", "scope", "retention"),
         "DRV-001": ("driver", "protocol", "connect_passed", "readback_passed", "fault_recovery"),
-        "SAFE-001": ("safety", "realtime_isolation", "controller_write_false", "human_approval", "fault_safe"),
+        "SAFE-001": ("safety", "realtime_isolation", "controller_write_false", "human_approval", "fault_safe", "ai_direct_deploy_false"),
     }
     descriptor = diagnostics.get(capability_id)
     if descriptor:
@@ -352,7 +352,7 @@ def simulate_safety_boundary_evidence(payload: dict[str, Any]) -> dict[str, Any]
         "controllerWriteFalse": payload.get("controller_write_false") is True and payload.get("controller_write") is not True,
         "humanApproval": payload.get("human_approval") is True,
         "faultSafe": payload.get("fault_safe") is True,
-        "aiDirectDeployFalse": payload.get("ai_direct_deploy_false", True) is True,
+        "aiDirectDeployFalse": payload.get("ai_direct_deploy_false") is True,
     }
     errors = [name + "_failed" for name, passed in checks.items() if not passed]
     import json

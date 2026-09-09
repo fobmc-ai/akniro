@@ -309,6 +309,7 @@
           event.target.disabled = true;
           const cases = [{id:'DRV-GOLDEN',protocol:'EtherCAT',connect_passed:true,readback_passed:true,fault_recovery:true,expected_hash:'h1',actual_hash:'h1'}];
           const payloads = { 'DRV-001': {protocol:'EtherCAT',connect_passed:true,readback_passed:true,fault_recovery:true,cases}, 'SAFE-001': {realtime_isolation:true,controller_write_false:true,human_approval:true,fault_safe:true} };
+          payloads['SAFE-001'].ai_direct_deploy_false = true;
           const results = [];
           for (const [capabilityId, payload] of Object.entries(payloads)) {
             const response = await fetch('/api/projects/' + project.id + '/simulate', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({actorId:'U-001',tenantId:project.tenant_id,capabilityId,testRunId:'BOUNDARY-' + Date.now() + '-' + capabilityId + '-RUN',evidenceId:'BOUNDARY-' + Date.now() + '-' + capabilityId + '-EVIDENCE',payload})});
