@@ -65,6 +65,9 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                 if path == "/api/users":
                     tenant_id = urlparse(self.path).query.replace("tenantId=", "")
                     return self._send(200, {"users": store.list_users(tenant_id)})
+                if path == "/api/notifications":
+                    query = parse_qs(urlparse(self.path).query)
+                    return self._send(200, {"notifications": store.list_notifications(query.get("recipientId", [""])[0], query.get("projectId", [None])[0])})
                 if path.startswith("/api/projects/"):
                     project_id = path.split("/")[3]
                     if path.endswith("/tree"):
@@ -155,6 +158,10 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                     project_id = path.split("/")[3]
                     self._authorize(body, "MODIFY", project_id)
                     return self._send(201, store.notify(notification_id=body["id"], project_id=project_id, recipient_id=body["recipientId"], kind=body["kind"], message=body["message"]))
+                if path.startswith("/api/notifications/") and path.endswith("/read"):
+                    notification = store.get_notification(path.split("/")[3])
+                    self._authorize(body, "MODIFY", notification["project_id"])
+                    return self._send(200, store.mark_notification_read(path.split("/")[3]))
                 if path.startswith("/api/projects/") and path.endswith("/backup"):
                     project_id = path.split("/")[3]
                     self._authorize(body, "MODIFY", project_id)

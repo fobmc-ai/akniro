@@ -290,6 +290,20 @@ class ProjectStore:
             rows = self.db.execute("SELECT * FROM notifications WHERE recipient_id = ? ORDER BY created_at DESC", (recipient_id,))
         return [dict(row) for row in rows]
 
+    def mark_notification_read(self, notification_id: str) -> dict[str, Any]:
+        self.db.execute("UPDATE notifications SET read = 1 WHERE id = ?", (notification_id,))
+        self.db.commit()
+        row = self.db.execute("SELECT * FROM notifications WHERE id = ?", (notification_id,)).fetchone()
+        if not row:
+            raise KeyError(f"unknown notification: {notification_id}")
+        return dict(row)
+
+    def get_notification(self, notification_id: str) -> dict[str, Any]:
+        row = self.db.execute("SELECT * FROM notifications WHERE id = ?", (notification_id,)).fetchone()
+        if not row:
+            raise KeyError(f"unknown notification: {notification_id}")
+        return dict(row)
+
     def backup(self, destination: str) -> str:
         target = sqlite3.connect(destination)
         try:

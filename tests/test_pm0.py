@@ -124,6 +124,14 @@ class PM0Tests(unittest.TestCase):
             self.assertGreaterEqual(report["auditCount"], 1)
             store.close()
 
+    def test_notifications_can_be_read(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = ProjectStore(Path(directory) / "pm.db")
+            store.create_project(project_id="P-001", tenant_id="T-001", name="Demo", kind="platform", owner_id="U-001")
+            store.notify(notification_id="N-001", project_id="P-001", recipient_id="U-001", kind="conflict", message="需处理同步冲突")
+            self.assertEqual(store.mark_notification_read("N-001")["read"], 1)
+            store.close()
+
     def test_machine_model_revision_snapshot_and_diff(self):
         with tempfile.TemporaryDirectory() as directory:
             store = ProjectStore(Path(directory) / "pm.db")
