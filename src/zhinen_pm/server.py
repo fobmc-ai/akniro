@@ -170,6 +170,10 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                     destination = str(Path("backups") / f"{project_id}-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}.db")
                     Path("backups").mkdir(exist_ok=True)
                     return self._send(201, {"projectId": project_id, "backup": store.backup(destination)})
+                if path.startswith("/api/projects/") and path.endswith("/backup/verify"):
+                    project_id = path.split("/")[3]
+                    self._authorize(body, "READ", project_id)
+                    return self._send(200, store.verify_backup(body["backup"], project_id))
                 if path.startswith("/api/projects/") and path.endswith("/machine-objects"):
                     project_id = path.split("/")[3]
                     self._authorize(body, "MODIFY", project_id)

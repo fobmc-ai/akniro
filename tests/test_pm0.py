@@ -119,7 +119,10 @@ class PM0Tests(unittest.TestCase):
             self.assertEqual(store.notify(notification_id="N-001", project_id="P-001", recipient_id="U-001", kind="review", message="请评审" )["read"], 0)
             self.assertEqual(len(store.list_notifications("U-001")), 1)
             backup = Path(directory) / "backup.db"
-            store.backup(str(backup)); store.close()
+            store.backup(str(backup))
+            verification = store.verify_backup(str(backup), "P-001")
+            self.assertTrue(verification["ready"])
+            store.close()
             restored = ProjectStore(backup)
             self.assertEqual(restored.get_project("P-001")["name"], "Demo")
             restored.close()

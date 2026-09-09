@@ -325,6 +325,22 @@ class ProjectStore:
             target.close()
         return destination
 
+    def verify_backup(self, destination: str, project_id: str) -> dict[str, Any]:
+        target = sqlite3.connect(destination)
+        target.row_factory = sqlite3.Row
+        try:
+            integrity = target.execute("PRAGMA integrity_check").fetchone()[0]
+            tables = {row[0] for row in target.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
+            required_tables = {"projects", "users", "project_members", "entities", "audit", "sync_queue", "entity_links"}
+            source_counts = {name: self.db.execute(f"SELECT COUNT(*) FROM {name} WHERE project_id = ?", (project_id,)).fetchone()[0] for name in ("entities", "audit", "sync_queue", "entity_links")}
+            target_counts = {name: target.execute(f"SELECT COUNT(*) FROM {name} WHERE project_id = ?", (project_id,)).fetchone()[0] for name in ("entities", "audit", "sync_queue", "entity_links") if name in tables}
+            project_exists = bool(target.execute("SELECT 1 FROM projects WHERE id = ?", (project_id,)).fetchone())
+            revision_consistent = bool(target.execute("SELECT COUNT(*) FROM entities WHERE project_id = ? AND revision >= 1", (project_id,)).fetchone()[0] == target_counts.get("entities", -1))
+            checks = {"integrity": integrity == "ok", "requiredTables": required_tables.issubset(tables), "project": project_exists, "coreCounts": source_counts == target_counts, "revisionConsistency": revision_consistent}
+            return {"projectId": project_id, "backup": destination, "checks": checks, "ready": all(checks.values())}
+        finally:
+            target.close()
+
     def create_machine_object(self, *, object_id: str, project_id: str, tenant_id: str, object_type: str, name: str, owner_id: str, payload: dict[str, Any] | None = None, parent_id: str | None = None) -> dict[str, Any]:
         allowed = {"machine", "module", "device", "tag", "alarm", "recipe"}
         if object_type not in allowed:
