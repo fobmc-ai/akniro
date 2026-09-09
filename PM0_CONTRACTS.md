@@ -111,7 +111,7 @@ Query 不产生副作用；Command 必须幂等；写入顺序为 authorize → 
 
 首批服务边界：Project、Requirement、Work、Problem、Governance、Quality、Release、Knowledge、Identity/Authorization、Audit、Search/Projection、Notification。
 
-项目必须提供 Traceability Graph 查询：节点来自项目对象，边来自 canonical entity links 和已登记 payload 引用；未解析引用必须显式返回，不能静默丢失。
+项目必须提供 Traceability Graph 查询：节点来自项目对象，边来自 canonical entity links 和已登记 payload 引用；未解析引用必须显式返回，不能静默丢失。所有关联写入还必须记录真实 actor，并产生 Audit/Event。
 
 ## 6. 事件目录
 

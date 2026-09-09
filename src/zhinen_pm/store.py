@@ -586,15 +586,15 @@ class ProjectStore:
         self.transition(entity_id=run_id, target="RUNNING", actor_id=actor_id, expected_revision=1)
         final = self.transition(entity_id=run_id, target="PASSED" if passed else "FAILED", actor_id=actor_id, expected_revision=2)
         evidence = self.create_entity(entity_id=evidence_id, entity_type="evidence", project_id=project_id, tenant_id=tenant_id, title=f"Evidence: {case['title']}", owner_id=actor_id, payload={"testRunId": run_id, "source": "test-case-execution", "result": "PASSED" if passed else "FAILED"})
-        self.link_entities(project_id=project_id, from_id=test_case_id, to_id=evidence_id, link_type="produces")
+        self.link_entities(project_id=project_id, from_id=test_case_id, to_id=evidence_id, link_type="produces", actor_id=actor_id)
         issue = None
         if passed:
             evidence = self.transition(entity_id=evidence_id, target="VALIDATED", actor_id=actor_id, expected_revision=1)
             if release_id:
-                self.link_entities(project_id=project_id, from_id=release_id, to_id=evidence_id, link_type="requires")
+                self.link_entities(project_id=project_id, from_id=release_id, to_id=evidence_id, link_type="requires", actor_id=actor_id)
         else:
             issue = self.create_entity(entity_id=issue_id or f"ISSUE-{run_id}", entity_type="issue", project_id=project_id, tenant_id=tenant_id, title=f"Test case failed: {case['title']}", owner_id=actor_id, payload={"sourceTestRunId": run_id, "evidenceId": evidence_id, "evidenceLinks": [evidence_id], "testCaseId": test_case_id})
-            self.link_entities(project_id=project_id, from_id=issue["id"], to_id=evidence_id, link_type="diagnosed_by")
+            self.link_entities(project_id=project_id, from_id=issue["id"], to_id=evidence_id, link_type="diagnosed_by", actor_id=actor_id)
             self.notify_project_owner(project_id=project_id, kind="test_failed", message=f"Test case failed: {issue['id']}", correlation_id=run_id)
         return {"testRun": final, "evidence": evidence, "issue": issue}
 
@@ -620,13 +620,14 @@ class ProjectStore:
         plan = self.transition(entity_id=test_plan_id, target="COMPLETED" if all_passed else "FAILED", actor_id=actor_id, expected_revision=plan["revision"])
         return {"testPlan": plan, "results": results, "summary": {"total": len(results), "passed": sum(item["testRun"]["status"] == "PASSED" for item in results), "failed": sum(item["testRun"]["status"] == "FAILED" for item in results)}}
 
-    def link_entities(self, *, project_id: str, from_id: str, to_id: str, link_type: str) -> dict[str, Any]:
+    def link_entities(self, *, project_id: str, from_id: str, to_id: str, link_type: str, actor_id: str = "system") -> dict[str, Any]:
         if not self.db.execute("SELECT 1 FROM entities WHERE id = ? AND project_id = ?", (from_id, project_id)).fetchone() or not self.db.execute("SELECT 1 FROM entities WHERE id = ? AND project_id = ?", (to_id, project_id)).fetchone():
             raise KeyError("entity link target not found in project")
         self.db.execute("INSERT OR IGNORE INTO entity_links VALUES (?, ?, ?, ?, ?)", (project_id, from_id, to_id, link_type, now()))
         project = self.db.execute("SELECT tenant_id FROM projects WHERE id = ?", (project_id,)).fetchone()
         if project:
-            self._emit_event(tenant_id=project["tenant_id"], project_id=project_id, message_type="pm.entity.linked", actor_id="system", payload={"fromId": from_id, "toId": to_id, "linkType": link_type}, correlation_id=f"{from_id}:{to_id}:{link_type}", idempotency_key=f"entity.linked:{project_id}:{from_id}:{to_id}:{link_type}")
+            self._emit_event(tenant_id=project["tenant_id"], project_id=project_id, message_type="pm.entity.linked", actor_id=actor_id, payload={"fromId": from_id, "toId": to_id, "linkType": link_type}, correlation_id=f"{from_id}:{to_id}:{link_type}", idempotency_key=f"entity.linked:{project_id}:{from_id}:{to_id}:{link_type}")
+            self._audit(project["tenant_id"], project_id, actor_id, "entity.link", f"{from_id}:{to_id}", "success", {"linkType": link_type})
         self.db.commit()
         return {"project_id": project_id, "from_id": from_id, "to_id": to_id, "link_type": link_type}
 
