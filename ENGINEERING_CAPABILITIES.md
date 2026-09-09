@@ -25,6 +25,7 @@
 - MOT-001 提供离散步进轴模拟，验证起点、目标、速度、软限位、轨迹和越界安全停机；
 - VIS-001 支持样本期望/预测标签回放，输出 TP/TN/FP/FN 混淆矩阵、准确率和确定性回归结果；
 - EDGE-001 支持事件 ID 离线重放，输出重复跳过数、实际应用数，并验证幂等/非幂等结果；
+- EDA-001 输出 IO/BOM 缺失项、额外项和重复项明细，避免只返回一个一致性布尔值；
 - `LIFE-001`：生产指标、质量指标和维护流程统一进入生命周期验证，缺项会阻止软件验收证据通过；
 - `GET /api/projects/{projectId}/readiness`：按工作包依赖计算可开始项；
 - `GET /api/projects/{projectId}/capability-readiness`：按能力 ID 汇总 VALIDATED Evidence 覆盖情况；验收报告同时返回该矩阵；

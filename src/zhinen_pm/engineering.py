@@ -74,6 +74,11 @@ def simulation_evidence(capability_id: str, payload: dict[str, Any]) -> dict[str
     domain_errors: list[str] = []
     if capability_id == "EDA-001" and payload.get("io_expected") is not None and payload.get("io_actual") is not None and payload["io_expected"] != payload["io_actual"]:
         domain_errors.append("io_bom_mismatch")
+    if capability_id == "EDA-001" and payload.get("io_expected") is not None and payload.get("io_actual") is not None:
+        eda = simulate_eda_consistency(payload["io_expected"], payload["io_actual"])
+        result["eda"] = eda
+        if eda["result"] != "PASSED":
+            domain_errors.append("io_consistency_failed")
     if capability_id == "HMI-001" and payload.get("tag_ids") is not None and payload.get("bound_tag_ids") is not None:
         expected_tags = set(payload["tag_ids"])
         actual_tags = set(payload["bound_tag_ids"])
@@ -177,6 +182,14 @@ def validate_toolchain_matrix(cases: list[dict[str, Any]]) -> dict[str, Any]:
 def jsonable_matrix(rows: list[dict[str, Any]]) -> str:
     import json
     return json.dumps(rows, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+
+def simulate_eda_consistency(expected: list[str], actual: list[str]) -> dict[str, Any]:
+    expected_set, actual_set = set(expected), set(actual)
+    duplicates = sorted({item for item in actual if actual.count(item) > 1})
+    missing, extra = sorted(expected_set - actual_set), sorted(actual_set - expected_set)
+    failed = bool(missing or extra or duplicates)
+    return {"result": "FAILED" if failed else "PASSED", "expected": len(expected), "actual": len(actual), "missing": missing, "extra": extra, "duplicates": duplicates, "deterministic": True}
 
 
 def build_plc_project(source: str, toolchain_version: str = "SIMULATED-PLC-0.1") -> dict[str, Any]:
