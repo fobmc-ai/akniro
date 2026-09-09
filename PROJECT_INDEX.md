@@ -18,6 +18,8 @@ PM-0 领域契约：`PM0_CONTRACTS.md`、`ADR-0010-pm0-domain-contracts.md`。
 
 总纲实施追溯：`IMPLEMENTATION_BACKLOG.md`、`ADR-0012-master-plan-to-implementation-traceability.md`。
 
+管理中心证据审计：`ADR-0014-control-plane-evidence-apis.md`、`ENGINEERING_CAPABILITIES.md`、`IMPLEMENTATION_STATUS.md`。
+
 当前代码骨架：`src/zhinen_foundation/`；契约测试：`tests/`；示例和校验入口：`examples/`、`tools/`。
 
 PM-0 管理软件骨架：`src/zhinen_pm/`；PM-0 测试：`tests/test_pm0.py`。

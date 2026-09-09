@@ -57,7 +57,7 @@
 - 普通测试用例失败自动进入 Issue/CAPA 链并关联失败证据，统一各测试入口行为。
 ## 2026-09-10
 
-- 生命周期验收补齐确定性 SPC 控制带与设备 Health 信号检查；结果写入模拟证据并纳入全域 12 项验收套件，越界自动失败，不把未接入真实设备误报为现场验证。
+- 生命周期验收补齐确定性 SPC 控制带与设备 Health 信号检查；结果写入模拟证据并纳入全域 14 项验收套件，越界自动失败，不把未接入真实设备误报为现场验证。
 - 管理中心增加项目作用域的控制平面健康快照 API，集中显示数据库容量、Outbox、通知、审计、搜索 freshness 和备份状态。
 - 管理平面写入增加持久化 Event Outbox，带 schema/correlation/idempotency、发布/失败/重试状态，并纳入重启与备份校验。
 - 增加独立 Review 对象与审批门禁，绑定 reviewer、revision、结论和意见，禁止评审 owner 自审通过。
@@ -85,6 +85,7 @@
 ## 2026-09-10
 
 - 新增管理中心服务端受控 Backlog 源同步入口，统一从 `examples/implementation-backlog.json` 回填状态、占位标记和证据链接，并产生审计与事件记录。
+- 新增服务端统一 14 项验收套件入口，确保管理中心一键验收使用权威契约并完整留存 Test Run/Evidence。
 - ECO-001 补齐 Device Package/Fleet Learning 隐私授权契约、越权权限拒绝和确定性 contract hash，并以 ADR-0013 固化数据边界。
 - ROB-001 补齐握手状态、启动权限范围和故障安全停机的确定性回放证据，明确模拟器不发出运动命令。
 - QUAL-001 新增 Logical Digital Twin 组件状态回放、故障注入和 Test Run/Evidence 持久化入口，覆盖气缸、传感器、轴、真空、产品和相机。
