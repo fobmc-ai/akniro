@@ -276,6 +276,7 @@ class PM0Tests(unittest.TestCase):
                 self.assertEqual((response.status, result["total"], result["passed"], result["deterministic"]), (201, 14, 14, True))
                 self.assertEqual(len(store.list_entities("P-001", "evidence")), 14)
                 self.assertEqual(len(store.list_links("P-001", "REL-SUITE")), 14)
+                self.assertEqual(store.list_acceptance_suites("P-001")[0]["suiteId"], "SUITE-HTTP-001")
                 failing_payload = json.dumps({"actorId": "U-001", "tenantId": "T-001", "suiteId": "SUITE-HTTP-FAIL", "payloads": {"EDA-001": {"io_expected": ["DI-1"], "io_actual": ["DO-1"]}}}).encode()
                 failed_request = urllib.request.Request(f"http://127.0.0.1:{server.server_port}/api/projects/P-001/acceptance-suite", data=failing_payload, headers={"Content-Type": "application/json"}, method="POST")
                 with urllib.request.urlopen(failed_request) as failed_response:

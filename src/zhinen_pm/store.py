@@ -444,6 +444,23 @@ class ProjectStore:
         checks = {"capaFields": not missing, "validatedEvidence": not evidence_errors and bool(payload.get("evidenceLinks")), "regressionTests": bool(payload.get("regressionTestIds")), "notAlreadyClosed": issue["status"] != "CLOSED"}
         return {"issueId": issue_id, "currentStatus": issue["status"], "readyForClosure": all(checks.values()), "checks": checks, "missing": missing + evidence_errors, "deterministic": True}
 
+    def list_acceptance_suites(self, project_id: str) -> list[dict[str, Any]]:
+        """Return persisted server-owned acceptance batches for regression history."""
+        groups: dict[str, dict[str, Any]] = {}
+        for run in self.list_entities(project_id, "test_run"):
+            suite_id = run["payload"].get("suiteId")
+            if not suite_id:
+                continue
+            group = groups.setdefault(suite_id, {"suiteId": suite_id, "total": 0, "passed": 0, "failed": 0, "runIds": [], "evidenceIds": [], "deterministic": True})
+            group["total"] += 1
+            group["passed"] += int(run["status"] == "PASSED")
+            group["failed"] += int(run["status"] == "FAILED")
+            group["runIds"].append(run["id"])
+            evidence_id = run["payload"].get("evidenceId")
+            if evidence_id:
+                group["evidenceIds"].append(evidence_id)
+        return sorted(groups.values(), key=lambda item: item["suiteId"], reverse=True)
+
     def capability_evidence(self, project_id: str, capability_ids: list[str] | None = None) -> list[dict[str, Any]]:
         evidence = [x for x in self.list_entities(project_id, "evidence") if x["status"] == "VALIDATED"]
         by_capability: dict[str, list[str]] = {}

@@ -365,6 +365,8 @@
       window.showView = async function(view, project) {
         if (view !== 'suite') return priorShowView(view, project);
         await priorShowView(view, project);
+        const history = await (await fetch('/api/projects/' + project.id + '/acceptance-suites')).json();
+        el.insertAdjacentHTML('beforeend', `<div class="panel"><h3>验收 Suite 历史</h3><table><thead><tr><th>Suite</th><th>通过/总数</th><th>失败</th></tr></thead><tbody>${(history.suites || []).map(item => `<tr><td>${item.suiteId}</td><td class="${item.failed ? 'warning' : 'status'}">${item.passed}/${item.total}</td><td>${item.failed}</td></tr>`).join('') || '<tr><td colspan="3">暂无历史</td></tr>'}</tbody></table></div>`);
         el.insertAdjacentHTML('afterbegin', `<div class="panel"><h3>服务端一键验收</h3><p class="muted">由服务端统一执行 14 项能力，使用权威默认契约并自动生成 Test Run/Evidence。</p><button id="server-acceptance-suite">运行服务端 14 项验收</button><p id="server-suite-message" class="muted"></p></div>`);
         document.getElementById('server-acceptance-suite').onclick = async event => {
           event.target.disabled = true;

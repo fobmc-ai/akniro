@@ -139,6 +139,8 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                         return self._send(200, store.sync_summary(project_id))
                     if path.endswith("/acceptance-report"):
                         return self._send(200, store.acceptance_report(project_id))
+                    if path.endswith("/acceptance-suites"):
+                        return self._send(200, {"suites": store.list_acceptance_suites(project_id)})
                     if path.endswith("/completion-audit"):
                         return self._send(200, store.completion_audit(project_id))
                     if path.endswith("/issue-preflight"):
@@ -408,10 +410,11 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                             payloads[capability_id] = {**payloads[capability_id], **override}
                     for capability_id, payload in payloads.items():
                         result = simulation_evidence(capability_id, payload)
+                        suite_result = {**result, "suiteId": suite_id, "evidenceId": f"{suite_id}-{capability_id}-EVIDENCE", "suiteCapabilityId": capability_id}
                         run_id = f"{suite_id}-{capability_id}-RUN"
                         evidence_id = f"{suite_id}-{capability_id}-EVIDENCE"
-                        run = store.create_entity(entity_id=run_id, entity_type="test_run", project_id=project_id, tenant_id=body["tenantId"], title=f"{capability_id} acceptance suite", owner_id=body["actorId"], payload=result)
-                        evidence = store.create_entity(entity_id=evidence_id, entity_type="evidence", project_id=project_id, tenant_id=body["tenantId"], title=f"{capability_id} acceptance suite evidence", owner_id=body["actorId"], payload=result)
+                        run = store.create_entity(entity_id=run_id, entity_type="test_run", project_id=project_id, tenant_id=body["tenantId"], title=f"{capability_id} acceptance suite", owner_id=body["actorId"], payload=suite_result)
+                        evidence = store.create_entity(entity_id=evidence_id, entity_type="evidence", project_id=project_id, tenant_id=body["tenantId"], title=f"{capability_id} acceptance suite evidence", owner_id=body["actorId"], payload=suite_result)
                         store.transition(entity_id=run["id"], target="RUNNING", actor_id=body["actorId"], expected_revision=1)
                         passed = result["result"] in {"PASSED", "CONTRACT_PASSED"}
                         store.transition(entity_id=run["id"], target="PASSED" if passed else "FAILED", actor_id=body["actorId"], expected_revision=2)
