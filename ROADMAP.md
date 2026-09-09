@@ -14,6 +14,8 @@ PM-0 domain objects, state machines, permissions, APIs and events are frozen in 
 
 Engineering artifact, progress, parameter and Edge synchronization follows [`ENGINEERING_ASSET_SYNC.md`](ENGINEERING_ASSET_SYNC.md); live control data remains outside the management plane.
 
+Every long-term capability is tracked as a Work Package in [`IMPLEMENTATION_BACKLOG.md`](IMPLEMENTATION_BACKLOG.md); placeholders are allowed for structure only and must be replaced by validated revisions before release.
+
 ## Delivery phases
 
 | Phase | Focus | Classification |

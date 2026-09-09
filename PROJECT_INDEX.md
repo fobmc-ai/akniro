@@ -16,6 +16,8 @@ PM-0 领域契约：`PM0_CONTRACTS.md`、`ADR-0010-pm0-domain-contracts.md`。
 
 工程资产与现场同步：`ENGINEERING_ASSET_SYNC.md`、`ADR-0011-engineering-asset-parameter-sync.md`。
 
+总纲实施追溯：`IMPLEMENTATION_BACKLOG.md`、`ADR-0012-master-plan-to-implementation-traceability.md`。
+
 当前代码骨架：`src/zhinen_foundation/`；契约测试：`tests/`；示例和校验入口：`examples/`、`tools/`。
 
 PM-0 管理软件骨架：`src/zhinen_pm/`；PM-0 测试：`tests/test_pm0.py`。

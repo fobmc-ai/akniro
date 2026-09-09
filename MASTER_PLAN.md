@@ -41,6 +41,8 @@ AI 负责理解、生成、检查、解释、诊断、优化和提出变更；PL
 
 PLC、HMI、Firmware、设备包、开发进度和现场参数通过 Artifact/Control Metadata/Runtime Fact 三层同步，管理软件不直接写实时控制数据，详见 [`ENGINEERING_ASSET_SYNC.md`](ENGINEERING_ASSET_SYNC.md)。
 
+总纲的实施、验证和数据回填统一进入 [`IMPLEMENTATION_BACKLOG.md`](IMPLEMENTATION_BACKLOG.md)。规划项可以先占位，但占位数据不得冒充实现、测试证据或可发布版本。
+
 ## 4. 统一 Machine Model / Machine DNA
 
 对象结构为 `Machine → Station → Module → Cylinder/Vacuum/Sensor/Axis/Vision`。每个工业对象可携带 Tag、IO、PLC 逻辑、HMI、参数、报警、Recipe、运动能力、电气连接、仿真、测试、诊断、维护、历史、文档和 AI 语义。
