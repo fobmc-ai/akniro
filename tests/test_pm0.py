@@ -2,6 +2,7 @@ import sys
 import tempfile
 import unittest
 import urllib.request
+import urllib.error
 import json
 from pathlib import Path
 
@@ -459,6 +460,27 @@ class PM0Tests(unittest.TestCase):
             self.assertEqual(context["objects"], [])
             self.assertEqual(context["omitted"][0]["id"], "DEP-AI")
             store.close()
+
+    def test_ai_context_http_route_requires_project_read_scope_and_audits_access(self):
+        with tempfile.TemporaryDirectory() as directory:
+            server = create_server(str(Path(directory) / "pm.db"), port=0)
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            def call(path, payload=None):
+                data = json.dumps(payload).encode() if payload is not None else None
+                req = urllib.request.Request(f"http://127.0.0.1:{server.server_port}{path}", data=data, headers={"Content-Type": "application/json"}, method="POST" if payload is not None else "GET")
+                with urllib.request.urlopen(req) as response:
+                    return response.status, json.loads(response.read())
+            call("/api/projects", {"projectId": "P-001", "tenantId": "T-001", "name": "Demo", "ownerId": "U-001"})
+            status, context = call("/api/ai/context", {"projectId": "P-001", "tenantId": "T-001", "actorId": "U-001", "objectIds": []})
+            self.assertEqual((status, context["projectId"]), (200, "P-001"))
+            _, audit = call("/api/projects/P-001/audit")
+            self.assertTrue(any(item["action"] == "ai.context.read" for item in audit["audit"]))
+            with self.assertRaises(urllib.error.HTTPError):
+                call("/api/ai/context", {"projectId": "P-001", "tenantId": "T-001", "actorId": "UNKNOWN", "objectIds": []})
+            _, audit_after_denial = call("/api/projects/P-001/audit")
+            self.assertTrue(any(item["action"] == "authorization.denied" and item["outcome"] == "denied" for item in audit_after_denial["audit"]))
+            server.shutdown(); server.server_close()
 
     def test_artifact_manifest_requires_hash_and_preserves_engineering_metadata(self):
         with tempfile.TemporaryDirectory() as directory:

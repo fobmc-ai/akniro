@@ -43,8 +43,16 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
             tenant_id = body.get("tenantId") or self.headers.get("X-Tenant-Id")
             if not actor_id or not tenant_id:
                 raise PermissionError("PM-AUTH-005: actorId and tenantId are required")
-            actor = store.get_actor(actor_id, tenant_id, project_id)
-            authorize(Actor(actor["actor_id"], actor["role"], actor["tenant_id"], frozenset(actor["project_ids"])), action, tenant_id=tenant_id, project_id=project_id)
+            try:
+                actor = store.get_actor(actor_id, tenant_id, project_id)
+                authorize(Actor(actor["actor_id"], actor["role"], actor["tenant_id"], frozenset(actor["project_ids"])), action, tenant_id=tenant_id, project_id=project_id)
+            except PermissionError as exc:
+                if project_id:
+                    project = store.db.execute("SELECT tenant_id FROM projects WHERE id = ?", (project_id,)).fetchone()
+                    if project:
+                        store._audit(project["tenant_id"], project_id, actor_id, "authorization.denied", project_id, "denied", {"action": action, "reason": str(exc)})
+                        store.db.commit()
+                raise
 
         def do_OPTIONS(self) -> None:  # noqa: N802
             self.send_response(204)
@@ -302,7 +310,10 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                     result = store.compose_release(release_id=body["releaseId"], artifact_ids=body.get("artifactIds", []), rollback_revision=body["rollbackRevision"], actor_id=body["actorId"])
                     return self._send(201, result)
                 if path == "/api/ai/context":
-                    return self._send(200, build_context(store, project_id=body["projectId"], object_ids=body.get("objectIds", []), actor_id=body["actorId"]))
+                    self._authorize(body, "READ", body["projectId"])
+                    context = build_context(store, project_id=body["projectId"], object_ids=body.get("objectIds", []), actor_id=body["actorId"])
+                    store.record_ai_context_access(project_id=body["projectId"], actor_id=body["actorId"], object_ids=body.get("objectIds", []), omitted_ids=[item["id"] for item in context["omitted"]])
+                    return self._send(200, context)
                 if path.startswith("/api/projects/") and path.endswith("/machine-snapshots"):
                     project_id = path.split("/")[3]
                     self._authorize(body, "MODIFY", project_id)

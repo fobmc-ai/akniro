@@ -105,7 +105,7 @@ Local
 
 ## 9. PM-0 必须通过的治理验收
 
-管理中心通过 `GET /api/projects/{projectId}/ops` 提供项目作用域的控制平面健康快照，覆盖数据库容量、同步/事件 Outbox 队列、通知、审计写入失败计数、搜索 freshness 和备份可用性；事件通过 `GET /api/projects/{projectId}/events` 查询并可重试/发布。该快照只反映管理平面事实，不冒充实时运行状态。
+管理中心通过 `GET /api/projects/{projectId}/ops` 提供项目作用域的控制平面健康快照，覆盖数据库容量、同步/事件 Outbox 队列、通知、审计写入失败计数、搜索 freshness 和备份可用性；事件通过 `GET /api/projects/{projectId}/events` 查询并可重试/发布。权限拒绝也会写入 `authorization.denied` Audit。该快照只反映管理平面事实，不冒充实时运行状态。
 
 - 跨租户访问被拒绝并有审计；
 - 非法状态迁移被拒绝；
