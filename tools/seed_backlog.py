@@ -14,6 +14,13 @@ store = ProjectStore(args.database)
 items = json.loads((Path(__file__).parents[1] / 'examples' / 'implementation-backlog.json').read_text(encoding='utf-8'))
 inserted = store.import_backlog(project_id=args.project, items=items, actor_id='U-001')
 project = store.get_project(args.project)
+for user_id, display_name, role in [('U-002', 'PLC 工程师', 'engineer'), ('U-003', '质量工程师', 'qa')]:
+    try:
+        store.create_user(user_id=user_id, tenant_id=project['tenant_id'], display_name=display_name, role=role)
+    except Exception as exc:
+        if 'UNIQUE' not in str(exc).upper():
+            raise
+    store.add_member(project_id=args.project, user_id=user_id, role=role)
 samples = [
     ('DG-QUAL-001', 'design_goal', '每个功能先定义目标与验收标准', {'source': 'QUALITY_LIFECYCLE_SYSTEM.md', 'placeholder': False}),
     ('TC-QUAL-001', 'test_case', 'PM API/UI smoke test', {'steps': ['创建项目', '导入实施路线', '查询证据'], 'expected': '可追溯'}),
