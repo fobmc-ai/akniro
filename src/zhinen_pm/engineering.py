@@ -127,6 +127,16 @@ def simulation_evidence(capability_id: str, payload: dict[str, Any]) -> dict[str
         result["lifecycle"] = lifecycle
         if lifecycle["result"] != "PASSED":
             domain_errors.append(lifecycle["reason"])
+    if capability_id == "LIFE-001" and payload.get("spc_values") is not None:
+        spc = simulate_spc_metrics(payload.get("spc_values", []), payload.get("spc_lower"), payload.get("spc_upper"))
+        result["spc"] = spc
+        if spc["result"] != "PASSED":
+            domain_errors.append(spc["reason"])
+    if capability_id == "LIFE-001" and payload.get("health_signals") is not None:
+        health = simulate_health_check(payload.get("health_signals", {}), payload.get("health_limits", {}))
+        result["health"] = health
+        if health["result"] != "PASSED":
+            domain_errors.append(health["reason"])
     if capability_id == "PLC-002":
         runtime = simulate_plc_runtime(int(payload.get("cycles", 100)), int(payload.get("cycle_ms", 10)), int(payload.get("watchdog_ms", 50)), payload.get("injected_fault"))
         result["runtime"] = runtime
@@ -218,6 +228,32 @@ def simulate_oee_metrics(planned_minutes: float, downtime_minutes: float, total_
     performance = (ideal_cycle_seconds * total_count / 60) / run_minutes if run_minutes else 0
     quality = good_count / total_count if total_count else 0
     return {"result": "PASSED", "availability": round(availability, 6), "performance": round(performance, 6), "quality": round(quality, 6), "oee": round(availability * performance * quality, 6), "deterministic": True, "reason": None}
+
+
+def simulate_spc_metrics(values: list[float], lower: float | None, upper: float | None) -> dict[str, Any]:
+    """Evaluate a deterministic individual-value SPC control band."""
+    if not values or lower is None or upper is None or lower >= upper or any(not isinstance(value, (int, float)) for value in values):
+        return {"result": "BLOCKED", "reason": "spc_limits_or_samples_invalid", "deterministic": True}
+    mean = sum(values) / len(values)
+    variance = sum((value - mean) ** 2 for value in values) / len(values)
+    out_of_control = [index for index, value in enumerate(values) if value < lower or value > upper]
+    return {"result": "FAILED" if out_of_control else "PASSED", "samples": len(values), "mean": round(mean, 6), "sigma": round(variance ** 0.5, 6), "limits": {"lower": lower, "upper": upper}, "outOfControl": out_of_control, "deterministic": True, "reason": "spc_out_of_control" if out_of_control else None}
+
+
+def simulate_health_check(signals: dict[str, float], limits: dict[str, dict[str, float]]) -> dict[str, Any]:
+    """Check sorted device health signals against explicit operating limits."""
+    if not signals or not limits or any(name not in limits for name in signals):
+        return {"result": "BLOCKED", "reason": "health_signal_limits_invalid", "deterministic": True}
+    violations = []
+    checks = []
+    for name in sorted(signals):
+        value = signals[name]
+        bound = limits[name]
+        valid = isinstance(value, (int, float)) and isinstance(bound, dict) and bound.get("min") <= value <= bound.get("max")
+        checks.append({"name": name, "value": value, "min": bound.get("min"), "max": bound.get("max"), "passed": valid})
+        if not valid:
+            violations.append(name)
+    return {"result": "FAILED" if violations else "PASSED", "checks": checks, "violations": violations, "deterministic": True, "reason": "health_limit_exceeded" if violations else None}
 
 
 def build_plc_project(source: str, toolchain_version: str = "SIMULATED-PLC-0.1") -> dict[str, Any]:

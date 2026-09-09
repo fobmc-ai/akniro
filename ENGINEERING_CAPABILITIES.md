@@ -48,7 +48,7 @@
 - EDGE-001 支持事件 ID 离线重放，输出重复跳过数、实际应用数，并验证幂等/非幂等结果；
 - EDA-001 输出 IO/BOM 缺失项、额外项和重复项明细，避免只返回一个一致性布尔值；
 - HMI-001 支持画面 Smoke 序列回放，验证缺失页面、未知页面和导航顺序；
-- LIFE-001 支持确定性 OEE 计算，输出 Availability、Performance、Quality、OEE，并拒绝非法停机/产量边界；
+- LIFE-001 支持确定性 OEE 计算，输出 Availability、Performance、Quality、OEE，并拒绝非法停机/产量边界；同时支持显式上下限的 SPC 样本控制带与设备健康信号检查，输出越界样本、均值/σ、逐信号检查和可追溯结果；
 - `LIFE-001`：生产指标、质量指标和维护流程统一进入生命周期验证，缺项会阻止软件验收证据通过；
 - `GET /api/projects/{projectId}/readiness`：按工作包依赖计算可开始项；
 - `GET /api/projects/{projectId}/capability-readiness`：按能力 ID 汇总 VALIDATED Evidence 覆盖情况；验收报告同时返回该矩阵；

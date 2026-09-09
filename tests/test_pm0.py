@@ -11,7 +11,7 @@ from zhinen_pm.authorization import Actor, AuthorizationError, authorize
 from zhinen_pm.state_machine import InvalidTransition, assert_transition
 from zhinen_pm.store import ProjectStore
 from zhinen_pm.server import create_server
-from zhinen_pm.engineering import validate_capability, list_capabilities, simulation_evidence, build_plc_project, build_firmware_image, simulate_plc_runtime, simulate_motion_axis, simulate_vision_algorithm, simulate_edge_replay, validate_toolchain_matrix, simulate_eda_consistency, simulate_hmi_screens, simulate_oee_metrics
+from zhinen_pm.engineering import validate_capability, list_capabilities, simulation_evidence, build_plc_project, build_firmware_image, simulate_plc_runtime, simulate_motion_axis, simulate_vision_algorithm, simulate_edge_replay, validate_toolchain_matrix, simulate_eda_consistency, simulate_hmi_screens, simulate_oee_metrics, simulate_spc_metrics, simulate_health_check
 from zhinen_pm.ai_context import build_context
 import threading
 
@@ -250,6 +250,12 @@ class PM0Tests(unittest.TestCase):
         oee = simulate_oee_metrics(480, 60, 1000, 950, 20)
         self.assertEqual((oee["result"], oee["availability"], oee["quality"]), ("PASSED", 0.875, 0.95))
         self.assertEqual(simulate_oee_metrics(480, 500, 100, 100, 10)["result"], "BLOCKED")
+        self.assertEqual(simulate_spc_metrics([10, 11, 10], 9, 12)["result"], "PASSED")
+        self.assertEqual(simulate_spc_metrics([10, 13, 10], 9, 12)["outOfControl"], [1])
+        self.assertEqual(simulate_health_check({"temperature": 50}, {"temperature": {"min": 0, "max": 80}})["result"], "PASSED")
+        self.assertEqual(simulate_health_check({"temperature": 90}, {"temperature": {"min": 0, "max": 80}})["result"], "FAILED")
+        lifecycle = simulation_evidence("LIFE-001", {"production_metrics": True, "quality_metrics": True, "maintenance_workflow": True, "spc_values": [10, 11, 10], "spc_lower": 9, "spc_upper": 12, "health_signals": {"temperature": 50}, "health_limits": {"temperature": {"min": 0, "max": 80}}})
+        self.assertEqual((lifecycle["result"], lifecycle["spc"]["result"], lifecycle["health"]["result"]), ("PASSED", "PASSED", "PASSED"))
         matrix = validate_toolchain_matrix([{"id": "PLC-GOLDEN", "toolchain": "PLC-SIM-1", "compilePassed": True, "hmiSmoke": True, "expectedHash": "h1", "actualHash": "h1"}])
         self.assertEqual((matrix["result"], matrix["passed"], matrix["total"]), ("PASSED", 1, 1))
 
