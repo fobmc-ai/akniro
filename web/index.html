@@ -348,5 +348,16 @@
       };
     })();
   </script>
+  <script>
+    (() => {
+      const priorShowView = window.showView;
+      window.showView = async function(view, project) {
+        if (view !== 'audit') return priorShowView(view, project);
+        await priorShowView(view, project);
+        const manifest = await (await fetch('/api/projects/' + project.id + '/export-manifest')).json();
+        el.insertAdjacentHTML('beforeend', `<div class="panel"><h3>项目 Export Manifest</h3><p class="muted">脱敏元数据：${manifest.entities.length} 个对象 · ${manifest.artifacts.length} 个资产 · ${manifest.links.length} 条关系</p><p>Manifest Hash：<code>${manifest.manifestHash}</code></p><p class="status">Secrets：未包含 · Controller Runtime Data：未包含</p></div>`);
+      };
+    })();
+  </script>
 </body>
 </html>

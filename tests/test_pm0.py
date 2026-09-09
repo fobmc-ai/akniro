@@ -248,6 +248,18 @@ class PM0Tests(unittest.TestCase):
                 server.shutdown(); server.server_close(); thread.join(timeout=2)
                 store.close()
 
+    def test_export_manifest_is_metadata_only_and_deterministically_hashed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = ProjectStore(Path(directory) / "pm.db")
+            store.create_project(project_id="P-001", tenant_id="T-001", name="Demo", kind="platform", owner_id="U-001")
+            store.create_entity(entity_id="REQ-001", entity_type="requirement", project_id="P-001", tenant_id="T-001", title="MVP", owner_id="U-001", payload={"secret": "must-not-export"})
+            first = store.export_manifest("P-001")
+            second = store.export_manifest("P-001")
+            self.assertEqual((first["manifestHash"], first["manifestHash"] == second["manifestHash"], first["metadataOnly"], first["secretsIncluded"], first["controllerRuntimeDataIncluded"]), (first["manifestHash"], True, True, False, False))
+            self.assertEqual(first["entities"][0]["id"], "REQ-001")
+            self.assertNotIn("must-not-export", json.dumps(first, ensure_ascii=False))
+            store.close()
+
     def test_notifications_can_be_read(self):
         with tempfile.TemporaryDirectory() as directory:
             store = ProjectStore(Path(directory) / "pm.db")

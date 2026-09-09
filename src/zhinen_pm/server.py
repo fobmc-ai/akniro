@@ -113,6 +113,8 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                         return self._send(200, store.control_plane_health(project_id))
                     if path.endswith("/schema"):
                         return self._send(200, store.schema_status())
+                    if path.endswith("/export-manifest"):
+                        return self._send(200, store.export_manifest(project_id))
                     if path.endswith("/sync-summary"):
                         return self._send(200, store.sync_summary(project_id))
                     if path.endswith("/acceptance-report"):

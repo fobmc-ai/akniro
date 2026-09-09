@@ -99,3 +99,4 @@
 - PM 持久化存储新增 schema migration ledger、SQLite user_version、Ops schema 状态接口，并把 schema 表纳入备份恢复校验。
 - 管理中心新增项目级 `completion-audit` 总纲完成度审计，将能力证据、工作包契约、完整性、同步、问题和发布预检汇总为可追溯结论。
 - 问题管理新增 Issue/CAPA 关闭预检接口和管理中心表格，统一暴露关闭前缺项，禁止用状态按钮代替根因、回归和验证证据。
+- 增加项目 Export Manifest：以脱敏元数据和稳定 Hash 支持备份、Release、迁移和审计复核，明确排除 Secrets 与控制器实时数据。

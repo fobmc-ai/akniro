@@ -137,6 +137,18 @@ class ProjectStore:
         rows = [dict(row) for row in self.db.execute("SELECT version, applied_at, description FROM schema_migrations ORDER BY version")]
         return {"currentVersion": CURRENT_SCHEMA_VERSION, "userVersion": self.db.execute("PRAGMA user_version").fetchone()[0], "applied": rows, "migrationPolicy": "explicit_ordered_idempotent", "ready": bool(rows and rows[-1]["version"] == CURRENT_SCHEMA_VERSION)}
 
+    def export_manifest(self, project_id: str) -> dict[str, Any]:
+        """Build a deterministic, metadata-only project export manifest."""
+        project = self.get_project(project_id)
+        entities = [{"id": item["id"], "type": item["entity_type"], "status": item["status"], "revision": item["revision"], "ownerId": item["owner_id"]} for item in self.list_entities(project_id)]
+        artifacts = [{"id": item["id"], "type": item["artifact_type"], "status": item["status"], "revision": item["artifact_revision"], "hash": item["content_hash"]} for item in self.list_artifact_manifests(project_id)]
+        snapshots = self.list_snapshots(project_id)
+        links = self.list_links(project_id)
+        manifest = {"manifestVersion": "0.1", "projectId": project_id, "tenantId": project["tenant_id"], "projectRevision": project["revision"], "schema": self.schema_status(), "entities": sorted(entities, key=lambda item: item["id"]), "artifacts": sorted(artifacts, key=lambda item: item["id"]), "machineSnapshots": sorted(snapshots, key=lambda item: item["id"]), "links": sorted(links, key=lambda item: (item["from_id"], item["to_id"], item["link_type"])), "metadataOnly": True, "secretsIncluded": False, "controllerRuntimeDataIncluded": False}
+        canonical = json.dumps(manifest, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        manifest["manifestHash"] = "sha256:" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+        return manifest
+
     def _audit(self, tenant_id: str, project_id: str | None, actor_id: str, action: str, target_id: str, outcome: str, details: dict[str, Any]) -> None:
         self.db.execute("INSERT INTO audit VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", (str(uuid4()), tenant_id, project_id, actor_id, action, target_id, outcome, json.dumps(details, ensure_ascii=False), now()))
 
