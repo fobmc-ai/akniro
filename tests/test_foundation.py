@@ -13,6 +13,9 @@ from zhinen_foundation.project import ProjectValidationError, load_project, vali
 from zhinen_foundation.registry import Capability, CapabilityRegistry
 from zhinen_foundation.resources import ResourceLease, ResourceLeaseManager
 from zhinen_foundation.store import ProjectStore, RevisionConflictError
+from zhinen_foundation.migration import MigrationError, MigrationRegistry
+from zhinen_foundation.outbox import Outbox
+from zhinen_foundation.service import ProjectService, ServiceError
 
 
 ROOT = Path(__file__).parents[1]
@@ -74,6 +77,36 @@ class CoordinationContractTests(unittest.TestCase):
         record = log.append(action="project.validate", actor="codex", target="ZN-MACHINE-DEMO", outcome="success", correlation_id="CORR-001")
         self.assertEqual(len(log.all()), 1)
         self.assertEqual(log.as_dicts()[0]["audit_id"], record.audit_id)
+
+    def test_migration_is_ordered_and_updates_version(self):
+        registry = MigrationRegistry()
+        registry.register("0.0", "0.1", lambda value: dict(value, schemaVersion="0.1"))
+        migrated = registry.migrate({"schemaVersion": "0.0", "projectId": "ZN-001"}, "0.1")
+        self.assertEqual(migrated["schemaVersion"], "0.1")
+        with self.assertRaises(MigrationError):
+            registry.migrate({"schemaVersion": "0.2"}, "0.1")
+
+    def test_outbox_retries_failed_publish(self):
+        message = make_message("event", "test.created", {}, actor="test", tenant_id="T", site_id="S", machine_id="M")
+        outbox = Outbox()
+        outbox.append(message)
+        attempts = []
+        def publisher(item):
+            attempts.append(item.messageId)
+            if len(attempts) == 1:
+                raise RuntimeError("temporary")
+        self.assertEqual(outbox.publish_pending(publisher), 0)
+        self.assertEqual(outbox.publish_pending(publisher), 1)
+        self.assertEqual(len(attempts), 2)
+
+    def test_project_service_persists_audits_and_event(self):
+        project = json.loads((ROOT / "examples" / "machine-project.valid.json").read_text())
+        with tempfile.TemporaryDirectory() as directory:
+            service = ProjectService(ProjectStore(directory), AuditLog(), Outbox())
+            path = service.save_revision(project, actor="codex", tenant_id="T", site_id="S", machine_id="M")
+            self.assertTrue(Path(path).exists())
+            self.assertEqual(len(service.audit.all()), 1)
+            self.assertEqual(len(service.outbox.pending()), 1)
 
 
 if __name__ == "__main__":
