@@ -1,6 +1,7 @@
 import json
 import sys
 import unittest
+import tempfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -11,6 +12,7 @@ from zhinen_foundation.envelope import make_message
 from zhinen_foundation.project import ProjectValidationError, load_project, validate_project
 from zhinen_foundation.registry import Capability, CapabilityRegistry
 from zhinen_foundation.resources import ResourceLease, ResourceLeaseManager
+from zhinen_foundation.store import ProjectStore, RevisionConflictError
 
 
 ROOT = Path(__file__).parents[1]
@@ -32,6 +34,17 @@ class ProjectContractTests(unittest.TestCase):
         project["components"].append(project["components"][0])
         with self.assertRaisesRegex(ProjectValidationError, r"duplicate component ID"):
             validate_project(project)
+
+    def test_revision_round_trip_and_immutability(self):
+        project = json.loads((ROOT / "examples" / "machine-project.valid.json").read_text())
+        with tempfile.TemporaryDirectory() as directory:
+            store = ProjectStore(directory)
+            path = store.save(project)
+            self.assertEqual(store.load("v0.1.0"), project)
+            self.assertEqual(path.name, "v0.1.0.json")
+            altered = dict(project, name="must not overwrite")
+            with self.assertRaises(RevisionConflictError):
+                store.save(altered)
 
 
 class CoordinationContractTests(unittest.TestCase):
