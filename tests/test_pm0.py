@@ -724,6 +724,31 @@ class PM0Tests(unittest.TestCase):
                 server.shutdown(); server.server_close(); thread.join(timeout=2)
                 store.close()
 
+    def test_http_deployment_preflight_exposes_stage_gates(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = ProjectStore(Path(directory) / "pm.db")
+            store.create_project(project_id="P-001", tenant_id="T-001", name="Demo", kind="platform", owner_id="U-001")
+            deployment = store.create_entity(entity_id="DEP-001", entity_type="deployment", project_id="P-001", tenant_id="T-001", title="Deploy", owner_id="U-001", payload={})
+            server = create_server(str(Path(directory) / "pm.db"), port=0)
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                request = urllib.request.Request(
+                    f"http://127.0.0.1:{server.server_port}/api/projects/P-001/deployment-preflight?deploymentId={deployment['id']}",
+                    headers={"X-Actor-Id": "U-001", "X-Tenant-Id": "T-001"},
+                )
+                with urllib.request.urlopen(request) as response:
+                    result = json.loads(response.read())
+                self.assertEqual(response.status, 200)
+                self.assertEqual(
+                    (result["currentStatus"], result["readyForAuthorization"], result["readyForStaging"], result["readyForObservation"]),
+                    ("REQUESTED", False, False, False),
+                )
+                self.assertIn("releaseId", result["missing"])
+            finally:
+                server.shutdown(); server.server_close(); thread.join(timeout=2)
+                store.close()
+
     def test_http_api_project_tree_flow(self):
         with tempfile.TemporaryDirectory() as directory:
             server = create_server(str(Path(directory) / "pm.db"), port=0)
