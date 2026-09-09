@@ -101,6 +101,11 @@ def simulation_evidence(capability_id: str, payload: dict[str, Any]) -> dict[str
         domain_errors.append("binary_hash_not_sha256")
     if capability_id == "EDGE-001" and payload.get("duplicate_event_ids"):
         domain_errors.append("replay_not_idempotent")
+    if capability_id == "EDGE-001" and payload.get("event_ids") is not None:
+        edge = simulate_edge_replay(payload["event_ids"], bool(payload.get("replay_idempotency")))
+        result["edge"] = edge
+        if edge["result"] != "PASSED":
+            domain_errors.append(edge["reason"])
     if capability_id == "ROB-001" and payload.get("handshake_sequence") is not None and payload["handshake_sequence"] != ["INIT", "READY", "START", "DONE"]:
         domain_errors.append("handshake_sequence_invalid")
     if capability_id == "COMM-001" and payload.get("checklist_items") is not None and any(not item.get("passed") for item in payload["checklist_items"]):
@@ -150,6 +155,15 @@ def simulate_vision_algorithm(expected_labels: list[Any], predicted_labels: list
     fn = sum(1 for expected, predicted in zip(expected_labels, predicted_labels) if expected == 1 and predicted == 0)
     total = len(expected_labels)
     return {"result": "PASSED" if tp + tn == total else "FAILED", "samples": total, "confusionMatrix": {"tp": tp, "tn": tn, "fp": fp, "fn": fn}, "accuracy": round((tp + tn) / total, 6), "deterministic": True, "reason": "classification_mismatch" if tp + tn != total else None}
+
+
+def simulate_edge_replay(event_ids: list[str], idempotent: bool) -> dict[str, Any]:
+    if not event_ids:
+        return {"result": "BLOCKED", "reason": "empty_event_queue", "deterministic": True}
+    duplicates = len(event_ids) - len(set(event_ids))
+    if duplicates and not idempotent:
+        return {"result": "FAILED", "reason": "replay_not_idempotent", "events": len(event_ids), "duplicates": duplicates, "applied": len(event_ids), "deterministic": True}
+    return {"result": "PASSED", "events": len(event_ids), "duplicates": duplicates, "applied": len(set(event_ids)), "skipped": duplicates, "deterministic": True, "reason": None}
 
 
 def build_plc_project(source: str, toolchain_version: str = "SIMULATED-PLC-0.1") -> dict[str, Any]:
