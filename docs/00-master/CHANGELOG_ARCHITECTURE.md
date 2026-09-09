@@ -101,3 +101,4 @@
 - 问题管理新增 Issue/CAPA 关闭预检接口和管理中心表格，统一暴露关闭前缺项，禁止用状态按钮代替根因、回归和验证证据。
 - 增加项目 Export Manifest：以脱敏元数据和稳定 Hash 支持备份、Release、迁移和审计复核，明确排除 Secrets 与控制器实时数据。
 - 新增 ADR-0004，正式记录 completion-audit、issue-preflight、export-manifest 和 schema 只读证据接口的所有权、安全边界与验证要求。
+- 技术债审计将 TD-001 从“Runtime 未实现”修正为“软件软运行时已缓解、现场实时认证仍开放”，与 PLC-002 模拟接口和证据现状保持一致。
