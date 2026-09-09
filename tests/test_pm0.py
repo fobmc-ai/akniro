@@ -129,6 +129,7 @@ class PM0Tests(unittest.TestCase):
             store.create_entity(entity_id="REL-001", entity_type="release", project_id="P-001", tenant_id="T-001", title="V0.1", owner_id="U-001")
             report = store.acceptance_report("P-001")
             self.assertEqual(report["summary"]["workPackages"], 0)
+            self.assertEqual((report["summary"]["openIssues"], report["summary"]["closedIssues"]), (0, 0))
             self.assertFalse(report["releaseGates"][0]["ready"])
             self.assertGreaterEqual(report["auditCount"], 1)
             store.close()
