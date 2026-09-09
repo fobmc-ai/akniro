@@ -129,6 +129,14 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                         if not release_id:
                             return self._send(400, {"code": "PM-REQUEST-001", "message": "releaseId is required"})
                         return self._send(200, store.release_gate(release_id))
+                    if path.endswith("/release-preflight"):
+                        release_id = parse_qs(urlparse(self.path).query).get("releaseId", [None])[0]
+                        if not release_id:
+                            return self._send(400, {"code": "PM-REQUEST-001", "message": "releaseId is required"})
+                        release = store.get_entity(release_id)
+                        if release["project_id"] != project_id:
+                            raise KeyError("release not found in project")
+                        return self._send(200, store.release_preflight(release_id))
                     if path.endswith("/backlog"):
                         status = parse_qs(urlparse(self.path).query).get("status", [None])[0]
                         return self._send(200, {"items": store.list_backlog(project_id, status)})

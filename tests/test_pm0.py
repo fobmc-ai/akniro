@@ -351,6 +351,7 @@ class PM0Tests(unittest.TestCase):
             composed = store.compose_release(release_id="REL-001", artifact_ids=[artifact["id"]], rollback_revision="REL-PREV-001", actor_id="U-001")
             self.assertTrue(composed["gate"]["ready"])
             self.assertTrue(composed["sbom"].startswith("sha256:"))
+            self.assertTrue(store.release_preflight("REL-001")["ready"])
             coverage = store.capability_evidence("P-001", ["PLC-001", "HMI-001"])
             self.assertEqual(coverage, [{"capabilityId": "PLC-001", "validatedEvidence": [], "ready": False}, {"capabilityId": "HMI-001", "validatedEvidence": [], "ready": False}])
             self.assertEqual(store.transition(entity_id="REL-001", target="RELEASED", actor_id="U-001", expected_revision=store.get_entity("REL-001")["revision"])["status"], "RELEASED")

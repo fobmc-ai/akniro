@@ -587,6 +587,55 @@ class ProjectStore:
         missing = (["validated evidence"] if not passed else []) + (["human approval"] if not approval else []) + ([f"tested artifacts: {', '.join(untested_artifacts)}"] if untested_artifacts else []) + (["signature"] if not signature else []) + (["SBOM"] if not sbom else []) + (["rollback revision"] if not rollback_revision else []) + missing_bindings
         return {"releaseId": release_id, "ready": not missing, "validatedEvidence": [x["id"] for x in passed], "artifacts": [x["id"] for x in artifacts], "approval": approval, "signature": signature, "sbom": sbom, "rollbackRevision": release["payload"].get("rollbackRevision"), "missing": missing}
 
+    def release_preflight(self, release_id: str) -> dict[str, Any]:
+        """Check release composition consistency before a human release decision."""
+        release = self.get_entity(release_id)
+        if release["entity_type"] != "release":
+            raise ValueError("preflight target must be release")
+        payload = release["payload"]
+        errors: list[str] = []
+        artifact_ids = payload.get("artifactIds", [])
+        artifacts = []
+        for artifact_id in artifact_ids:
+            try:
+                artifact = self.get_artifact_manifest(artifact_id)
+            except KeyError:
+                errors.append("artifact_missing:" + str(artifact_id))
+                continue
+            artifacts.append(artifact)
+            if artifact["project_id"] != release["project_id"]:
+                errors.append("artifact_project_mismatch:" + artifact_id)
+            if artifact["status"] not in {"TESTED", "APPROVED", "ARCHIVED"}:
+                errors.append("artifact_not_tested:" + artifact_id)
+        if not artifact_ids:
+            errors.append("artifacts_required")
+        if payload.get("machineCommitId"):
+            try:
+                commit = self.get_entity(payload["machineCommitId"])
+                if commit["project_id"] != release["project_id"] or commit["entity_type"] != "machine_commit":
+                    errors.append("machine_commit_project_or_type_invalid")
+                elif set(commit["payload"].get("artifactIds", [])) != set(artifact_ids):
+                    errors.append("machine_commit_artifacts_mismatch")
+            except KeyError:
+                errors.append("machine_commit_missing:" + str(payload["machineCommitId"]))
+        if payload.get("parameterSnapshotId"):
+            try:
+                snapshot = self.get_entity(payload["parameterSnapshotId"])
+                if snapshot["project_id"] != release["project_id"] or snapshot["entity_type"] != "parameter_snapshot" or snapshot["status"] not in {"APPROVED", "APPLIED"}:
+                    errors.append("parameter_snapshot_not_approved")
+            except KeyError:
+                errors.append("parameter_snapshot_missing:" + str(payload["parameterSnapshotId"]))
+        if payload.get("sbomFormat") and payload["sbomFormat"] != "zhinen-sbom-v1":
+            errors.append("sbom_format_invalid")
+        try:
+            gate = self.release_gate(release_id)
+        except KeyError:
+            gate = {"releaseId": release_id, "ready": False, "missing": ["artifact reference unresolved"], "validatedEvidence": [], "artifacts": []}
+        checks = {"artifacts": bool(artifacts) and not any(item.startswith("artifact_") for item in errors), "artifactHashes": all(str(item["content_hash"]).startswith("sha256:") for item in artifacts), "gate": gate["ready"], "machineCommit": not any(item.startswith("machine_commit_") for item in errors), "parameterSnapshot": not any(item.startswith("parameter_snapshot_") for item in errors)}
+        if not checks["artifactHashes"]:
+            errors.append("artifact_hash_invalid")
+        return {"releaseId": release_id, "ready": not errors and gate["ready"], "checks": checks, "errors": sorted(set(errors)), "gate": gate, "artifactIds": artifact_ids, "artifactRevisions": [{"id": item["id"], "revision": item["artifact_revision"], "hash": item["content_hash"]} for item in artifacts]}
+
     def compose_release(self, *, release_id: str, artifact_ids: list[str], rollback_revision: str, actor_id: str) -> dict[str, Any]:
         release = self.get_entity(release_id)
         if release["entity_type"] != "release":
