@@ -314,6 +314,18 @@ class PM0Tests(unittest.TestCase):
             self.assertEqual(store.transition(entity_id=article["id"], target="APPROVED", actor_id="U-001", expected_revision=updated["revision"])["status"], "APPROVED")
             store.close()
 
+    def test_maintenance_completion_requires_field_record(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = ProjectStore(Path(directory) / "pm.db")
+            store.create_project(project_id="P-001", tenant_id="T-001", name="Demo", kind="platform", owner_id="U-001")
+            record = store.create_entity(entity_id="MAINT-001", entity_type="maintenance", project_id="P-001", tenant_id="T-001", title="Firmware update", owner_id="U-001", payload={})
+            store.transition(entity_id=record["id"], target="IN_PROGRESS", actor_id="U-001", expected_revision=1)
+            with self.assertRaisesRegex(ValueError, "machine"):
+                store.transition(entity_id=record["id"], target="COMPLETED", actor_id="U-001", expected_revision=2)
+            updated = store.update_entity_payload(entity_id=record["id"], actor_id="U-001", expected_revision=2, payload={"machineId": "MACHINE-001", "executorId": "U-001", "releaseId": "REL-001", "result": "PASS", "exceptions": [], "rollback": {"available": True, "revision": "REL-PREV-001"}})
+            self.assertEqual(store.transition(entity_id=record["id"], target="COMPLETED", actor_id="U-001", expected_revision=updated["revision"])["status"], "COMPLETED")
+            store.close()
+
     def test_failed_test_case_execution_retains_draft_evidence(self):
         with tempfile.TemporaryDirectory() as directory:
             store = ProjectStore(Path(directory) / "pm.db")

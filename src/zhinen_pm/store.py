@@ -626,6 +626,11 @@ class ProjectStore:
             required = ("source", "applicableVersion", "validationStatus", "testIds", "expiryCondition")
             if any(not payload.get(field) for field in required) or payload.get("validationStatus") != "VALIDATED":
                 raise ValueError("PM-KNOWLEDGE-001: knowledge approval needs source, version, validated status, tests and expiry condition")
+        if row["entity_type"] == "maintenance" and target in {"COMPLETED", "CLOSED"}:
+            payload = json.loads(row["payload"])
+            required = ("machineId", "executorId", "releaseId", "result", "exceptions", "rollback")
+            if any(field not in payload or (payload[field] is None) for field in required):
+                raise ValueError("PM-MAINT-001: maintenance completion needs machine, executor, release, result, exceptions and rollback")
         assert_transition(row["entity_type"], row["status"], target)
         timestamp = now()
         self.db.execute("UPDATE entities SET status = ?, revision = revision + 1, updated_at = ? WHERE id = ? AND revision = ?", (target, timestamp, entity_id, expected_revision))

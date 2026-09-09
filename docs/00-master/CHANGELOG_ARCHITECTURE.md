@@ -24,3 +24,4 @@
 - 增加 Release 组合接口，自动生成确定性 SBOM 摘要与组件清单。
 - Issue 关闭增加同项目 VALIDATED Evidence 校验，自动失败记录预填证据关联。
 - Knowledge Article 增加来源、版本、验证、测试和失效条件门禁，并接入 Web 录入表单。
+- Maintenance Record 增加现场机器、执行人、Release、结果、异常和回滚门禁，并接入 Web 录入表单。

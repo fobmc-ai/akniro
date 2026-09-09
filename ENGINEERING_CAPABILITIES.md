@@ -22,6 +22,7 @@
 - Release Gate 还必须具备 SBOM 和 `rollbackRevision`，与人工审批、验证证据及已测试资产共同满足发布条件。
 - Issue 进入 CLOSED 前必须绑定同项目且状态为 `VALIDATED` 的 Evidence；失败验证自动预填证据链接，防止无证据关单。
 - Knowledge Article 进入 `APPROVED` 前必须具备来源、适用版本、`VALIDATED` 验证状态、关联测试和失效条件。
+- Maintenance Record 进入 `COMPLETED/CLOSED` 前必须记录现场机器、执行人、Release、结果、异常和回滚信息。
 - `POST /api/projects/{projectId}/releases/compose` 根据已测试 Artifact 生成确定性 SBOM 摘要、组件清单和回滚版本，并返回最新 Release Gate。
 - 验证失败会自动创建 OPEN Issue，关联 `sourceTestRunId`、`evidenceId`、能力 ID 和错误列表，进入问题/CAPA 状态机；
 - `POST /api/entities/{entityId}/payload`：以 Revision 乐观并发保护更新 CAPA 根因、修复版本、回归测试和关闭标准；Issue 页面提供对应录入入口；
