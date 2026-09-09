@@ -292,6 +292,11 @@ class PM0Tests(unittest.TestCase):
                 self.assertEqual(status, 201)
                 status, updated = request("/api/entities/REQ-001/transition", {"target": "READY", "actorId": "U-001", "tenantId": "T-001", "expectedRevision": entity["revision"]})
                 self.assertEqual((status, updated["status"]), (200, "READY"))
+                status, build = request("/api/projects/P-001/builds/plc", {"actorId": "U-001", "tenantId": "T-001", "artifactId": "ART-PLC-001", "source": "PROGRAM Main\nEND_PROGRAM", "toolchainVersion": "PLC-SIM-1"})
+                self.assertEqual((status, build["build"]["result"]), (201, "PASSED"))
+                self.assertEqual((build["artifact"]["status"], build["testRun"]["status"], build["evidence"]["status"]), ("TESTED", "PASSED", "VALIDATED"))
+                status, simulation = request("/api/projects/P-001/simulate", {"actorId": "U-001", "tenantId": "T-001", "capabilityId": "HMI-001", "testRunId": "RUN-HMI-001", "evidenceId": "EV-HMI-001", "payload": {"tag_binding": True, "alarm_binding": True, "screen_smoke": True, "duplicate_tag": True}})
+                self.assertEqual((status, simulation["validation"]["result"], simulation["testRun"]["status"], simulation["evidence"]["status"]), (201, "FAILED", "FAILED", "DRAFT"))
                 status, tree = request("/api/projects/P-001/tree")
                 self.assertEqual((status, len(tree["tree"])), (200, 10))
                 items = [{"id": "PM-001", "title": "Control Center", "area": "PM", "status": "IMPLEMENTING", "owner": "U-001", "targetRelease": "V0.1", "designGoal": "可追踪", "acceptanceCriteria": ["可查询"], "testPlan": "API smoke", "rollbackPlan": "保留旧版本", "placeholder": False}]

@@ -187,19 +187,35 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                     self._authorize(body, "MODIFY", project_id)
                     result = simulation_evidence(body["capabilityId"], body.get("payload", {}))
                     run = store.create_entity(entity_id=body["testRunId"], entity_type="test_run", project_id=project_id, tenant_id=body["tenantId"], title=f"{body['capabilityId']} simulation", owner_id=body["actorId"], payload=result)
+                    evidence = store.create_entity(entity_id=body["evidenceId"], entity_type="evidence", project_id=project_id, tenant_id=body["tenantId"], title=f"{body['capabilityId']} simulation evidence", owner_id=body["actorId"], payload=result)
+                    store.transition(entity_id=run["id"], target="RUNNING", actor_id=body["actorId"], expected_revision=1)
                     if result["result"] in {"PASSED", "CONTRACT_PASSED"}:
-                        evidence = store.create_entity(entity_id=body["evidenceId"], entity_type="evidence", project_id=project_id, tenant_id=body["tenantId"], title=f"{body['capabilityId']} simulation evidence", owner_id=body["actorId"], payload=result)
-                        store.transition(entity_id=run["id"], target="RUNNING", actor_id=body["actorId"], expected_revision=1)
                         store.transition(entity_id=run["id"], target="PASSED", actor_id=body["actorId"], expected_revision=2)
                         store.transition(entity_id=evidence["id"], target="VALIDATED", actor_id=body["actorId"], expected_revision=1)
                         store.link_entities(project_id=project_id, from_id=body["releaseId"], to_id=evidence["id"], link_type="requires") if body.get("releaseId") else None
-                    return self._send(201, {"testRun": store.get_entity(run["id"]), "evidence": store.get_entity(body["evidenceId"]) if result["result"] in {"PASSED", "CONTRACT_PASSED"} else None, "validation": result})
+                    else:
+                        store.transition(entity_id=run["id"], target="FAILED", actor_id=body["actorId"], expected_revision=2)
+                    return self._send(201, {"testRun": store.get_entity(run["id"]), "evidence": store.get_entity(evidence["id"]), "validation": result})
                 if path.startswith("/api/projects/") and path.endswith("/builds/plc"):
                     project_id = path.split("/")[3]
                     self._authorize(body, "MODIFY", project_id)
                     build = build_plc_project(body.get("source", ""), body.get("toolchainVersion", "SIMULATED-PLC-0.1"))
                     artifact = store.create_artifact_manifest(artifact_id=body["artifactId"], project_id=project_id, artifact_type="PLC", source_uri=body.get("sourceUri", "inline://plc"), content_hash=build["buildHash"], artifact_revision=body.get("artifactRevision", "r1"), toolchain_version=build["toolchainVersion"], target_environment="SIMULATION", sensitivity=body.get("sensitivity", "INTERNAL"), owner_id=body["actorId"])
-                    return self._send(201, {"build": build, "artifact": artifact})
+                    run_id = body.get("testRunId", f"{body['artifactId']}-BUILD-RUN")
+                    evidence_id = body.get("evidenceId", f"{body['artifactId']}-BUILD-EVIDENCE")
+                    run = store.create_entity(entity_id=run_id, entity_type="test_run", project_id=project_id, tenant_id=body["tenantId"], title="PLC simulated build", owner_id=body["actorId"], payload=build)
+                    evidence = store.create_entity(entity_id=evidence_id, entity_type="evidence", project_id=project_id, tenant_id=body["tenantId"], title="PLC build evidence", owner_id=body["actorId"], payload=build)
+                    store.transition(entity_id=run_id, target="RUNNING", actor_id=body["actorId"], expected_revision=1)
+                    if build["result"] == "PASSED":
+                        store.transition(entity_id=run_id, target="PASSED", actor_id=body["actorId"], expected_revision=2)
+                        store.transition(entity_id=evidence_id, target="VALIDATED", actor_id=body["actorId"], expected_revision=1)
+                        store.transition(entity_id=artifact["id"], target="BUILT", actor_id=body["actorId"], expected_revision=1)
+                        store.transition(entity_id=artifact["id"], target="TESTED", actor_id=body["actorId"], expected_revision=2)
+                        if body.get("releaseId"):
+                            store.link_entities(project_id=project_id, from_id=body["releaseId"], to_id=evidence_id, link_type="requires")
+                    else:
+                        store.transition(entity_id=run_id, target="FAILED", actor_id=body["actorId"], expected_revision=2)
+                    return self._send(201, {"build": build, "artifact": store.get_artifact_manifest(body["artifactId"]), "testRun": store.get_entity(run_id), "evidence": store.get_entity(evidence_id)})
                 if path.startswith("/api/projects/") and path.endswith("/test-runs/execute"):
                     project_id = path.split("/")[3]
                     self._authorize(body, "MODIFY", project_id)
