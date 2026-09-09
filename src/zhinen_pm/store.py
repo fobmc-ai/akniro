@@ -743,6 +743,36 @@ class ProjectStore:
                         unresolved.append({"from": item["id"], "field": field, "reference": target_id})
         return {"projectId": project_id, "nodes": nodes, "edges": edges, "unresolvedReferences": unresolved, "freshness": "CURRENT", "generatedAt": now()}
 
+    def integrity_audit(self, project_id: str) -> dict[str, Any]:
+        """Run a read-only consistency audit across the project control-plane graph."""
+        entities = self.list_entities(project_id)
+        entity_ids = {item["id"] for item in entities}
+        errors: list[dict[str, Any]] = []
+        for item in entities:
+            if not item["id"] or item["revision"] < 1:
+                errors.append({"code": "entity_revision_invalid", "id": item["id"]})
+            if not item["owner_id"]:
+                errors.append({"code": "entity_owner_missing", "id": item["id"]})
+        links = self.list_links(project_id)
+        for link in links:
+            if link["from_id"] not in entity_ids or link["to_id"] not in entity_ids:
+                errors.append({"code": "link_target_missing", "from": link["from_id"], "to": link["to_id"]})
+        graph = self.traceability_graph(project_id)
+        for reference in graph["unresolvedReferences"]:
+            errors.append({"code": "reference_unresolved", **reference})
+        artifacts = self.list_artifact_manifests(project_id)
+        for artifact in artifacts:
+            if not str(artifact["content_hash"]).startswith("sha256:"):
+                errors.append({"code": "artifact_hash_invalid", "id": artifact["id"]})
+        checks = {
+            "entityRevisions": not any(item["code"] == "entity_revision_invalid" for item in errors),
+            "entityOwners": not any(item["code"] == "entity_owner_missing" for item in errors),
+            "linkTargets": not any(item["code"] == "link_target_missing" for item in errors),
+            "references": not any(item["code"] == "reference_unresolved" for item in errors),
+            "artifactHashes": not any(item["code"] == "artifact_hash_invalid" for item in errors),
+        }
+        return {"projectId": project_id, "ready": all(checks.values()), "checks": checks, "errors": errors, "counts": {"entities": len(entities), "links": len(links), "artifacts": len(artifacts)}, "deterministic": True, "generatedAt": now()}
+
     def search(self, project_id: str, query: str) -> list[dict[str, Any]]:
         needle = f"%{query}%"
         rows = self.db.execute("SELECT id, entity_type, title, status, owner_id, updated_at FROM entities WHERE project_id = ? AND (id LIKE ? OR title LIKE ?) ORDER BY updated_at DESC", (project_id, needle, needle)).fetchall()

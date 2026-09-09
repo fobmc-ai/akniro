@@ -13,3 +13,4 @@
 
 - Exposed read-only Release Preflight in the Web Gate view for artifact, hash, gate, machine-commit, parameter-snapshot, SBOM, approval, and rollback checks.
 - Aligned the UI with the authoritative `artifactRevisions` response contract and added an HTTP regression test for revision/hash display data.
+- Added a project-scoped read-only integrity audit for entity revisions/owners, link targets, payload references, and artifact hashes.

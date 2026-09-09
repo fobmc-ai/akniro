@@ -102,6 +102,8 @@ def create_server(database: str = "control-center.db", port: int = 8765) -> Thre
                         return self._send(200, {"links": store.list_links(project_id, entity_id)})
                     if path.endswith("/traceability"):
                         return self._send(200, store.traceability_graph(project_id))
+                    if path.endswith("/integrity"):
+                        return self._send(200, store.integrity_audit(project_id))
                     if path.endswith("/search"):
                         query = parse_qs(urlparse(self.path).query).get("q", [""])[0]
                         return self._send(200, {"results": store.search(project_id, query)})

@@ -44,6 +44,7 @@
 - Test Case 执行前强制校验 steps、inputs、expected 和 thresholds 四项验收定义。
 - `POST /api/projects/{projectId}/releases/compose` 根据已测试 Artifact 生成确定性 SBOM 摘要、组件清单和回滚版本，并返回最新 Release Gate。
 - `GET /api/projects/{projectId}/release-preflight?releaseId=...`：在人工 Release 决策前核对资产项目/状态/Hash、SBOM、证据、版本元数据，以及可选 Machine Commit/参数快照绑定的一致性；失败只返回错误清单，不绕过人工门禁。
+- `GET /api/projects/{projectId}/integrity`：只读审计项目对象 revision/owner、关系目标、Payload 引用和 Artifact Hash，返回稳定的检查项、错误清单和发布前可复用的 `ready` 结论。
 - 验证失败会自动创建 OPEN Issue，关联 `sourceTestRunId`、`evidenceId`、能力 ID 和错误列表，进入问题/CAPA 状态机；
 - `POST /api/entities/{entityId}/payload`：以 Revision 乐观并发保护更新 CAPA 根因、修复版本、回归测试和关闭标准；Issue 页面提供对应录入入口；
 - `POST /api/artifacts/{artifactId}/transition`：资产 TESTED→APPROVED 需要 Owner 人工批准，资产清单提供操作入口；

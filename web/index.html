@@ -170,6 +170,23 @@
   </script>
   <script>
     (() => {
+      const nav = document.getElementById('nav');
+      nav.insertAdjacentHTML('beforeend', '<button data-view="integrity">数据完整性</button>');
+      const priorShowView = window.showView;
+      window.showView = async function(view, project) { if (view === 'integrity') return showIntegrity(project); return priorShowView(view, project); };
+      nav.querySelector('button[data-view="integrity"]').onclick = () => window.showView('integrity', window.currentProject);
+      async function showIntegrity(project) {
+        const response = await fetch('/api/projects/' + project.id + '/integrity', {headers:{'X-Actor-Id':'U-001','X-Tenant-Id':project.tenant_id}});
+        const result = await response.json();
+        const checks = result.checks || {};
+        const rows = Object.entries(checks).map(([key, value]) => `<tr><td>${key}</td><td class="${value ? 'status' : 'warning'}">${value ? '通过' : '未通过'}</td></tr>`).join('');
+        const errors = (result.errors || []).map(item => `<li>${item.code}: ${item.id || item.from || ''}</li>`).join('');
+        el.innerHTML = `<h2>数据完整性审计</h2><p class="muted">只读检查项目内对象、关系、引用和制品元数据；发现问题后先修复数据契约，再进入发布或部署流程。</p><div class="cards"><div class="card"><label>审计结论</label><strong class="${result.ready ? 'status' : 'warning'}">${result.ready ? 'READY' : 'BLOCKED'}</strong></div><div class="card"><label>对象 / 关系</label><strong>${result.counts?.entities || 0} / ${result.counts?.links || 0}</strong></div><div class="card"><label>制品</label><strong>${result.counts?.artifacts || 0}</strong></div></div><div class="panel"><h3>检查项</h3><table><thead><tr><th>检查</th><th>结果</th></tr></thead><tbody>${rows}</tbody></table></div><div class="panel"><h3>问题明细</h3>${errors ? '<ul>' + errors + '</ul>' : '<p class="status">未发现完整性问题</p>'}</div>`;
+      }
+    })();
+  </script>
+  <script>
+    (() => {
       const priorShowView = window.showView;
       const esc = value => String(value ?? '').replace(/[&<>"']/g, character => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character]));
       window.showReleasePreflight = async function(project, releaseId) {

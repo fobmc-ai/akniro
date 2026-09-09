@@ -357,6 +357,19 @@ class PM0Tests(unittest.TestCase):
             self.assertEqual(store.transition(entity_id="REL-001", target="RELEASED", actor_id="U-001", expected_revision=store.get_entity("REL-001")["revision"])["status"], "RELEASED")
             store.close()
 
+    def test_integrity_audit_reports_clean_project(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = ProjectStore(Path(directory) / "pm.db")
+            store.create_project(project_id="P-001", tenant_id="T-001", name="Demo", kind="platform", owner_id="U-001")
+            store.create_entity(entity_id="REQ-001", entity_type="requirement", project_id="P-001", tenant_id="T-001", title="Requirement", owner_id="U-001", payload={"description": "x", "priority": "P1", "acceptanceCriteria": ["x"], "nonGoals": ["y"], "source": "test", "traceLinks": []})
+            artifact = store.create_artifact_manifest(artifact_id="ART-001", project_id="P-001", artifact_type="PLC", source_uri="inline://plc", content_hash="sha256:abc", artifact_revision="r1", toolchain_version="SIM", target_environment="SIMULATION", sensitivity="INTERNAL", owner_id="U-001")
+            self.assertEqual(store.integrity_audit("P-001")["ready"], True)
+            store.db.execute("UPDATE artifact_manifests SET content_hash = ? WHERE id = ?", ("TBD", artifact["id"]))
+            store.db.commit()
+            audit = store.integrity_audit("P-001")
+            self.assertEqual((audit["ready"], audit["checks"]["artifactHashes"], audit["errors"][0]["code"]), (False, False, "artifact_hash_invalid"))
+            store.close()
+
     def test_quality_closure_requires_evidence_and_regression_data(self):
         with tempfile.TemporaryDirectory() as directory:
             store = ProjectStore(Path(directory) / "pm.db")
@@ -693,6 +706,8 @@ class PM0Tests(unittest.TestCase):
                         return response.status, json.loads(response.read())
                 status, _ = request("/api/projects", {"projectId": "P-001", "tenantId": "T-001", "name": "Demo", "ownerId": "U-001"})
                 self.assertEqual(status, 201)
+                status, integrity = request("/api/projects/P-001/integrity")
+                self.assertEqual((status, integrity["ready"], integrity["checks"]["entityRevisions"]), (200, True, True))
                 status, entity = request("/api/projects/P-001/entities", {"id": "REQ-001", "type": "requirement", "tenantId": "T-001", "title": "MVP", "ownerId": "U-001", "actorId": "U-001", "payload": {"description": "MVP contract", "priority": "P0", "acceptanceCriteria": ["pass"], "nonGoals": ["field control"], "source": "product", "traceLinks": ["MASTER_PLAN.md"]}})
                 self.assertEqual(status, 201)
                 status, updated = request("/api/entities/REQ-001/transition", {"target": "READY", "actorId": "U-001", "tenantId": "T-001", "expectedRevision": entity["revision"]})
